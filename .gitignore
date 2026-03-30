@@ -1,0 +1,4 @@
+# Keep xlsx originals but ignore large CSV cache if needed
+# csv_data/ is tracked for fast loading
+__pycache__/
+*.pyc
