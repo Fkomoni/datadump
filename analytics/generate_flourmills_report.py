@@ -491,6 +491,92 @@ def generate_report():
             <td class="num">{fmt_full(mat_avg)}</td>
         </tr>"""
 
+    # ── Medication by therapeutic class ──
+    med_all = fm[fm["Department"].str.contains("Medication|Chronic Medication", case=False, na=False)].copy()
+
+    def classify_drug(desc):
+        if pd.isna(desc):
+            return "Other Medications"
+        d = str(desc).upper()
+        if any(x in d for x in ["ARTEMETH", "COARTEM", "LONART", "ARTESUNATE", "MALARI", "EMAL", "LUMARTEM", "PLASMOTRIM"]):
+            return "Antimalarials"
+        if any(x in d for x in ["CEFTRIAXONE", "AUGMENTIN", "AMOXICILLIN", "AZITHROMYCIN", "CIPROFLOXACIN",
+                                  "METRONIDAZOLE", "FLAGYL", "CEFUROXIME", "ROCEPHIN", "ERYTHROMYCIN",
+                                  "DOXYCYCLINE", "GENTAMICIN", "CLOXACILLIN", "AMPICILLIN", "LEVOFLOXACIN",
+                                  "ZINNAT", "CEFIXIME", "AMPICLOX", "SEPTRIN"]):
+            return "Antibiotics"
+        if any(x in d for x in ["PARACETAMOL", "DICLOFENAC", "IBUPROFEN", "TRAMADOL", "PIROXICAM",
+                                  "KETOPROFEN", "FELDENE", "CELEBREX", "VOLTAREN"]):
+            return "Analgesics / Pain Relief"
+        if any(x in d for x in ["OMEPRAZOLE", "GAVISCON", "BUSCOPAN", "RANITIDINE", "LOPERAMIDE",
+                                  "LANSOPRAZOLE", "PANTOPRAZOLE", "GESTID", "ESOMEPRAZOLE", "RABEPRAZOLE"]):
+            return "Gastrointestinal"
+        if any(x in d for x in ["LORATIDINE", "LORATADINE", "CETIRIZINE", "PIRITON", "CHLORPHENIRAMINE",
+                                  "FEXOFENADINE"]):
+            return "Antihistamines / Allergy"
+        if any(x in d for x in ["COUGH", "MENTHODEX", "ASCOREX", "RHINATHIOL", "BENYLIN",
+                                  "SALBUTAMOL", "VENTOLIN", "INHALER", "AMINOPHYLLINE", "BROMHEXINE"]):
+            return "Cough, Cold & Respiratory"
+        if any(x in d for x in ["VITAMIN", "FOLIC ACID", "FERROUS", "IRON", "CALCIMAX", "CALCIUM",
+                                  "ZINC", "MULTIVIT", "PREGNACARE", "RANFERON", "B COMPLEX"]):
+            return "Vitamins & Supplements"
+        if any(x in d for x in ["NORMAL SALINE", "DEXTROSE", "RINGER", "INFUSION", "DRIP", "IV FLUID",
+                                  "DARROWS", "HARTMANN"]):
+            return "IV Fluids & Infusions"
+        if any(x in d for x in ["AMLODIPINE", "LISINOPRIL", "ATENOLOL", "LOSARTAN", "NIFEDIPINE",
+                                  "RAMIPRIL", "VALSARTAN", "TELMISARTAN", "ENALAPRIL", "ASPIRIN",
+                                  "CLOPIDOGREL", "ATORVASTATIN", "SIMVASTATIN"]):
+            return "Cardiovascular"
+        if any(x in d for x in ["METFORMIN", "GLIMEPIRIDE", "INSULIN", "GLUCOPHAGE", "GLICLAZIDE", "DAONIL"]):
+            return "Antidiabetics"
+        return "Other Medications"
+
+    med_all["Drug_Class"] = med_all["Description"].apply(classify_drug)
+
+    drug_class_summary = med_all.groupby("Drug_Class").agg(
+        Total_Paid=("Amount_Paid", "sum"),
+        Unique_Claims=("Claim_Number", "nunique"),
+        Unique_Members=("Member_ID", "nunique"),
+    ).sort_values("Total_Paid", ascending=False)
+    total_med_spend = drug_class_summary["Total_Paid"].sum()
+    drug_class_summary["Pct"] = (drug_class_summary["Total_Paid"] / total_med_spend * 100).round(1)
+    drug_class_summary["Avg_Per_Claim"] = (drug_class_summary["Total_Paid"] / drug_class_summary["Unique_Claims"]).round(2)
+
+    drug_class_rows = ""
+    for i, (cls, row) in enumerate(drug_class_summary.iterrows(), 1):
+        drug_class_rows += f"""<tr>
+            <td>{i}</td>
+            <td><strong>{cls}</strong></td>
+            <td class="num">{fmt_full(row['Total_Paid'])}</td>
+            <td class="num">{pct(row['Pct'])}</td>
+            <td class="num">{row['Unique_Claims']:,}</td>
+            <td class="num">{row['Unique_Members']:,}</td>
+            <td class="num">{fmt_full(row['Avg_Per_Claim'])}</td>
+        </tr>"""
+
+    drug_by_plan_rows = ""
+    for plan in valid_plan_names:
+        p_med = med_all[med_all["Scheme"] == plan]
+        p_total = p_med["Amount_Paid"].sum()
+        p_class = p_med.groupby("Drug_Class").agg(
+            Total_Paid=("Amount_Paid", "sum"),
+            Unique_Claims=("Claim_Number", "nunique"),
+        ).sort_values("Total_Paid", ascending=False)
+        p_class["Pct"] = (p_class["Total_Paid"] / p_total * 100).round(1) if p_total > 0 else 0
+
+        drug_by_plan_rows += f"""<tr style="background:var(--navy);color:white;">
+            <td colspan="5" style="font-weight:700;padding:12px 10px;">{plan} — Total: {fmt_full(p_total)}</td>
+        </tr>"""
+        for cls, row in p_class.iterrows():
+            cls_style = "danger" if row["Pct"] > 40 else ("warning" if row["Pct"] > 20 else "")
+            drug_by_plan_rows += f"""<tr>
+                <td style="padding-left:20px;">{cls}</td>
+                <td class="num">{fmt_full(row['Total_Paid'])}</td>
+                <td class="num {cls_style}">{pct(row['Pct'])}</td>
+                <td class="num">{row['Unique_Claims']:,}</td>
+                <td class="num">{fmt_full(row['Total_Paid'] / row['Unique_Claims'] if row['Unique_Claims'] > 0 else 0)}</td>
+            </tr>"""
+
     # Top cost providers
     top_cost_prov = fm.groupby("Provider").agg(
         Total_Paid=("Amount_Paid", "sum"),
@@ -1045,6 +1131,42 @@ def generate_report():
         </tr>
       </thead>
       <tbody>{med_rows}</tbody>
+    </table>
+  </div>
+
+  <!-- Medication by Therapeutic Class -->
+  <div class="section">
+    <h2>Medication Spend by <span class="accent">Therapeutic Class</span></h2>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Drug Class</th>
+          <th class="num">Total Paid</th>
+          <th class="num">% of Med Spend</th>
+          <th class="num">Unique Claims</th>
+          <th class="num">Members</th>
+          <th class="num">Avg/Claim</th>
+        </tr>
+      </thead>
+      <tbody>{drug_class_rows}</tbody>
+    </table>
+  </div>
+
+  <!-- Medication by Plan breakdown -->
+  <div class="section">
+    <h2>Medication Class by <span class="accent">Plan</span></h2>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Drug Class</th>
+          <th class="num">Total Paid</th>
+          <th class="num">% of Plan Med</th>
+          <th class="num">Unique Claims</th>
+          <th class="num">Avg/Claim</th>
+        </tr>
+      </thead>
+      <tbody>{drug_by_plan_rows}</tbody>
     </table>
   </div>
 
