@@ -187,19 +187,21 @@ def generate_report():
         Members=("Member_ID", "count"),
     )
 
-    # Map claims Scheme to Plan (they match directly)
-    plan_paid = fm[fm["Claim_Status"] == "Paid Claims"].groupby("Scheme").agg(
+    # Map claims Scheme to Plan — only the 3 core plans
+    valid_plans = ["PLUS - Flour Mills", "PRO - Flour Mills", "MAX- Flour Mills"]
+    plan_paid = fm[(fm["Claim_Status"] == "Paid Claims") & (fm["Scheme"].isin(valid_plans))].groupby("Scheme").agg(
         Paid_Claims=("Amount_Paid", "sum"),
         Unique_Claims=("Claim_Number", "nunique"),
         Unique_Members=("Member_ID", "nunique"),
     )
     plan_pipeline = fm[fm["Claim_Status"].isin(
         ["Awaiting Payment", "Claims for adjudication", "In Process"]
-    )].groupby("Scheme").agg(
+    ) & (fm["Scheme"].isin(valid_plans))].groupby("Scheme").agg(
         Pipeline_Claims=("Amount_Claimed", "sum"),
     )
 
     plan_lr = earned_by_plan.join(plan_paid, how="outer").join(plan_pipeline, how="outer").fillna(0)
+    plan_lr = plan_lr[plan_lr.index.isin(valid_plans)]
     plan_lr["Total_Incurred"] = plan_lr["Paid_Claims"] + plan_lr["Pipeline_Claims"]
     plan_lr["MLR"] = np.where(
         plan_lr["Earned_Premium"] > 0,
