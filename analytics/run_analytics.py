@@ -181,7 +181,7 @@ def main():
     org_ibnr = ibnr_analysis.ibnr_by_organization(claims)
     for org, df in org_ibnr.items():
         org_total = df["IBNR_Estimate"].sum()
-        print(f"   {org}: {org_total:,.0f} additional claims estimated as IBNR")
+        print(f"   {org}: N{org_total:,.2f} IBNR reserve")
 
     # ── MLR Analysis ──────────────────────────────────────────────────
     section("MLR ANALYSIS (Medical Loss Ratio)")
@@ -194,7 +194,9 @@ def main():
         print(f">> Claims Breakdown:")
         print(f"   Paid Claims:     {len(paid_claims):>8,} records   N{paid_claims['Amount_Paid'].sum():>18,.2f}")
         print(f"   Pipeline Claims: {len(pipeline_claims):>8,} records   N{pipeline_claims['Amount_Claimed'].sum():>18,.2f}")
-        print(f"   IBNR (Amount):   {'':>8s}            N{total_amount_ibnr:>18,.2f}")
+        # Use sum of per-org IBNR (more accurate than overall combined estimate)
+        total_org_ibnr = sum(df["IBNR_Estimate"].sum() for df in org_ibnr.values())
+        print(f"   IBNR (Amount):   {'':>8s}            N{total_org_ibnr:>18,.2f}")
 
         mlr_table = premium_analysis.compute_mlr(enrollment, claims, ibnr_by_org=org_ibnr)
         print("\n>> MLR by Organization")
@@ -273,7 +275,8 @@ def main():
         pipeline_total = claims[claims["Claim_Status"].isin(
             ["Awaiting Payment", "Claims for adjudication", "In Process"]
         )]["Amount_Claimed"].sum()
-        overall_incurred = paid_total + pipeline_total + total_amount_ibnr
+        total_org_ibnr_amt = sum(df["IBNR_Estimate"].sum() for df in org_ibnr.values())
+        overall_incurred = paid_total + pipeline_total + total_org_ibnr_amt
         overall_mlr = (overall_incurred / total_earned * 100) if total_earned > 0 else 0
         print(f"4. Total enrolled members: {total_enrolled:,} ({active:,} active)")
         print(f"5. Written premium: N{total_written:,.2f}")

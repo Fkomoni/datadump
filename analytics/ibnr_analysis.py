@@ -53,14 +53,31 @@ def _compute_lag_months(treatment_date, received_date):
     ).clip(lower=0)
 
 
+def _max_observable_lag(incurred_month, valuation_date=None):
+    """
+    Calculate the maximum development lag a given incurred month could have
+    been observed at, based on elapsed calendar time.
+    """
+    if valuation_date is None:
+        valuation_date = pd.Timestamp.now()
+    val_period = valuation_date.to_period("M")
+    return max(0, (val_period.year - incurred_month.year) * 12
+               + (val_period.month - incurred_month.month))
+
+
 def build_development_triangle(claims, max_lag=12):
     """
     Build a claims development triangle.
     Rows = incurred month (Treatment_Date month)
     Columns = development lag in months (Treatment -> Received)
-    Values = unique claim count at each lag
+    Values = unique claim count at each lag.
+
+    Includes ALL months (including current incomplete month) since IBNR
+    specifically needs to estimate unreported claims for recent/current periods.
+    Only populates cells that are actually observable (lag <= months elapsed).
+    Unobservable cells are NaN (not zero).
     """
-    df = _get_complete_months(claims)
+    df = claims.dropna(subset=["Treatment_Date"]).copy()
     df = df.dropna(subset=["Treatment_Date", "Received_Date"])
     df["Incurred_Month"] = df["Treatment_Date"].dt.to_period("M")
     df["Lag_Months"] = _compute_lag_months(df["Treatment_Date"], df["Received_Date"])
@@ -70,10 +87,29 @@ def build_development_triangle(claims, max_lag=12):
     triangle = (
         df.groupby(["Incurred_Month", "Lag_Months"])["Claim_Number"]
         .nunique()
-        .unstack(fill_value=0)
+        .unstack(fill_value=np.nan)
     )
 
-    # Cumulative triangle
+    # Ensure all lag columns 0..max_lag exist
+    for lag in range(max_lag + 1):
+        if lag not in triangle.columns:
+            triangle[lag] = np.nan
+    triangle = triangle[sorted(triangle.columns)]
+
+    # Mask unobservable cells: for each incurred month, lags beyond
+    # what calendar time allows must be NaN
+    valuation_date = pd.Timestamp.now()
+    for idx in triangle.index:
+        max_lag_obs = _max_observable_lag(idx, valuation_date)
+        # Lags with no actual claims data but within observable range = 0
+        for lag in triangle.columns:
+            if lag <= max_lag_obs:
+                if pd.isna(triangle.at[idx, lag]):
+                    triangle.at[idx, lag] = 0
+            else:
+                triangle.at[idx, lag] = np.nan
+
+    # Cumulative triangle (NaN propagates correctly)
     cum_triangle = triangle.cumsum(axis=1)
     return triangle, cum_triangle
 
@@ -82,8 +118,9 @@ def build_amount_triangle(claims, max_lag=12):
     """
     Build a paid amount development triangle.
     Values = total Amount_Paid at each lag.
+    Includes ALL months (including current incomplete month) for IBNR.
     """
-    df = _get_complete_months(claims)
+    df = claims.dropna(subset=["Treatment_Date"]).copy()
     df = df.dropna(subset=["Treatment_Date", "Received_Date", "Amount_Paid"])
     df["Incurred_Month"] = df["Treatment_Date"].dt.to_period("M")
     df["Lag_Months"] = _compute_lag_months(df["Treatment_Date"], df["Received_Date"])
@@ -92,8 +129,23 @@ def build_amount_triangle(claims, max_lag=12):
     triangle = (
         df.groupby(["Incurred_Month", "Lag_Months"])["Amount_Paid"]
         .sum()
-        .unstack(fill_value=0)
+        .unstack(fill_value=np.nan)
     )
+
+    for lag in range(max_lag + 1):
+        if lag not in triangle.columns:
+            triangle[lag] = np.nan
+    triangle = triangle[sorted(triangle.columns)]
+
+    valuation_date = pd.Timestamp.now()
+    for idx in triangle.index:
+        max_lag_obs = _max_observable_lag(idx, valuation_date)
+        for lag in triangle.columns:
+            if lag <= max_lag_obs:
+                if pd.isna(triangle.at[idx, lag]):
+                    triangle.at[idx, lag] = 0
+            else:
+                triangle.at[idx, lag] = np.nan
 
     cum_triangle = triangle.cumsum(axis=1)
     return triangle, cum_triangle
@@ -102,7 +154,8 @@ def build_amount_triangle(claims, max_lag=12):
 def chain_ladder_factors(cum_triangle):
     """
     Calculate age-to-age (link) development factors using the chain-ladder method.
-    Uses volume-weighted average factors.
+    Uses volume-weighted average factors. Only uses rows where BOTH lags
+    have real observed data (not NaN).
     """
     factors = {}
     cols = sorted(cum_triangle.columns)
@@ -111,13 +164,13 @@ def chain_ladder_factors(cum_triangle):
         curr_col = cols[i]
         next_col = cols[i + 1]
 
-        # Only use rows that have data in both columns
-        mask = (cum_triangle[curr_col] > 0) & (cum_triangle[next_col] > 0)
+        # Only rows with real (non-NaN) data in both columns
+        mask = (cum_triangle[curr_col].notna() & cum_triangle[next_col].notna()
+                & (cum_triangle[curr_col] > 0))
         if mask.sum() == 0:
             factors[curr_col] = 1.0
             continue
 
-        # Volume-weighted average
         numerator = cum_triangle.loc[mask, next_col].sum()
         denominator = cum_triangle.loc[mask, curr_col].sum()
         factors[curr_col] = numerator / denominator if denominator > 0 else 1.0
@@ -128,21 +181,22 @@ def chain_ladder_factors(cum_triangle):
 def estimate_ibnr(cum_triangle, factors):
     """
     Project ultimate claims/amounts using chain-ladder factors.
-    Returns DataFrame with current, ultimate, and IBNR columns.
+    Each month's current value is taken at its maximum observable lag.
+    Development factors are applied from that lag forward to project ultimate.
     """
     cols = sorted(cum_triangle.columns)
     results = []
 
     for idx, row in cum_triangle.iterrows():
-        # Find the latest development lag with data
+        # Find the latest observable lag (last non-NaN value)
         current_val = 0
         current_lag = 0
         for col in cols:
-            if row[col] > 0:
+            if pd.notna(row[col]):
                 current_val = row[col]
                 current_lag = col
 
-        # Project to ultimate
+        # Project to ultimate: multiply by factors from current_lag onward
         ultimate = current_val
         for col in cols:
             if col >= current_lag and col in factors:
@@ -210,15 +264,19 @@ def forecast_next_months(monthly_trend, n_months=3):
 
 
 def ibnr_by_organization(claims):
-    """Run IBNR estimation separately for each organization."""
+    """
+    Run IBNR estimation separately for each organization.
+    Returns dict of {org: amount_ibnr_df} using the AMOUNT development triangle,
+    so IBNR values are in Naira (not claim counts).
+    """
     results = {}
     for org in claims["Organization"].unique():
         org_claims = claims[claims["Organization"] == org]
-        _, cum_tri = build_development_triangle(org_claims)
-        if cum_tri.empty:
+        _, amt_cum = build_amount_triangle(org_claims)
+        if amt_cum.empty:
             continue
-        factors = chain_ladder_factors(cum_tri)
-        ibnr = estimate_ibnr(cum_tri, factors)
+        factors = chain_ladder_factors(amt_cum)
+        ibnr = estimate_ibnr(amt_cum, factors)
         ibnr["Organization"] = org
         results[org] = ibnr
     return results

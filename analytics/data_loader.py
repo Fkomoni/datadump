@@ -5,10 +5,36 @@ across all organizations (Baker Hughes, Flour Mills, Guinness, PENCOM).
 """
 
 import os
+from datetime import datetime
 import pandas as pd
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+def _parse_mixed_dates(series):
+    """
+    Parse a column that contains a mix of datetime objects and Excel serial numbers.
+    Excel serial dates are numeric (int/float) counting days since 1899-12-30.
+    """
+    result = pd.Series(pd.NaT, index=series.index)
+
+    # Already datetime values
+    dt_mask = series.apply(lambda x: isinstance(x, (pd.Timestamp, datetime)))
+    if dt_mask.any():
+        result[dt_mask] = pd.to_datetime(series[dt_mask], errors="coerce")
+
+    # Numeric values = Excel serial dates
+    num_mask = series.apply(lambda x: isinstance(x, (int, float)) and not isinstance(x, bool))
+    if num_mask.any():
+        numeric_vals = pd.to_numeric(series[num_mask], errors="coerce")
+        # Filter reasonable Excel date range (year 2000 to 2100 roughly = 36526 to 73050)
+        valid = numeric_vals.between(36526, 73050)
+        # Excel epoch: day 1 = 1900-01-01, but with the Lotus 1-2-3 bug offset
+        excel_epoch = pd.Timestamp("1899-12-30")
+        result[num_mask & valid] = excel_epoch + pd.to_timedelta(numeric_vals[valid], unit="D")
+
+    return result
 
 
 def _read_excel(filename, **kwargs):
@@ -93,10 +119,10 @@ def load_claims():
         if col in all_claims.columns:
             all_claims[col] = pd.to_numeric(all_claims[col], errors="coerce")
 
-    # Parse date columns
+    # Parse date columns (handles mix of datetime objects and Excel serial numbers)
     for col in ["Treatment_Date", "Received_Date"]:
         if col in all_claims.columns:
-            all_claims[col] = pd.to_datetime(all_claims[col], errors="coerce")
+            all_claims[col] = _parse_mixed_dates(all_claims[col])
 
     return all_claims
 
