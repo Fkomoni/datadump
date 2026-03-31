@@ -63,8 +63,29 @@ def generate_report():
     org_ibnr = ibnr_analysis.ibnr_by_organization(claims)
     _, amt_cum = ibnr_analysis.build_amount_triangle(fm)
     amt_factors = ibnr_analysis.chain_ladder_factors(amt_cum)
-    amt_ibnr = ibnr_analysis.estimate_ibnr(amt_cum, amt_factors)
+    amt_ibnr_raw = ibnr_analysis.estimate_ibnr(amt_cum, amt_factors)
+
+    # Only reserve IBNR from December 2025 onwards, with ₦95M ultimate floor
+    ibnr_start = pd.Period("2025-12", "M")
+    ultimate_floor = 95_000_000
+    amt_ibnr = amt_ibnr_raw.copy()
+    for idx in amt_ibnr.index:
+        if idx < ibnr_start:
+            amt_ibnr.at[idx, "IBNR_Estimate"] = 0.0
+            amt_ibnr.at[idx, "Ultimate_Projected"] = amt_ibnr.at[idx, "Current_Reported"]
+        else:
+            current = amt_ibnr.at[idx, "Current_Reported"]
+            raw_ultimate = amt_ibnr.at[idx, "Ultimate_Projected"]
+            adjusted_ultimate = max(raw_ultimate, ultimate_floor)
+            amt_ibnr.at[idx, "Ultimate_Projected"] = round(adjusted_ultimate, 2)
+            amt_ibnr.at[idx, "IBNR_Estimate"] = round(max(adjusted_ultimate - current, 0), 2)
+
+    # Filter display to Dec 2025 onwards
+    amt_ibnr_display = amt_ibnr[amt_ibnr.index >= ibnr_start]
     ibnr_total = amt_ibnr["IBNR_Estimate"].sum()
+
+    # Update org_ibnr dict so MLR uses the adjusted IBNR for Flour Mills
+    org_ibnr["Flour Mills"] = amt_ibnr
 
     # ── Claims by status ──
     paid_claims = fm[fm["Claim_Status"] == "Paid Claims"]
@@ -324,9 +345,9 @@ def generate_report():
             <td class="num">{fmt_full(row['Avg_Per_Visit'])}</td>
         </tr>"""
 
-    # ── IBNR rows ──
+    # ── IBNR rows (Dec 2025 onwards only) ──
     ibnr_rows = ""
-    for period, row in amt_ibnr.iterrows():
+    for period, row in amt_ibnr_display.iterrows():
         ibnr_rows += f"""<tr>
             <td>{month_label(period)}</td>
             <td class="num">{fmt_full(row['Current_Reported'])}</td>
@@ -346,8 +367,8 @@ def generate_report():
             <td class="num">{fmt_full(row['Total_Premium'])}</td>
         </tr>"""
 
-    # ── Status rows ──
-    status = fm["Claim_Status"].value_counts()
+    # ── Status rows (unique claim IDs, not claim lines) ──
+    status = fm.groupby("Claim_Status")["Claim_Number"].nunique().sort_values(ascending=False)
     status_rows = ""
     for s, count in status.items():
         status_rows += f"<tr><td>{s}</td><td class='num'>{count:,}</td></tr>"
@@ -727,9 +748,9 @@ def generate_report():
         {ibnr_rows}
         <tr style="background:var(--soft-pink);font-weight:700;">
           <td>Total</td>
-          <td class="num">{fmt_full(amt_ibnr['Current_Reported'].sum())}</td>
+          <td class="num">{fmt_full(amt_ibnr_display['Current_Reported'].sum())}</td>
           <td></td>
-          <td class="num">{fmt_full(amt_ibnr['Ultimate_Projected'].sum())}</td>
+          <td class="num">{fmt_full(amt_ibnr_display['Ultimate_Projected'].sum())}</td>
           <td class="num highlight">{fmt_full(ibnr_total)}</td>
         </tr>
       </tbody>
@@ -824,8 +845,9 @@ def generate_report():
   <!-- CLAIM STATUS -->
   <div class="section">
     <h2>Claim <span class="accent">Status</span> Distribution</h2>
+    <p style="color:var(--text-muted);font-size:12px;margin-bottom:12px;">Counted by unique claim ID, not claim lines</p>
     <table class="data-table">
-      <thead><tr><th>Status</th><th class="num">Count</th></tr></thead>
+      <thead><tr><th>Status</th><th class="num">Unique Claims</th></tr></thead>
       <tbody>{status_rows}</tbody>
     </table>
   </div>
