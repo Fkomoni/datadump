@@ -171,8 +171,6 @@ def generate_report():
             <td class="num">{row['Unique_Members']:,}</td>
             <td class="num">{row['Unique_Claims']:,}</td>
             <td class="num">{fmt_full(s_earned)}</td>
-            <td class="num">{fmt_full(s_paid)}</td>
-            <td class="num">{fmt_full(s_pipeline)}</td>
             <td class="num">{fmt_full(s_incurred)}</td>
             <td class="num">{fmt_full(row['Avg_Per_Member'])}</td>
             <td class="num">{fmt_full(row['Avg_Per_Visit'])}</td>
@@ -676,12 +674,10 @@ def generate_report():
           <th class="num">Members</th>
           <th class="num">Unique Claims</th>
           <th class="num">Earned Premium</th>
-          <th class="num">Paid Claims</th>
-          <th class="num">Pipeline</th>
-          <th class="num">Total Incurred</th>
+          <th class="num">Total Claims</th>
           <th class="num">Avg/Member</th>
           <th class="num">Avg/Visit</th>
-          <th class="num">MLR</th>
+          <th class="num">LR</th>
           <th class="num">COR</th>
         </tr>
       </thead>
