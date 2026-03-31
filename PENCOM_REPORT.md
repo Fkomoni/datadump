@@ -176,31 +176,156 @@ PENCOM offers two benefit tiers:
 
 ---
 
-## 9. Risk Indicators
+## 9. Earned Premium Calculation
+
+| Plan | Policies (Principals) | Annual Rate (N) | Annual Premium (N) |
+|---|---|---|---|
+| PENCOM - PROMAXFAM | 284 | 1,101,918.21 | 312,944,772 |
+| PENCOM - PROMAXIND | 39 | 244,870.71 | 9,549,958 |
+| PENCOM - PROFAM | 26 | 378,219.01 | 9,833,694 |
+| PENCOM - PROMAX BLACKCARD | 18 | 1,101,918.21 | 19,834,528 |
+| **Total Annual Premium** | **367** | | **N352,162,951** |
+
+**Earned Premium (9 months: Jul 2025 - Mar 2026) = N264,122,214**
+
+---
+
+## 10. Claims Breakdown: Paid vs Pipeline
+
+| Status | Claims | Amount Claimed (N) | Amount Paid (N) |
+|---|---|---|---|
+| Paid Claims | 27,208 | 199,166,272 | 177,474,137 |
+| Awaiting Payment | 995 | 10,185,248 | 8,496,703 |
+| Claims for Adjudication | 123 | 3,706,622 | 0 |
+| **Total** | **28,326** | **213,058,142** | **185,970,840** |
+
+**Approval Ratio (on settled claims): 89.1%**
+
+### Payment Status by Month
+
+| Month | Paid Claims (N) | Awaiting Payment (N) | Adjudication (N) | % Settled |
+|---|---|---|---|---|
+| Jul 2025 | 9,658,774 | 8,731 | - | 99.9% |
+| Aug 2025 | 24,843,887 | 177,259 | 22,854 | 99.5% |
+| Sep 2025 | 25,682,377 | 118,078 | 0 | 99.6% |
+| Oct 2025 | 26,156,257 | - | - | 100.0% |
+| Nov 2025 | 29,185,829 | 66,237 | 10,200 | 99.8% |
+| Dec 2025 | 17,109,776 | 1,794,556 | 79,400 | 90.4% |
+| Jan 2026 | 33,196,551 | 2,717,825 | 1,385,000 | 89.3% |
+| Feb 2026 | 11,352,921 | 3,953,100 | 1,997,267 | 65.9% |
+| Mar 2026 | 287,764 | 1,349,462 | 211,900 | 15.6% |
+
+**Note:** January is not completely paid. Less than 50% of February claims are settled for top providers. March top providers have not been paid at all. This confirms significant pipeline exposure in recent months.
+
+---
+
+## 11. IBNR Estimation
+
+### Methodology
+- **Benchmark:** Average monthly paid claims from mature months (Aug-Nov 2025) = **N26,471,152/month**
+- **Pipeline claims** valued at approval ratio (89.1%) with 70% adjudication pass-through
+- **Pure IBNR** estimated based on expected vs reported claims for incomplete months
+
+### Pipeline Claims
+
+| Component | Claimed (N) | Estimated Value (N) |
+|---|---|---|
+| Awaiting Payment (x 89.1%) | 10,185,248 | 9,075,925 |
+| Adjudication (x 89.1% x 70%) | 3,706,622 | 2,312,041 |
+| **Total Pipeline** | | **N11,387,966** |
+
+### Pure IBNR (Incurred But Not Reported)
+
+| Month | Paid to Date (N) | Expected (N) | IBNR Estimate (N) | Rationale |
+|---|---|---|---|---|
+| Jan 2026 | 35,881,198 | 31,765,382 | 0 | Paid exceeds benchmark; Jan spike accounted for |
+| Feb 2026 | 15,268,893 | 26,471,152 | 5,601,130 | ~50% unpaid per provider feedback |
+| Mar 2026 | 699,226 | 26,471,152 | 25,771,926 | Near-zero reporting; top providers entirely unpaid |
+| **Total IBNR** | | | **N31,373,055** | |
+
+---
+
+## 12. Medical Loss Ratio (MLR)
+
+### MLR = (Paid Claims + Pipeline Claims + IBNR) / Earned Premium
+
+| Component | Amount (N) |
+|---|---|
+| A. Paid Claims | 177,474,137 |
+| B. Pipeline Claims | 11,387,966 |
+| C. IBNR | 31,373,055 |
+| **Total Incurred Claims (A+B+C)** | **220,235,158** |
+| **Earned Premium** | **264,122,214** |
+| | |
+| **MLR** | **83.4%** |
+
+---
+
+## 13. Combined Operating Ratio (COR)
+
+### COR = MLR + Expense Ratio
+
+| Scenario | Expense Ratio | COR | Assessment |
+|---|---|---|---|
+| Low expense | 15% | **98.4%** | Marginally profitable |
+| Mid expense | 20% | **103.4%** | Loss-making |
+| High expense | 25% | **108.4%** | Significant loss |
+
+At an MLR of 83.4%, the scheme only remains profitable if operating expenses are kept below ~17% of premium. Any expense ratio above that pushes the COR past 100%.
+
+---
+
+## 14. Sensitivity Analysis
+
+| Scenario | IBNR (N) | Total Incurred (N) | MLR | COR @20% |
+|---|---|---|---|---|
+| **Optimistic** | 18,823,833 | 207,685,936 | **78.6%** | 98.6% |
+| **Base Case** | 31,373,055 | 220,235,158 | **83.4%** | 103.4% |
+| **Conservative** | 33,192,507 | 222,054,609 | **84.1%** | 104.1% |
+
+**Conservative IBNR assumptions:**
+- Jan: N0 (already over-benchmark)
+- Feb: 60% of shortfall vs benchmark = N6,721,356
+- Mar: Full month at benchmark = N26,471,152
+
+---
+
+## 15. Risk Indicators
 
 | Indicator | Value | Assessment |
 |---|---|---|
+| MLR (Base Case) | 83.4% | Elevated - monitor closely |
+| COR @20% Expense | 103.4% | Loss-making at typical expense levels |
 | Utilization Rate | 69.2% | High - indicates good plan awareness |
 | Avg Claims per Claimant | 27.3 | High frequency utilization |
-| Dependant-to-Principal Ratio | 3.1:1 | Above typical (indicates family plans) |
+| Dependant-to-Principal Ratio | 3.1:1 | Above typical (family-heavy book) |
 | Inpatient Cost Share | 15.2% | Within normal range |
 | Top 2 Provider Concentration | 33.6% | High - monitor for cost escalation |
+| Pipeline Exposure (Jan-Mar) | N42.8M | Significant unpaid liability |
 | Highest Single Claim | N1,200,000 | Within plan limits |
 
 ---
 
-## 10. Recommendations
+## 16. Recommendations
 
-1. **Provider Cost Management**: DEDA Hospital's average claim cost (N14,408) is 3.3x higher than St Catherine (N4,412) for similar claim volumes. A tariff review is recommended.
+1. **MLR Management**: At 83.4%, the MLR is approaching unsustainable levels when expenses are factored in. A combined strategy of utilization management and tariff renegotiation is needed to bring this below 75%.
 
-2. **Specialist & Advanced Investigation Costs**: Combined N26.1M (14% of total). Pre-authorization compliance should be audited for these high-cost categories.
+2. **Provider Cost Management**: DEDA Hospital's average claim cost (N14,408) is 3.3x higher than St Catherine (N4,412) for similar claim volumes. A tariff review is recommended.
 
-3. **Chronic Medication Program**: N9.1M spent on chronic medication suggests a significant chronic disease burden. Consider enhanced disease management programs.
+3. **Pipeline Claims Resolution**: N11.4M in pipeline claims (especially N6M+ in Jan-Feb adjudication) need expedited processing. The payment lag to top providers in Jan-Mar creates cash flow risk and potential provider relationship issues.
 
-4. **Provider Diversification**: Top 6 providers handle 52.8% of spend. Encouraging use of a broader provider network may improve competitive pricing.
+4. **IBNR Reserve Adequacy**: Reserve at least N31.4M (base case) to N33.2M (conservative) for IBNR. March is critically under-reported with only 37 of an expected ~3,500 claims registered.
 
-5. **January Spike Investigation**: January 2026 saw a 100% spike in claims vs December. This may reflect deferred December utilization and should be factored into reserve planning.
+5. **Specialist & Advanced Investigation Costs**: Combined N26.1M (14% of total). Pre-authorization compliance should be audited for these high-cost categories.
+
+6. **Chronic Medication Program**: N9.1M spent on chronic medication suggests a significant chronic disease burden. Consider enhanced disease management programs to reduce downstream costs.
+
+7. **Provider Diversification**: Top 6 providers handle 52.8% of spend. Encouraging use of a broader provider network may improve competitive pricing and reduce concentration risk.
+
+8. **January Spike Investigation**: January 2026 saw a 100% spike in claims vs December (N35.9M vs N18.6M). This pattern should be factored into reserve and cash flow planning for future policy years.
+
+9. **Renewal Pricing**: Given the 83.4% MLR before expenses, premium adequacy should be reassessed at renewal. Consider risk-adjusted pricing by plan tier - the PROMAXFAM book (82.7% of members) is driving the bulk of the claims experience.
 
 ---
 
-*Report generated from PENCOM claims data (28,326 records), premium enrollment data (1,501 members), and benefit schedule. Data period: July 2025 - March 2026.*
+*Report generated from PENCOM claims data (28,326 records), premium enrollment data (1,501 members), and benefit schedule. MLR calculated using Earned Premium methodology with Pipeline Claims and IBNR provisions. Data period: July 2025 - March 2026.*
