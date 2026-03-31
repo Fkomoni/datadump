@@ -1,0 +1,77 @@
+SERVICE DESCRIPTION,STRAWBERRY,CRANBERRY,BLUEBERRY,BLACKBERRY,RASPBERRY
+Region of Cover,Nigeria,Nigeria,Nigeria & India,Nigeria & India & Africa ,Nigeria & India & Africa 
+Category Hospital Accessible (refer to the Hospital list please),Category D hospitals,Category D hospitals,Category C + D hospitals,Category B + C + D hospitals,Category B + C + D hospitals
+Telemedicine Services,,,,,
+Chatwith Doctors and Nurseswhenin need of care during any medical emergency,Covered,Covered,Covered,Covered,Covered
+Freechatswith Doctors and Nurseswhen in need of any routine medical information,Covered,Covered,Covered,Covered,Covered
+GPS-enabled accessto hospital directories whenhospital information is needed,Covered,Covered,Covered,Covered,Covered
+Out-patient Services,,,,,
+Out-patient limit,"NGN 150,000","NGN 250,000","NGN 300,000","NGN 500,000","NGN 700,000"
+"Out Patient Care, General and Specialist Consultation",Subject to Out-patient limit,Subject to Out-patient limit,Subject to Out-patient limit,Subject to Out-patient limit,Subject to Out-patient limit
+"X-Rays, Laboratory & Diagnostic Tests (Including Rest ECG)",Subject to Out-patient limit,Subject to Out-patient limit,Subject to Out-patient limit,Subject to Out-patient limit,Subject to Out-patient limit
+"Primary Eye Care- Consultation, Examination , Simple or primary infection or conditions and Medications",Subject to Out-patient limit,Subject to Out-patient limit,Subject to Out-patient limit,Subject to Out-patient limit,Subject to Out-patient limit
+ENT services,Subject to Out-patient limit,Subject to Out-patient limit,Subject to Out-patient limit,Subject to Out-patient limit,Subject to Out-patient limit
+Prescribed Medicines And Drugs (Non-Chronic),Subject to Out-patient limit,Subject to Out-patient limit,Subject to Out-patient limit,Subject to Out-patient limit,Subject to Out-patient limit
+Prescribed Medicines And Drugs (Chronic),"NGN 50,000","NGN 75,000","NGN 100,000","NGN 150,000","NGN 300,000"
+"Advanced & Complex Investigations (incl. CT Scan, MRI Scan)",Emergency,Emergency,Emergency,Subject to Out-patient limit,Subject to Out-patient limit
+In-patient Services,,,,,
+In-patient limit,"NGN 350,000","NGN 500,000","NGN 750,000","NGN 2,000,000","NGN 2,400,000"
+In-Patient services (including feeding),General Ward ,Semi Private Ward,Private Ward ,Private Ward,Private Ward
+"X-Rays, Laboratory & Diagnostic Tests",Subject to In-patient limit,Subject to In-patient limit,Subject to In-patient limit,Subject to In-patient limit,Subject to In-patient limit
+Prescribed Medicines And Drugs (Non-Chronic),Subject to In-patient limit,Subject to In-patient limit,Subject to In-patient limit,Subject to In-patient limit,Subject to In-patient limit
+Physiotherapy Sessions (Up to approved limits),10000,20000,30000,40000,40000
+Intensive Care Services (Subject to 12 months moratorium),100000,200000,300000,400000,500000
+"Advanced & Complex Investigations (incl. CT Scan, MRI Scan)",Emergency,Emergency,Emergency,Emergency,Emergency
+Surgical services,,,,,
+"Minor, Intermediate, Major Surgeries And Procedures (Subject to Inpatient Limit and 3 months moratorium)","Up to a limit of N250,000.00","Up to a limit of N300,000.00 ","Up to a limit of N400,000.00   ","Up to a limit of N1,000,000.00","Up to a limit of N1,000,000.00"
+,,,,,
+"Antenatal Care, Delivery(Vaginal, Caeserean Section, Assisted delivery & Postnatal care (12 months Moratorium applies)","NGN 200,000","NGN 250,000","NGN 300,000","NGN 800,000","NGN 850,000"
+Dental,,,,,
+Primary Dental Care ,"Covered up to N10,000.00","Covered up to N20,000.00","Covered up to N40,000.00","Covered  up to N50,000","Covered  up to N50,000"
+Secondary Dental Care ,,,,,
+Optical,,,,,
+Eye testing& Eye Care (Biennial Optical Lenses) Subject to 3 months moratorium,"Up to N7,500 ","Up to N10,000 ","Up to N15,000","Up to N25,000","Up to N25,000"
+"Otolaryngological (Ear, nose and throat)",,,,,
+Treatment of ENT diseases and removal of foreign bodies,Covered,Covered,Covered,Covered,Covered
+ENT Surgeries,As part of surgical limit,As part of surgical limit,As part of surgical limit,As part of surgical limit,As part of surgical limit
+Other benefits,,,,,
+Accidents & Emergencies,Covered,Covered,Covered,Covered,Covered
+Evacuation (Home/Hospital to Hospital & Road Side to Hospital),Covered,Covered  ,Covered  ,Covered  ,Covered  
+"Routine Immunization (NPI) for 0 - 5yrs   DPT, Hepatitis B, HiB (Pentavalent), BCG, Measles, Oral Polio,Vitamin A supplementation",Covered,Covered,Covered,Covered,Covered
+"Additional Immunization for under 5 - Varicella, Rotarix, Pneumococcal,  Meningococcal, Yellow fever, Hepatitis B, HIB,MMR &Typherix) at Designated centre",Not Covered,MMR & Yellow Fever,Covered,Covered,Covered
+Family Planning Services (Subject to Outpatient limit),"Pills, Injectables & Copper IUCDs","Pills, Injectables & Copper IUCDs","Pills, Injectables, Copper IUCDs, tubal ligation (during CS) and Vasectomy","Pills, Injectables, Copper IUCDs, tubal ligation (during CS) and Vasectomy","Pills, Injectables, Copper IUCDs, tubal ligation (during CS) and Vasectomy"
+Fertility services (Investigation only)- Subject to Outpatient limit and 12 months moratorium,"Counseling, SFA, USS ( covered up to N20,000)","Counseling, SFA, USS, HSG (covered up to N 25,000)","Counseling, USS, SFA, HSG, Hormonal Assay  (Covered up to 50,000)","Counseling, USS, SFA, HSG, Hormonal Assay, Hysteroscopy  (up to 100,000)","Counseling, USS, SFA, HSG, Hormonal Assay, Hysteroscopy  (up to 100,000)"
+Health Screening at Designated centres- Subject to Outpatient limit ,"Age 22+/All Gender: (Physical, BP, HIV, PCV) once every year; Age 40+/All Gender: Blood sugar, and Urinalysis) once every year","Age 22+/All Gender: (Physical, BP, HIV, Cholesterol, Blood sugar, PCV, and Urinalysis) once every year","Age 22+/All Gender: (Physical, BP, HIV, Cholesterol, Blood sugar, PCV, Urinalysis, once every year; Age 40+ Males: PSA every 3 years. Age 40+ Females: Mammogram every 3 years","Age 22+/All Gender: (Physical, BP, HIV, Cholesterol, Blood sugar, PCV, Urinalysis, aLFT, E/u/Cr and ECG) once every year; Age 30+ Females: Pap smear and physical breast examination, every 3 years. Age 40+ Males: PSA every 3 years. Age 40+ Females: Mammogram every 3 years","Age 22+/All Gender: (Physical, BP, HIV, Cholesterol, Blood sugar, PCV, Urinalysis, LFT, E/u/Cr and ECG) once every year;Age 30+ Females: Pap smear and physical breast examination, every 3 years. Age 40+ Males: PSA every 3 years. Age 40+ Females: Mammogram every 3 years"
+HIV/AIDS- to the extent of Diagnosis + Treatment at free specialist centers,Covered  ,Covered  ,Covered  ,Covered  ,Covered  
+Outpatient Psychiatry cover up to 8 weeks (Subject to 12 months moratorium),Covered,Covered  ,Covered  ,Covered  ,Covered  
+Leadway Enrollee APP,Covered,Covered  ,Covered  ,Covered  ,Covered  
+Premium/Individual/Year New Price,118122.46875000001,166264.3125,267567.30000000005,615273.75,1002456
+"One year Moratorium on ANC, Delivery and Post natal care",,,,,
+One year Moratorium on pre-existing / Chronic conditions,,,,,
+GENERAL EXCLUSIONS ON THE RETAIL PLAN,,,,,
+·        Cosmetic Surgery or treatment,,,,,
+·        Teeth Whitening,,,,,
+·        Dental Prosthesis,,,,,
+·        Domiciliary/Hospice Care,,,,,
+·        Alternative /Unorthodox medicine,,,,,
+·        Neonatal care not listed under neonatal services,,,,,
+·        Self-inflicted injuries,,,,,
+·        Congenital abnormalities,,,,,
+"·        Conditions caused by an act of war, an epidemic or enrollee participating in a riot",,,,,
+·        Services primarily for weight reduction or treatment of obesity,,,,,
+·        Treatment of substance abuse,,,,,
+·        Infertility- All investigations and treatment.,,,,,
+·        Orthodontics. ,,,,,
+"·        Advanced radiological investigations (e.g. C.T. scan, Myelogram, EEG).",,,,,
+"·        Advanced and Complex investigations (e.g. Marrow biopsy, skeletal survey).",,,,,
+"·        Prosthetic devices such as cardiac pacemaker, orthopedic implants.",,,,,
+·        Management of Chronic Renal Failure (Dialysis and Transplant Surgery).,,,,,
+·        Induced Abortion.,,,,,
+·        Laser Treatments.,,,,,
+·        Transplants.,,,,,
+"·        Complex major Surgeries (e.g. Heart, Brain and Great blood vessels).",,,,,
+·        Neurological surgeries.,,,,,
+·        Management of Cancers,,,,,
+·        Professional Sports and wilful exposure to needless danger,,,,,
+·        Infectious and contagious diseases in an epidemic,,,,,
+"·        All procedures, management and investigations  not covered by the plans",,,,,

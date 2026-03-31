@@ -1,0 +1,12 @@
+SERVICE,claim_count,Amt Paid_total,Units Paid_total
+Outpatient,59777,365812429.19,539273.58
+Inpatient,7208,120486178.2358,310657.35
+Dentistry,2667,55476439.53,763922.4
+Lens and Frames,1780,37063818.85,254423.0
+Advanced Investigations,1045,19284772.13,2443.0
+Health Checks,471,2465697.0,471.0
+Maternity  ,404,11479923.62,2422.0
+Major Disease Benefit,175,6797863.365,2457.0
+Gym,111,347000.0,177.0
+Additional Benefits,6,62822.0,6.0
+SPA Treatment (Voucher PA ),3,30000.0,3.0

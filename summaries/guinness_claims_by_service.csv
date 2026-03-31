@@ -1,0 +1,9 @@
+SERVICE,claim_count,Amt Paid_total,Units Paid_total
+Outpatient,31643,138723625.3116,332357
+Inpatient,4040,61710072.762,9903586
+Dentistry,529,9498726.0,919
+Lens and Frames,444,5601497.5,873
+Maternity  ,213,7476148.72,427002
+Advanced Investigations,152,2696296.87,362
+Major Disease Benefit,49,7815844.15,370
+Gym,8,39000.0,21

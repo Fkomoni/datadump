@@ -1,0 +1,42 @@
+Unnamed: 0,PLAN 1,PLAN 2,PLAN 3,PLAN 4
+BENEFIT CATEGORIES,SENIOR CRANBERRY,SENIOR BLUEBERRY,SENIOR BLACKBERRY,SENIOR RASPBERRY
+Premium (Age 55-69)  New Price ,575603.0437500001,872361.1687500001,1255828.5075,1550768.2575
+Premium (Age 70-79)  New Price,611318.5003124999,944152.8440624999,1365452.783625,1688883.496125
+Region of Cover,Nigeria,Nigeria,Nigeria,Nigeria
+Hospital Network,Category D,Category D+C,Category D+C+B,Category D+C+B
+Inpatient Limit,500000,650000,1500000,2000000
+Outpatient Limit,250000,350000,500000,1000000
+Section 1: OUTPATIENT CARE,,,,
+General Consultations,Unlimited,Unlimited,Unlimited,Unlimited
+Specialist Consultations (Internal Medicine Generalist only),Max of 3 per annum,Max of 5 per annum,Max of 7 per annum,Max of 10 per annum
+Medication ,Subject to Outpatient limit,Subject to Outpatient limit,Subject to Outpatient limit,Subject to Outpatient limit
+Telemedicine Consultations,Unlimited,Unlimited,Unlimited,Unlimited
+"Basic Laboratory services based on the clinician -(FBC, PCV, HB, WBC, MP, Widal, Urinalysis, FBS, Stool Occult Blood",Subject to Outpatient limit,Subject to Outpatient limit,Subject to Outpatient limit,Subject to Outpatient limit
+"Treatment for common acute illnesses including: Malaria and other uncomplicated  febrile illnesses, ",Covered,Covered,Covered,Covered
+"Diarrhoeal Diesases, Acute Respirationry Tract Infections, Uncomplicated pneumonia, simple anaemia not requiring blood transfusion, simple skin diseases, worm infestation, minor musculoskeletal ailments",,,,
+,Subject to Outpatient limit,Subject to Outpatient limit,Subject to Outpatient limit,Subject to Outpatient limit
+"Chronic Disease Management: Provides cover for the out-patient treatment of arthritis, asthma, hypertension and diabetes mellitus and osteoarthritis only. ",,,,
+Chronic Medicine Refill (Drugs to be supplied by the Pharmacy Benefit Management only),"400,000 per annum","500,000 per annum","750,000 per annum","1,000,000 per annum"
+"Ear, Nose and Throat care",Covered,Covered,Covered,Covered
+"Optical Care (Treatment of minor eye ailments including conjunctivitis, parasitic and allergic ailment)",Covered,Covered,Covered,Covered
+Optical Care ( Frames and lenses) every 2 years,10000,25000,35000,45000
+Dental Care,20000,30000,40000,50000
+Physiotherapy,Not covered,10000,30000,50000
+Section 2: Inpatient ,,,,
+Accommodation (excluding feeding): ,General Ward (14 cumulative days per ,General Ward (14 cumulative days per ,Semi-Private Ward ,Private Ward 
+,annum),annum),,
+Accidents & Emergencies: Resuscitative or lifesaving initial treatment up to a maximum of the first 24 hours following an incident,"₦50,000 per annum","₦75,000 per annum","₦100,000 per annum","₦150,000 per annum"
+Intensive Care Services,100000,200000,300000,500000
+Surgeries limit (Subject to waiting period of six (6) months),100000,150000,200000,300000
+Advanced & Complex Investigations (Subject to 3 months moratorium),"₦50,000 per annum","₦75,000 per annum","₦100,000 per annum","₦150,000 per annum"
+Ambulance: Hospital to Hospital,Covered,Covered,Covered,Covered
+Basic X-Rays (Chest and Limbs only),Max of 2 per year,Max of 3 per year,Max of 4 per year,Max of 6 per year
+"Major Disease: Oncology Tests, Drugs + Chemotherapy & Radiotherapy, Stroke etc. ( Only covered for enrollees newly diagnosed on the scheme after 12 months of enrolment)",Not covered,Covered up to 50% of Inpatient limit,Covered up to 50% of Inpatient limit,Covered up to 50% of Inpatient limit
+,,,,
+Adult Immunizations,Not covered,Not covered,"Yellow fever, meningitis, Hep B","Yellow fever, meningitis, Hep B"
+"Health Checks (once a year, Subject to 6 months moratorium)","BP, FBS, BMI, Total Cholesterol, Urinalysis ","BP, FBS, BMI, Total Cholesterol, Urinalysis","BP, FBS, BMI, Cholesterol, Urinalysis, PSA, Pap smear","BP, FBS, BMI, Cholesterol, Urinalysis, PSA, Pap smear, Mammogram (once every 3 years)"
+Kidney Dialysis,2 Sessions,3 Sessions,5 Sessions,7 Sessions
+,,,,
+EXCLUSION,,,,
+Access to ONE Primary and Secondary Provider only,,,,
+Chronic medications must be collected from partner pharmacies,,,,

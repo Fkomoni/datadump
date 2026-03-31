@@ -1,0 +1,77 @@
+DEPARTMENT,claim_count,Amt Paid_total,Units Paid_total
+Medication,10722,32742421.8229,153135.7
+Pathology  - Laboratory,4884,20810253.58,87636.0
+GP Consultations,2491,14476757.7329,36529.0
+Full Blood Count,1082,5059339.2,1082.0
+Chronic Medication,928,9110158.437,100600.0
+Dentistry,787,6074752.8254,91494.0
+Advanced Investigations,703,12904185.26,145713.0
+Optometry,702,1916650.0,64687.0
+Specialist Consultations,615,13185440.0,37681.0
+Fertility Services (Consultation & Investigation),530,4332144.9859,600.0
+Blood Sugar,417,913699.14,428.0
+Health Checks,333,655435.96,334.0
+Wellness Gym,270,695600.0,21271.0
+Consumables,261,794334.0492,7371.0
+ESR,255,824181.42,255.0
+VITAMINS,253,592371.72,9993.0
+E/U/Cr,252,1874463.78,252.0
+Congenital Anomaly Treatment,203,4503520.0,258.0
+Medical procedure no admission,160,2341641.0,235.0
+LIpid Profile,157,1406150.0999999999,157.0
+Radiology XRay,153,1213678.38,158.0
+Chest X-Ray,146,718088.34,146.0
+Nursing Care,146,1514575.0,1411.0
+NPI Immunization 0 - 5 years,139,351787.5,159.0
+Health Check,121,557589.1599999999,121.0
+Ward Fees,118,4775500.0,269.0
+Lens and Frames,103,4774000.0,50731.0
+ALT (SGPT) AST (SGOT) ,103,1033912.88,103.0
+Outpatient,102,273342.5,1331.0
+Radiology Sonar,102,904695.49,105.0
+Feeding per day in Ward,91,1575796.0,207.0
+Additional Immunization 0 - 5 years,84,1659017.3,84.0
+HIV Test,81,333662.56,81.0
+HBsAg,59,307086.61,59.0
+Abdominopelvic Ultrasound Scan,55,494291.0,55.0
+Frames,52,1360000.0,5261.0
+Medical admission - non-surgery,50,1611350.0,96.0
+Physiotherapy,43,722383.6,97.0
+GLYCATED HAEMOGLOBIN HBA1C,35,311676.75,35.0
+Anaesthesia,29,357500.0,2528.0
+Family Planning,27,500174.0,201.0
+Telemedicine,27,13500.0,27.0
+Specialised Diagnostics,26,168191.88,26.0
+Abdominal ultrasonography,26,197975.0,27.0
+Maternity Delivery,25,5102424.0,25.0
+ICU,23,963854.7,40.0
+Health Check Basic,19,34267.979999999996,2018.0
+Genotype,17,33300.0,17.0
+FBC/CBC,16,68600.5,16.0
+Blood transfusion,14,699730.0,24.0
+Maternity Pre and Post natal care fees,14,844532.0,14.0
+Maternity  ,14,2227250.0,14.0
+Devices and Appliances,14,346616.0,23.0
+colon cancer screening,12,266550.0,12.0
+Surgeries,12,3920351.0,12.0
+CT Scans and MRI,11,826842.75,11.0
+"Neonatal Care(Incubator, Phototherapy, ICU, Neonatal sepsis)",11,592375.0,21.0
+CT Scans,10,602250.0,10.0
+MRI,8,532031.0,8.0
+Immunization - VACCINES,8,237600.0,8.0
+Inpatient,6,62100.0,13.0
+CALCIUM SERUM,6,15430.0,6.0
+Theater Fees,6,210000.0,6.0
+Major Surgery,6,4365100.0,6.0
+ECG,3,11137.0,3.0
+Oncology treatment,2,1229120.0,31.0
+Cholera Vaccine,2,30000.0,2.0
+Ward Type - General Ward,2,12500.0,2.0
+MTNPHA,2,22000.0,2.0
+Adult Immunization 18 years and above,1,5000.0,1.0
+Intermediate Surgery,1,192000.0,1.0
+Childbirth at home or bithing centre,1,0.0,1.0
+Maternity Out of Network incl. antenatal care and natural birth,1,127875.0,1.0
+Maternity Out of Network C-section,1,300000.0,1.0
+Oxygen,1,102600.0,4.0
+Ward Type - Private Ward,1,53000.0,2.0
