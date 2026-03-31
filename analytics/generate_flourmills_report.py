@@ -173,7 +173,6 @@ def generate_report():
             <td class="num">{fmt_full(s_earned)}</td>
             <td class="num">{fmt_full(s_incurred)}</td>
             <td class="num">{fmt_full(row['Avg_Per_Member'])}</td>
-            <td class="num">{fmt_full(row['Avg_Per_Visit'])}</td>
             <td class="num {mlr_class}">{pct(s_mlr) if s_earned > 0 else 'N/A'}</td>
             <td class="num {mlr_class}">{pct(s_cor) if s_earned > 0 else 'N/A'}</td>
         </tr>"""
@@ -232,11 +231,8 @@ def generate_report():
             <td class="num">{int(row['Unique_Members']):,}</td>
             <td class="num">{int(row['Unique_Claims']):,}</td>
             <td class="num">{fmt_full(row['Earned_Premium'])}</td>
-            <td class="num">{fmt_full(row['Paid_Claims'])}</td>
-            <td class="num">{fmt_full(row['Pipeline_Claims'])}</td>
             <td class="num">{fmt_full(row['Total_Incurred'])}</td>
             <td class="num">{fmt_full(row['Avg_Per_Member'])}</td>
-            <td class="num">{fmt_full(row['Avg_Per_Visit'])}</td>
             <td class="num {mlr_cls}">{pct(p_mlr) if has_earned else 'N/A'}</td>
             <td class="num {mlr_cls}">{pct(p_cor) if has_earned else 'N/A'}</td>
         </tr>"""
@@ -676,7 +672,6 @@ def generate_report():
           <th class="num">Earned Premium</th>
           <th class="num">Total Claims</th>
           <th class="num">Avg/Member</th>
-          <th class="num">Avg/Visit</th>
           <th class="num">LR</th>
           <th class="num">COR</th>
         </tr>
@@ -715,12 +710,9 @@ def generate_report():
           <th class="num">Claimants</th>
           <th class="num">Unique Claims</th>
           <th class="num">Earned Premium</th>
-          <th class="num">Paid Claims</th>
-          <th class="num">Pipeline</th>
           <th class="num">Total Incurred</th>
           <th class="num">Avg/Member</th>
-          <th class="num">Avg/Visit</th>
-          <th class="num">MLR</th>
+          <th class="num">LR</th>
           <th class="num">COR</th>
         </tr>
       </thead>
