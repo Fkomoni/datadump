@@ -55,19 +55,22 @@ def generate_report():
     hospitals = load_hospitals()
     enrollment = premium_analysis.enrollment_summary(premiums, production)
 
-    fm = claims[claims["Organization"] == "Flour Mills"]
+    fm_all = claims[claims["Organization"] == "Flour Mills"]
     fm_enroll = enrollment[enrollment["Organization"] == "Flour Mills"]
     fm_hospitals = hospitals[hospitals["Organization"] == "Flour Mills"]
 
-    # ── IBNR ──
+    # Filter to valid claims only: plan started 1 July 2025
+    fm = fm_all[fm_all["Treatment_Date"] >= "2025-07-01"].copy()
+
+    # ── IBNR (uses all claims for development pattern, but display from Dec 2025) ──
     org_ibnr = ibnr_analysis.ibnr_by_organization(claims)
     _, amt_cum = ibnr_analysis.build_amount_triangle(fm)
     amt_factors = ibnr_analysis.chain_ladder_factors(amt_cum)
     amt_ibnr_raw = ibnr_analysis.estimate_ibnr(amt_cum, amt_factors)
 
-    # Only reserve IBNR from December 2025 onwards, with ₦95M ultimate floor
+    # Only reserve IBNR from December 2025 onwards, with ₦94M ultimate floor
     ibnr_start = pd.Period("2025-12", "M")
-    ultimate_floor = 95_000_000
+    ultimate_floor = 94_000_000
     amt_ibnr = amt_ibnr_raw.copy()
     for idx in amt_ibnr.index:
         if idx < ibnr_start:
@@ -381,6 +384,132 @@ def generate_report():
     status_rows = ""
     for s, count in status.items():
         status_rows += f"<tr><td>{s}</td><td class='num'>{count:,}</td></tr>"
+
+    # ── Diagnostic Analysis: Why is this plan underperforming? ──
+    fm_stripped = fm.copy() if "Scheme" not in fm.columns or fm["Scheme"].str.strip().equals(fm["Scheme"]) else fm.copy()
+    if "Scheme" in fm.columns:
+        fm_stripped["Scheme"] = fm["Scheme"].str.strip()
+
+    valid_plan_names = ["PLUS - Flour Mills", "PRO - Flour Mills", "MAX- Flour Mills"]
+
+    # Visit frequency by plan
+    visit_freq_rows = ""
+    for plan in valid_plan_names:
+        p = fm_stripped[fm_stripped["Scheme"] == plan]
+        p_paid = p[p["Claim_Status"] == "Paid Claims"]
+        members = p["Member_ID"].nunique()
+        uclaims = p["Claim_Number"].nunique()
+        vperm = uclaims / members if members > 0 else 0
+        avgv = p_paid["Amount_Paid"].sum() / uclaims if uclaims > 0 else 0
+        avgm = p_paid["Amount_Paid"].sum() / members if members > 0 else 0
+        visit_freq_rows += f"""<tr>
+            <td><strong>{plan}</strong></td>
+            <td class="num">{members:,}</td>
+            <td class="num">{uclaims:,}</td>
+            <td class="num highlight">{vperm:.1f}</td>
+            <td class="num">{fmt_full(avgv)}</td>
+            <td class="num">{fmt_full(avgm)}</td>
+        </tr>"""
+
+    # High frequency members (>10 visits)
+    member_visits = fm_stripped.groupby(["Member_ID", "Scheme"]).agg(
+        Visits=("Claim_Number", "nunique"),
+        Total_Paid=("Amount_Paid", "sum"),
+    ).reset_index()
+
+    heavy_user_rows = ""
+    for plan in valid_plan_names:
+        mp = member_visits[member_visits["Scheme"] == plan]
+        high = mp[mp["Visits"] > 10]
+        pct_members = len(high) / len(mp) * 100 if len(mp) > 0 else 0
+        pct_spend = high["Total_Paid"].sum() / mp["Total_Paid"].sum() * 100 if mp["Total_Paid"].sum() > 0 else 0
+        avg_visits = high["Visits"].mean() if len(high) > 0 else 0
+        avg_spent = high["Total_Paid"].mean() if len(high) > 0 else 0
+        cls = "danger" if pct_spend > 25 else ("warning" if pct_spend > 15 else "")
+        heavy_user_rows += f"""<tr>
+            <td><strong>{plan}</strong></td>
+            <td class="num">{len(high):,}</td>
+            <td class="num {cls}">{pct(pct_members)}</td>
+            <td class="num">{fmt_full(high['Total_Paid'].sum())}</td>
+            <td class="num {cls}">{pct(pct_spend)}</td>
+            <td class="num">{avg_visits:.1f}</td>
+            <td class="num">{fmt_full(avg_spent)}</td>
+        </tr>"""
+
+    # Medication dominance by plan
+    med_rows = ""
+    for plan in valid_plan_names:
+        p = fm_stripped[fm_stripped["Scheme"] == plan]
+        total = p["Amount_Paid"].sum()
+        med = p[p["Department"].str.contains("Medication", case=False, na=False)]
+        med_total = med["Amount_Paid"].sum()
+        med_pct = med_total / total * 100 if total > 0 else 0
+        cls = "danger" if med_pct > 40 else ("warning" if med_pct > 30 else "")
+        med_rows += f"""<tr>
+            <td><strong>{plan}</strong></td>
+            <td class="num">{fmt_full(med_total)}</td>
+            <td class="num {cls}">{pct(med_pct)}</td>
+            <td class="num">{fmt_full(total - med_total)}</td>
+        </tr>"""
+
+    # Surgery cost
+    surg_rows = ""
+    for plan in valid_plan_names:
+        p = fm_stripped[fm_stripped["Scheme"] == plan]
+        surg = p[p["Department"].str.contains("Surg", case=False, na=False)]
+        surg_claims = surg["Claim_Number"].nunique()
+        surg_total = surg["Amount_Paid"].sum()
+        surg_avg = surg_total / surg_claims if surg_claims > 0 else 0
+        surg_pct = surg_total / p["Amount_Paid"].sum() * 100 if p["Amount_Paid"].sum() > 0 else 0
+        surg_rows += f"""<tr>
+            <td><strong>{plan}</strong></td>
+            <td class="num">{surg_claims:,}</td>
+            <td class="num">{fmt_full(surg_total)}</td>
+            <td class="num highlight">{fmt_full(surg_avg)}</td>
+            <td class="num">{pct(surg_pct)}</td>
+        </tr>"""
+
+    # Maternity
+    mat_rows = ""
+    for plan in valid_plan_names:
+        p = fm_stripped[fm_stripped["Scheme"] == plan]
+        mat = p[p["Department"].str.contains("Matern", case=False, na=False)]
+        mat_claims = mat["Claim_Number"].nunique()
+        mat_members = mat["Member_ID"].nunique()
+        mat_total = mat["Amount_Paid"].sum()
+        mat_pct = mat_total / p["Amount_Paid"].sum() * 100 if p["Amount_Paid"].sum() > 0 else 0
+        mat_avg = mat_total / mat_claims if mat_claims > 0 else 0
+        mat_rows += f"""<tr>
+            <td><strong>{plan}</strong></td>
+            <td class="num">{mat_members:,}</td>
+            <td class="num">{mat_claims:,}</td>
+            <td class="num">{fmt_full(mat_total)}</td>
+            <td class="num">{pct(mat_pct)}</td>
+            <td class="num">{fmt_full(mat_avg)}</td>
+        </tr>"""
+
+    # Top cost providers
+    top_cost_prov = fm.groupby("Provider").agg(
+        Total_Paid=("Amount_Paid", "sum"),
+        Unique_Claims=("Claim_Number", "nunique"),
+        Unique_Members=("Member_ID", "nunique"),
+    ).sort_values("Total_Paid", ascending=False).head(10)
+    top_cost_prov["Visits_Per_Member"] = (top_cost_prov["Unique_Claims"] / top_cost_prov["Unique_Members"]).round(1)
+    top_cost_prov["Avg_Per_Visit"] = (top_cost_prov["Total_Paid"] / top_cost_prov["Unique_Claims"]).round(2)
+    top_cost_prov["Pct"] = (top_cost_prov["Total_Paid"] / paid_total * 100).round(1)
+
+    cost_prov_rows = ""
+    for i, (prov, row) in enumerate(top_cost_prov.iterrows(), 1):
+        vpm_cls = "danger" if row["Visits_Per_Member"] > 3.5 else ("warning" if row["Visits_Per_Member"] > 2.5 else "")
+        cost_prov_rows += f"""<tr>
+            <td>{i}</td>
+            <td>{str(prov).strip().title()}</td>
+            <td class="num">{fmt_full(row['Total_Paid'])}</td>
+            <td class="num">{pct(row['Pct'])}</td>
+            <td class="num">{row['Unique_Members']:,}</td>
+            <td class="num {vpm_cls}">{row['Visits_Per_Member']}</td>
+            <td class="num">{fmt_full(row['Avg_Per_Visit'])}</td>
+        </tr>"""
 
     # ── Subsidiary dept heatmap: top 5 depts x all subs ──
     top5_depts = dept.head(5).index.tolist()
@@ -853,6 +982,154 @@ def generate_report():
       <thead><tr><th>Status</th><th class="num">Unique Claims</th></tr></thead>
       <tbody>{status_rows}</tbody>
     </table>
+  </div>
+
+  <!-- DIAGNOSTIC ANALYSIS -->
+  <div class="mlr-card" style="background:linear-gradient(135deg, #1A1A2E 0%, #2d1a1a 100%);">
+    <h2 style="color:var(--coral);">Diagnostic Analysis — Why Is This Plan Underperforming?</h2>
+    <div class="formula">Valid claims from 1 July 2025 onwards only. All counts use unique claim IDs.</div>
+  </div>
+
+  <!-- Visit Frequency -->
+  <div class="section">
+    <h2>Visit <span class="accent">Frequency</span> by Plan</h2>
+    <p style="color:var(--text-muted);font-size:13px;margin-bottom:16px;">High visit frequency is the #1 cost driver. Colour-coded values flag elevated utilisation.</p>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Plan</th>
+          <th class="num">Unique Members</th>
+          <th class="num">Unique Claims</th>
+          <th class="num">Visits/Member</th>
+          <th class="num">Avg Cost/Visit</th>
+          <th class="num">Avg Cost/Member</th>
+        </tr>
+      </thead>
+      <tbody>{visit_freq_rows}</tbody>
+    </table>
+  </div>
+
+  <!-- Heavy Users -->
+  <div class="section">
+    <h2>Heavy <span class="accent">Users</span> — Members with &gt;10 Visits</h2>
+    <p style="color:var(--text-muted);font-size:13px;margin-bottom:16px;">A small group of repeat visitors consuming a disproportionate share of the budget.</p>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Plan</th>
+          <th class="num">Heavy Users</th>
+          <th class="num">% of Members</th>
+          <th class="num">Their Spend</th>
+          <th class="num">% of Plan Total</th>
+          <th class="num">Avg Visits</th>
+          <th class="num">Avg Spent</th>
+        </tr>
+      </thead>
+      <tbody>{heavy_user_rows}</tbody>
+    </table>
+  </div>
+
+  <!-- Medication Dominance -->
+  <div class="section">
+    <h2>Medication <span class="accent">Dominance</span></h2>
+    <p style="color:var(--text-muted);font-size:13px;margin-bottom:16px;">Medication is the single largest cost category. Over-prescribing or expensive drug choices may be inflating spend.</p>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Plan</th>
+          <th class="num">Medication Spend</th>
+          <th class="num">% of Total</th>
+          <th class="num">Non-Medication Spend</th>
+        </tr>
+      </thead>
+      <tbody>{med_rows}</tbody>
+    </table>
+  </div>
+
+  <!-- Surgery Cost -->
+  <div class="section">
+    <h2>Surgery <span class="accent">Cost</span> — Low Volume, High Impact</h2>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Plan</th>
+          <th class="num">Surgery Claims</th>
+          <th class="num">Surgery Spend</th>
+          <th class="num">Avg per Surgery</th>
+          <th class="num">% of Plan Total</th>
+        </tr>
+      </thead>
+      <tbody>{surg_rows}</tbody>
+    </table>
+  </div>
+
+  <!-- Maternity -->
+  <div class="section">
+    <h2>Maternity <span class="accent">Analysis</span></h2>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Plan</th>
+          <th class="num">Members</th>
+          <th class="num">Claims</th>
+          <th class="num">Total Spend</th>
+          <th class="num">% of Plan Total</th>
+          <th class="num">Avg per Case</th>
+        </tr>
+      </thead>
+      <tbody>{mat_rows}</tbody>
+    </table>
+  </div>
+
+  <!-- Top Cost Providers -->
+  <div class="section">
+    <h2>Top 10 Cost <span class="accent">Providers</span> — Audit Targets</h2>
+    <p style="color:var(--text-muted);font-size:13px;margin-bottom:16px;">Providers with high visits/member or high avg cost/visit may warrant tariff review or utilisation audit.</p>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Provider</th>
+          <th class="num">Total Paid</th>
+          <th class="num">% of Total</th>
+          <th class="num">Members</th>
+          <th class="num">Visits/Member</th>
+          <th class="num">Avg/Visit</th>
+        </tr>
+      </thead>
+      <tbody>{cost_prov_rows}</tbody>
+    </table>
+  </div>
+
+  <!-- Urgent Recommendations -->
+  <div class="section" style="border-left:4px solid var(--crimson);">
+    <h2>Urgent <span class="accent">Recommendations</span></h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:20px;margin-top:16px;">
+      <div style="background:var(--soft-pink);border-radius:10px;padding:20px;">
+        <div style="font-weight:800;color:var(--crimson);font-size:15px;margin-bottom:8px;">1. Cap Visit Frequency</div>
+        <div style="font-size:13px;color:var(--text-dark);">Introduce co-pay or soft cap after 3 visits per quarter. Heavy users (5-10% of members) are consuming 20-35% of plan budgets with 14-21 visits each.</div>
+      </div>
+      <div style="background:var(--soft-pink);border-radius:10px;padding:20px;">
+        <div style="font-weight:800;color:var(--crimson);font-size:15px;margin-bottom:8px;">2. Enforce Drug Formulary</div>
+        <div style="font-size:13px;color:var(--text-dark);">Medication is 46% of PLUS spend. Mandate generic substitution, cap drug spend per visit, or require pre-authorisation for expensive prescriptions.</div>
+      </div>
+      <div style="background:var(--soft-pink);border-radius:10px;padding:20px;">
+        <div style="font-weight:800;color:var(--crimson);font-size:15px;margin-bottom:8px;">3. Audit Top Provider</div>
+        <div style="font-size:13px;color:var(--text-dark);">First Choice Specialist Hospital Kano alone accounts for ~10% of all spend. Review tariff compliance, prescribing patterns, and consider redistributing members to lower-cost providers.</div>
+      </div>
+      <div style="background:var(--soft-pink);border-radius:10px;padding:20px;">
+        <div style="font-weight:800;color:var(--crimson);font-size:15px;margin-bottom:8px;">4. Case-Manage MAX Heavy Users</div>
+        <div style="font-size:13px;color:var(--text-dark);">36 MAX members (10.4%) consume 35% of the MAX budget averaging 20.8 visits. Assign dedicated case managers and review appropriateness of claims.</div>
+      </div>
+      <div style="background:var(--soft-pink);border-radius:10px;padding:20px;">
+        <div style="font-weight:800;color:var(--crimson);font-size:15px;margin-bottom:8px;">5. Surgery Pre-Authorisation</div>
+        <div style="font-size:13px;color:var(--text-dark);">108 PLUS surgeries at &#8358;244K each = &#8358;26.3M. Mandate pre-auth and second opinion for all elective procedures above &#8358;100K.</div>
+      </div>
+      <div style="background:var(--soft-pink);border-radius:10px;padding:20px;">
+        <div style="font-weight:800;color:var(--crimson);font-size:15px;margin-bottom:8px;">6. Review MAX Plan Pricing</div>
+        <div style="font-size:13px;color:var(--text-dark);">MAX members average 5.3 visits and &#8358;121K spend each. With the highest utilisation rate across all plans, benefit limits or premium adjustment needed.</div>
+      </div>
+    </div>
   </div>
 
   <div class="footer">
