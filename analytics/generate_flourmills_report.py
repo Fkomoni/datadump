@@ -591,15 +591,35 @@ def generate_report():
 
     drug_class_rows = ""
     for i, (cls, row) in enumerate(drug_class_summary.iterrows(), 1):
-        drug_class_rows += f"""<tr>
+        # Class header row
+        drug_class_rows += f"""<tr style="background:var(--light-blue);">
             <td>{i}</td>
             <td><strong>{cls}</strong></td>
-            <td class="num">{fmt_full(row['Total_Paid'])}</td>
-            <td class="num">{pct(row['Pct'])}</td>
-            <td class="num">{row['Unique_Claims']:,}</td>
-            <td class="num">{row['Unique_Members']:,}</td>
-            <td class="num">{fmt_full(row['Avg_Per_Claim'])}</td>
+            <td class="num" style="font-weight:700;">{fmt_full(row['Total_Paid'])}</td>
+            <td class="num" style="font-weight:700;">{pct(row['Pct'])}</td>
+            <td class="num" style="font-weight:700;">{row['Unique_Claims']:,}</td>
+            <td class="num" style="font-weight:700;">{row['Unique_Members']:,}</td>
+            <td class="num" style="font-weight:700;">{fmt_full(row['Avg_Per_Claim'])}</td>
         </tr>"""
+
+        # Top 5 individual drugs within this class (skip tariff-coded)
+        if cls != "Tariff-Coded Prescriptions":
+            cls_drugs = med_all[med_all["Drug_Class"] == cls].groupby("Description").agg(
+                Total_Paid=("Amount_Paid", "sum"),
+                Unique_Claims=("Claim_Number", "nunique"),
+                Unique_Members=("Member_ID", "nunique"),
+            ).sort_values("Total_Paid", ascending=False).head(5)
+            for drug_name, drug_row in cls_drugs.iterrows():
+                d_avg = drug_row["Total_Paid"] / drug_row["Unique_Claims"] if drug_row["Unique_Claims"] > 0 else 0
+                drug_class_rows += f"""<tr>
+                    <td></td>
+                    <td style="padding-left:28px;color:var(--text-muted);font-size:12px;">{str(drug_name).strip().title()}</td>
+                    <td class="num" style="font-size:12px;">{fmt_full(drug_row['Total_Paid'])}</td>
+                    <td class="num" style="font-size:12px;">{pct(drug_row['Total_Paid'] / total_med_spend * 100)}</td>
+                    <td class="num" style="font-size:12px;">{drug_row['Unique_Claims']:,}</td>
+                    <td class="num" style="font-size:12px;">{drug_row['Unique_Members']:,}</td>
+                    <td class="num" style="font-size:12px;">{fmt_full(d_avg)}</td>
+                </tr>"""
 
     drug_by_plan_rows = ""
     for plan in valid_plan_names:
