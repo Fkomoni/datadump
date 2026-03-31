@@ -1,756 +1,1100 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PENCOM Analytics Report</title>
 <style>
-  body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; color: #333; }
-  .container { max-width: 1100px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-  h1 { color: #1a5276; border-bottom: 3px solid #2ecc71; padding-bottom: 10px; }
-  h2 { color: #2c3e50; margin-top: 30px; border-left: 4px solid #2ecc71; padding-left: 12px; }
-  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin: 20px 0; }
-  .kpi { background: linear-gradient(135deg, #1a5276, #2ecc71); color: white; padding: 20px; border-radius: 8px; text-align: center; }
-  .kpi .value { font-size: 24px; font-weight: bold; margin-top: 5px; }
-  .kpi .label { font-size: 12px; opacity: 0.9; text-transform: uppercase; }
-  .table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 13px; }
-  .table th { background: #1a5276; color: white; padding: 10px 8px; text-align: left; }
-  .table td { padding: 8px; border-bottom: 1px solid #eee; }
-  .table tr:hover { background: #f0f8ff; }
-  .chart-section { margin: 20px 0; }
-  .mlr-highlight { background: #e8f8f5; border: 2px solid #2ecc71; border-radius: 8px; padding: 20px; margin: 20px 0; }
-  .mlr-formula { font-size: 14px; color: #666; margin-bottom: 15px; font-style: italic; }
-  .footer { text-align: center; color: #999; margin-top: 30px; font-size: 12px; }
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+  :root {
+    --navy: #1A1A2E;
+    --crimson: #C8102E;
+    --coral: #E87722;
+    --cream: #FAF7F2;
+    --light-blue: #E8F4FD;
+    --soft-pink: #FDF0ED;
+    --light-grey: #F4F4F6;
+    --medium-grey: #E8E8EC;
+    --text-dark: #1A1A2E;
+    --text-muted: #6B7280;
+    --white: #FFFFFF;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', 'Leadway Book', 'Segoe UI', sans-serif;
+    background: var(--cream);
+    color: var(--text-dark);
+    line-height: 1.6;
+    font-size: 14px;
+  }
+
+  .container {
+    max-width: 1140px;
+    margin: 0 auto;
+    padding: 40px 20px;
+  }
+
+  /* Header */
+  .header {
+    background: var(--navy);
+    color: var(--white);
+    padding: 50px 40px;
+    border-radius: 16px;
+    margin-bottom: 30px;
+    position: relative;
+    overflow: hidden;
+  }
+  .header::after {
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: 300px; height: 100%;
+    background: linear-gradient(135deg, transparent 40%, rgba(200,16,46,0.15) 100%);
+  }
+  .header h1 {
+    font-family: 'Inter', 'Leadway Bold', sans-serif;
+    font-weight: 800;
+    font-size: 32px;
+    letter-spacing: -0.5px;
+    margin-bottom: 6px;
+  }
+  .header .subtitle {
+    font-weight: 400;
+    font-size: 15px;
+    opacity: 0.75;
+  }
+  .header .org-label {
+    display: inline-block;
+    background: var(--crimson);
+    color: white;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  /* Section */
+  .section {
+    background: var(--white);
+    border-radius: 14px;
+    padding: 32px;
+    margin-bottom: 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .section h2 {
+    font-family: 'Inter', 'Leadway Bold', sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    color: var(--navy);
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--medium-grey);
+  }
+  .section h2 span.accent {
+    color: var(--crimson);
+  }
+
+  /* KPI Grid */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 10px;
+  }
+  .kpi {
+    background: var(--white);
+    border: 1px solid var(--medium-grey);
+    border-radius: 12px;
+    padding: 22px 18px;
+    text-align: center;
+    transition: transform 0.15s;
+  }
+  .kpi:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+  .kpi .label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+  .kpi .value {
+    font-family: 'Inter', 'Leadway Heavy', sans-serif;
+    font-weight: 800;
+    font-size: 22px;
+    color: var(--navy);
+  }
+  .kpi.highlight { border-color: var(--crimson); border-width: 2px; }
+  .kpi.highlight .value { color: var(--crimson); }
+  .kpi.coral .value { color: var(--coral); }
+  .kpi.coral { border-color: var(--coral); border-width: 2px; }
+
+  /* MLR / COR Card */
+  .mlr-card {
+    background: var(--navy);
+    color: var(--white);
+    border-radius: 14px;
+    padding: 32px;
+    margin-bottom: 24px;
+  }
+  .mlr-card h2 {
+    color: var(--white);
+    border-bottom-color: rgba(255,255,255,0.15);
+    font-weight: 700;
+    font-size: 20px;
+    margin-bottom: 6px;
+    padding-bottom: 0;
+    border: none;
+  }
+  .mlr-card .formula {
+    font-size: 13px;
+    opacity: 0.6;
+    margin-bottom: 24px;
+    font-style: italic;
+  }
+  .mlr-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  .mlr-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .mlr-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    font-size: 13px;
+  }
+  .mlr-table td:last-child { text-align: right; font-weight: 600; }
+  .mlr-table tr.total td {
+    border-top: 2px solid var(--crimson);
+    font-weight: 800;
+    font-size: 15px;
+    padding-top: 14px;
+  }
+  .mlr-table tr.total td:last-child { color: var(--coral); }
+  .cor-result {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    background: rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 30px;
+  }
+  .cor-result .big-number {
+    font-family: 'Inter', 'Leadway Heavy', sans-serif;
+    font-size: 56px;
+    font-weight: 900;
+    color: var(--coral);
+    line-height: 1;
+  }
+  .cor-result .big-label {
+    font-size: 14px;
+    opacity: 0.7;
+    margin-top: 8px;
+  }
+  .cor-breakdown {
+    margin-top: 20px;
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .cor-chip {
+    background: rgba(255,255,255,0.08);
+    border-radius: 8px;
+    padding: 10px 16px;
+    text-align: center;
+    min-width: 100px;
+  }
+  .cor-chip .chip-val { font-weight: 800; font-size: 18px; }
+  .cor-chip .chip-lbl { font-size: 10px; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* Tables */
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .data-table thead th {
+    background: var(--navy);
+    color: var(--white);
+    padding: 12px 10px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .data-table thead th.num { text-align: right; }
+  .data-table tbody td {
+    padding: 10px;
+    border-bottom: 1px solid var(--light-grey);
+  }
+  .data-table tbody td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .data-table tbody td.highlight { color: var(--crimson); font-weight: 700; }
+  .data-table tbody tr:hover { background: var(--light-blue); }
+  .data-table tbody tr:nth-child(even) { background: var(--light-grey); }
+  .data-table tbody tr:nth-child(even):hover { background: var(--light-blue); }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 11px;
+    margin-top: 20px;
+    padding: 20px;
+  }
+
+  @media print {
+    body { background: white; }
+    .section { box-shadow: none; break-inside: avoid; }
+    .kpi:hover { transform: none; }
+  }
 </style>
 </head>
 <body>
 <div class="container">
 
-<h1>PENCOM Analytics Report</h1>
-<p style="color:#666;">National Pension Commission | Generated: 31 March 2026</p>
+  <!-- HEADER -->
+  <div class="header">
+    <div class="org-label">National Pension Commission</div>
+    <h1>PENCOM Analytics Report</h1>
+    <div class="subtitle">Claims, Premium &amp; IBNR Analysis &nbsp;|&nbsp; 31 March 2026</div>
+  </div>
 
-<div class="kpi-grid">
-  <div class="kpi"><div class="label">Total Claims</div><div class="value">28,326</div></div>
-  <div class="kpi"><div class="label">Total Paid</div><div class="value">N177,474,136.64</div></div>
-  <div class="kpi"><div class="label">Pipeline Claims</div><div class="value">N13,891,869.60</div></div>
-  <div class="kpi"><div class="label">IBNR Reserve</div><div class="value">N33,165,749.71</div></div>
-  <div class="kpi"><div class="label">Earned Premium</div><div class="value">N239,658,163.30</div></div>
-  <div class="kpi"><div class="label">MLR</div><div class="value">93.7%</div></div>
-  <div class="kpi"><div class="label">Unique Members</div><div class="value">1,038</div></div>
-  <div class="kpi"><div class="label">Unique Providers</div><div class="value">235</div></div>
-</div>
+  <!-- KPI OVERVIEW -->
+  <div class="section">
+    <h2>Executive <span class="accent">Overview</span></h2>
+    <div class="kpi-grid">
+      <div class="kpi highlight">
+        <div class="label">Total Incurred</div>
+        <div class="value">&#8358;224.53M</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Paid Claims</div>
+        <div class="value">&#8358;177.47M</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Pipeline Claims</div>
+        <div class="value">&#8358;13.89M</div>
+      </div>
+      <div class="kpi coral">
+        <div class="label">IBNR Reserve</div>
+        <div class="value">&#8358;33.17M</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Earned Premium</div>
+        <div class="value">&#8358;239.66M</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Written Premium</div>
+        <div class="value">&#8358;339.67M</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Unique Members</div>
+        <div class="value">1,038</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Unique Claims</div>
+        <div class="value">5,341</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Avg Paid Per Member</div>
+        <div class="value">&#8358;173K</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Avg Paid Per Visit</div>
+        <div class="value">&#8358;35K</div>
+      </div>
+    </div>
+  </div>
 
-<div class="mlr-highlight">
-  <h2 style="margin-top:0;border:none;padding:0;">Medical Loss Ratio (MLR)</h2>
-  <div class="mlr-formula">MLR = (Paid Claims + Pipeline Claims + IBNR) / Earned Premium</div>
-  <table class="table">
-    <tr><th>Component</th><th>Amount</th></tr>
-    <tr><td>Paid Claims</td><td style="text-align:right;">N177,474,136.64</td></tr>
-    <tr><td>Pipeline Claims</td><td style="text-align:right;">N13,891,869.60</td></tr>
-    <tr><td>IBNR</td><td style="text-align:right;">N33,165,749.71</td></tr>
-    <tr><td><strong>Total Incurred</strong></td><td style="text-align:right;"><strong>N224,531,755.95</strong></td></tr>
-    <tr><td>Written Premium</td><td style="text-align:right;">N339,665,434.10</td></tr>
-    <tr><td>Earned Premium</td><td style="text-align:right;">N239,658,163.30</td></tr>
-    <tr><td><strong>MLR</strong></td><td style="text-align:right;"><strong>93.7%</strong></td></tr>
-  </table>
-</div>
+  <!-- MLR & COR -->
+  <div class="mlr-card">
+    <h2>Medical Loss Ratio &amp; Combined Operating Ratio</h2>
+    <div class="formula">MLR = (Paid Claims + Pipeline Claims + IBNR) / Earned Premium &nbsp;&nbsp;|&nbsp;&nbsp; COR = MLR + Admin + NHIA</div>
 
-<h2>IBNR Estimate by Incurred Month</h2>
-<table class="dataframe table">
-  <thead>
-    <tr style="text-align: right;">
-      <th></th>
-      <th>Current_Reported</th>
-      <th>Development_Lag</th>
-      <th>Ultimate_Projected</th>
-      <th>IBNR_Estimate</th>
-    </tr>
-    <tr>
-      <th>Incurred_Month</th>
-      <th></th>
-      <th></th>
-      <th></th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th>2025-07</th>
-      <td>9,658,773.77</td>
-      <td>8</td>
-      <td>9,658,773.77</td>
-      <td>0.00</td>
-    </tr>
-    <tr>
-      <th>2025-08</th>
-      <td>24,843,887.40</td>
-      <td>7</td>
-      <td>25,044,758.38</td>
-      <td>200,870.98</td>
-    </tr>
-    <tr>
-      <th>2025-09</th>
-      <td>25,682,376.80</td>
-      <td>6</td>
-      <td>25,890,027.24</td>
-      <td>207,650.44</td>
-    </tr>
-    <tr>
-      <th>2025-10</th>
-      <td>26,156,257.19</td>
-      <td>5</td>
-      <td>26,367,739.11</td>
-      <td>211,481.92</td>
-    </tr>
-    <tr>
-      <th>2025-11</th>
-      <td>29,202,085.74</td>
-      <td>4</td>
-      <td>29,731,451.93</td>
-      <td>529,366.19</td>
-    </tr>
-    <tr>
-      <th>2025-12</th>
-      <td>18,578,142.24</td>
-      <td>3</td>
-      <td>19,357,504.17</td>
-      <td>779,361.93</td>
-    </tr>
-    <tr>
-      <th>2026-01</th>
-      <td>35,881,197.76</td>
-      <td>2</td>
-      <td>42,722,388.95</td>
-      <td>6,841,191.19</td>
-    </tr>
-    <tr>
-      <th>2026-02</th>
-      <td>15,268,892.60</td>
-      <td>1</td>
-      <td>21,630,866.81</td>
-      <td>6,361,974.21</td>
-    </tr>
-    <tr>
-      <th>2026-03</th>
-      <td>699,226.15</td>
-      <td>0</td>
-      <td>18,733,079.00</td>
-      <td>18,033,852.85</td>
-    </tr>
-  </tbody>
-</table>
+    <div class="mlr-grid">
+      <div>
+        <table class="mlr-table">
+          <tr><td>Paid Claims</td><td>&#8358;177,474,136.64</td></tr>
+          <tr><td>Pipeline Claims</td><td>&#8358;13,891,869.60</td></tr>
+          <tr><td>IBNR</td><td>&#8358;33,165,749.71</td></tr>
+          <tr class="total"><td>Total Incurred</td><td>&#8358;224,531,755.95</td></tr>
+          <tr><td style="padding-top:16px;">Earned Premium</td><td style="padding-top:16px;">&#8358;239,658,163.30</td></tr>
+          <tr><td>Written Premium</td><td>&#8358;339,665,434.10</td></tr>
+          <tr class="total"><td>MLR</td><td>93.7%</td></tr>
+          <tr><td style="padding-top:16px;">Admin Expense (15%)</td><td style="padding-top:16px;">&#8358;35,948,724.50</td></tr>
+          <tr><td>NHIA Levy (2%)</td><td>&#8358;4,793,163.27</td></tr>
+          <tr class="total"><td>Combined Operating Ratio</td><td>110.7%</td></tr>
+        </table>
+      </div>
+      <div class="cor-result">
+        <div class="big-number">110.7%</div>
+        <div class="big-label">Combined Operating Ratio</div>
+        <div class="cor-breakdown">
+          <div class="cor-chip">
+            <div class="chip-val">93.7%</div>
+            <div class="chip-lbl">MLR</div>
+          </div>
+          <div class="cor-chip">
+            <div class="chip-val">15.0%</div>
+            <div class="chip-lbl">Admin</div>
+          </div>
+          <div class="cor-chip">
+            <div class="chip-val">2.0%</div>
+            <div class="chip-lbl">NHIA</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-<h2>Top 20 Providers by Amount Paid</h2>
-<table class="dataframe table">
-  <thead>
-    <tr style="text-align: right;">
-      <th></th>
-      <th>Total_Paid</th>
-      <th>Claim_Count</th>
-      <th>Avg_Paid</th>
-      <th>Organizations</th>
-    </tr>
-    <tr>
-      <th>Provider</th>
-      <th></th>
-      <th></th>
-      <th></th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th>DEDA HOSPITAL LIMITED</th>
-      <td>32,963,595.50</td>
-      <td>2288</td>
-      <td>14,407.17</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>St Catherine Specialist Hospital ABUJA</th>
-      <td>29,573,202.61</td>
-      <td>6703</td>
-      <td>4,411.94</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>MEV Specialist Hospital</th>
-      <td>9,810,296.33</td>
-      <td>2482</td>
-      <td>3,952.58</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>Limi Hospital And Maternity Limited</th>
-      <td>9,698,035.25</td>
-      <td>988</td>
-      <td>9,815.83</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>CEDAR CREST HOSPITALS LIMITED APO</th>
-      <td>8,987,421.06</td>
-      <td>831</td>
-      <td>10,815.19</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>Nisa Premier Hospital</th>
-      <td>7,244,620.00</td>
-      <td>793</td>
-      <td>9,135.71</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>ECHO SCAN SERVICES OPEBI</th>
-      <td>5,136,891.56</td>
-      <td>704</td>
-      <td>7,296.72</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>Medicaid Radiodiagnostics and Clinic Limited</th>
-      <td>3,388,700.00</td>
-      <td>679</td>
-      <td>4,990.72</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>EVERIGHT DIAGNOSTIC AND LABORATORY SERVICES LIMITED</th>
-      <td>3,185,828.00</td>
-      <td>374</td>
-      <td>8,518.26</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>GRABBO FERTILITY CLINIC&amp; DIAGNOSTIC CENTER</th>
-      <td>3,007,200.00</td>
-      <td>218</td>
-      <td>13,794.50</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>MEDPLUS PHARMACY LIMITED SAKA TINUBU</th>
-      <td>2,702,282.95</td>
-      <td>224</td>
-      <td>12,063.76</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>VINCA HOSPITAL</th>
-      <td>2,584,782.50</td>
-      <td>757</td>
-      <td>3,414.51</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>E-CLINICS and DIAGNOSTIC LTD ABUJA</th>
-      <td>2,579,540.00</td>
-      <td>254</td>
-      <td>10,155.67</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>Bethel Dental Clinic</th>
-      <td>2,525,810.45</td>
-      <td>538</td>
-      <td>4,694.81</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>Locus Eye Clinic</th>
-      <td>1,970,042.50</td>
-      <td>216</td>
-      <td>9,120.57</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>SYCAMORE PHARMACY</th>
-      <td>1,934,700.00</td>
-      <td>170</td>
-      <td>11,380.59</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>LEAH MEDICAL CENTRE</th>
-      <td>1,811,578.61</td>
-      <td>384</td>
-      <td>4,717.65</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>NATIONAL HOSPITAL ABUJA</th>
-      <td>1,584,064.05</td>
-      <td>22</td>
-      <td>72,002.91</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>KELINA HOSPITAL ABUJA</th>
-      <td>1,382,500.00</td>
-      <td>235</td>
-      <td>5,882.98</td>
-      <td>1</td>
-    </tr>
-    <tr>
-      <th>BeaconHealth Diagnostics Lekki</th>
-      <td>1,357,322.25</td>
-      <td>243</td>
-      <td>5,585.69</td>
-      <td>1</td>
-    </tr>
-  </tbody>
-</table>
+  <!-- IBNR -->
+  <div class="section">
+    <h2>IBNR <span class="accent">Estimate</span> by Incurred Month</h2>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Incurred Month</th>
+          <th class="num">Current Reported</th>
+          <th class="num">Dev. Lag</th>
+          <th class="num">Ultimate Projected</th>
+          <th class="num">IBNR Estimate</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+            <td>July 2025</td>
+            <td class="num">&#8358;9,658,773.77</td>
+            <td class="num">8.0</td>
+            <td class="num">&#8358;9,658,773.77</td>
+            <td class="num highlight">&#8358;0.00</td>
+        </tr><tr>
+            <td>August 2025</td>
+            <td class="num">&#8358;24,843,887.40</td>
+            <td class="num">7.0</td>
+            <td class="num">&#8358;25,044,758.38</td>
+            <td class="num highlight">&#8358;200,870.98</td>
+        </tr><tr>
+            <td>September 2025</td>
+            <td class="num">&#8358;25,682,376.80</td>
+            <td class="num">6.0</td>
+            <td class="num">&#8358;25,890,027.24</td>
+            <td class="num highlight">&#8358;207,650.44</td>
+        </tr><tr>
+            <td>October 2025</td>
+            <td class="num">&#8358;26,156,257.19</td>
+            <td class="num">5.0</td>
+            <td class="num">&#8358;26,367,739.11</td>
+            <td class="num highlight">&#8358;211,481.92</td>
+        </tr><tr>
+            <td>November 2025</td>
+            <td class="num">&#8358;29,202,085.74</td>
+            <td class="num">4.0</td>
+            <td class="num">&#8358;29,731,451.93</td>
+            <td class="num highlight">&#8358;529,366.19</td>
+        </tr><tr>
+            <td>December 2025</td>
+            <td class="num">&#8358;18,578,142.24</td>
+            <td class="num">3.0</td>
+            <td class="num">&#8358;19,357,504.17</td>
+            <td class="num highlight">&#8358;779,361.93</td>
+        </tr><tr>
+            <td>January 2026</td>
+            <td class="num">&#8358;35,881,197.76</td>
+            <td class="num">2.0</td>
+            <td class="num">&#8358;42,722,388.95</td>
+            <td class="num highlight">&#8358;6,841,191.19</td>
+        </tr><tr>
+            <td>February 2026</td>
+            <td class="num">&#8358;15,268,892.60</td>
+            <td class="num">1.0</td>
+            <td class="num">&#8358;21,630,866.81</td>
+            <td class="num highlight">&#8358;6,361,974.21</td>
+        </tr><tr>
+            <td>March 2026</td>
+            <td class="num">&#8358;699,226.15</td>
+            <td class="num">0.0</td>
+            <td class="num">&#8358;18,733,079.00</td>
+            <td class="num highlight">&#8358;18,033,852.85</td>
+        </tr>
+        <tr style="background:var(--soft-pink);font-weight:700;">
+          <td>Total</td>
+          <td class="num">&#8358;185,970,839.64</td>
+          <td></td>
+          <td class="num">&#8358;219,136,589.36</td>
+          <td class="num highlight">&#8358;33,165,749.71</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 
-<h2>Department Breakdown</h2>
-<table class="dataframe table">
-  <thead>
-    <tr style="text-align: right;">
-      <th></th>
-      <th>Total_Paid</th>
-      <th>Claim_Count</th>
-      <th>Avg_Paid</th>
-    </tr>
-    <tr>
-      <th>Department</th>
-      <th></th>
-      <th></th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th>Medication</th>
-      <td>32,742,421.82</td>
-      <td>10722</td>
-      <td>3,053.76</td>
-    </tr>
-    <tr>
-      <th>Pathology&nbsp;&nbsp;- Laboratory</th>
-      <td>20,810,253.58</td>
-      <td>4884</td>
-      <td>4,260.90</td>
-    </tr>
-    <tr>
-      <th>GP Consultations</th>
-      <td>14,476,757.73</td>
-      <td>2491</td>
-      <td>5,811.62</td>
-    </tr>
-    <tr>
-      <th>Specialist Consultations</th>
-      <td>13,185,440.00</td>
-      <td>615</td>
-      <td>21,439.74</td>
-    </tr>
-    <tr>
-      <th>Advanced Investigations</th>
-      <td>12,904,185.26</td>
-      <td>703</td>
-      <td>18,355.88</td>
-    </tr>
-    <tr>
-      <th>Chronic Medication</th>
-      <td>9,110,158.44</td>
-      <td>928</td>
-      <td>9,816.98</td>
-    </tr>
-    <tr>
-      <th>Dentistry</th>
-      <td>6,074,752.83</td>
-      <td>787</td>
-      <td>7,718.87</td>
-    </tr>
-    <tr>
-      <th>Maternity Delivery</th>
-      <td>5,102,424.00</td>
-      <td>25</td>
-      <td>204,096.96</td>
-    </tr>
-    <tr>
-      <th>Full Blood Count</th>
-      <td>5,059,339.20</td>
-      <td>1082</td>
-      <td>4,675.91</td>
-    </tr>
-    <tr>
-      <th>Ward Fees</th>
-      <td>4,775,500.00</td>
-      <td>118</td>
-      <td>40,470.34</td>
-    </tr>
-    <tr>
-      <th>Lens and Frames</th>
-      <td>4,774,000.00</td>
-      <td>103</td>
-      <td>46,349.51</td>
-    </tr>
-    <tr>
-      <th>Congenital Anomaly Treatment</th>
-      <td>4,503,520.00</td>
-      <td>203</td>
-      <td>22,184.83</td>
-    </tr>
-    <tr>
-      <th>Major Surgery</th>
-      <td>4,365,100.00</td>
-      <td>6</td>
-      <td>727,516.67</td>
-    </tr>
-    <tr>
-      <th>Fertility Services (Consultation &amp; Investigation)</th>
-      <td>4,332,144.99</td>
-      <td>530</td>
-      <td>8,173.86</td>
-    </tr>
-    <tr>
-      <th>Surgeries</th>
-      <td>3,920,351.00</td>
-      <td>12</td>
-      <td>326,695.92</td>
-    </tr>
-  </tbody>
-</table>
+  <!-- TOP 20 PROVIDERS -->
+  <div class="section">
+    <h2>Top 20 Paid <span class="accent">Providers</span></h2>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Provider</th>
+          <th class="num">Total Paid</th>
+          <th class="num">% of Total</th>
+          <th class="num">Unique Claims</th>
+          <th class="num">Unique Members</th>
+          <th class="num">Avg Per Visit</th>
+          <th class="num">Avg Per Member</th>
+        </tr>
+      </thead>
+      <tbody><tr>
+            <td>1</td>
+            <td>Deda Hospital Limited</td>
+            <td class="num">&#8358;32,963,595.50</td>
+            <td class="num">18.6%</td>
+            <td class="num">415.0</td>
+            <td class="num">137.0</td>
+            <td class="num">&#8358;79,430.35</td>
+            <td class="num">&#8358;240,610.19</td>
+        </tr><tr>
+            <td>2</td>
+            <td>St Catherine Specialist Hospital Abuja</td>
+            <td class="num">&#8358;29,573,202.61</td>
+            <td class="num">16.7%</td>
+            <td class="num">1,152.0</td>
+            <td class="num">309.0</td>
+            <td class="num">&#8358;25,671.18</td>
+            <td class="num">&#8358;95,706.16</td>
+        </tr><tr>
+            <td>3</td>
+            <td>Mev Specialist Hospital</td>
+            <td class="num">&#8358;9,810,296.33</td>
+            <td class="num">5.5%</td>
+            <td class="num">373.0</td>
+            <td class="num">133.0</td>
+            <td class="num">&#8358;26,301.06</td>
+            <td class="num">&#8358;73,761.63</td>
+        </tr><tr>
+            <td>4</td>
+            <td>Limi Hospital And Maternity Limited</td>
+            <td class="num">&#8358;9,698,035.25</td>
+            <td class="num">5.5%</td>
+            <td class="num">148.0</td>
+            <td class="num">71.0</td>
+            <td class="num">&#8358;65,527.27</td>
+            <td class="num">&#8358;136,592.05</td>
+        </tr><tr>
+            <td>5</td>
+            <td>Cedar Crest Hospitals Limited Apo</td>
+            <td class="num">&#8358;8,987,421.06</td>
+            <td class="num">5.1%</td>
+            <td class="num">249.0</td>
+            <td class="num">54.0</td>
+            <td class="num">&#8358;36,094.06</td>
+            <td class="num">&#8358;166,433.72</td>
+        </tr><tr>
+            <td>6</td>
+            <td>Nisa Premier Hospital</td>
+            <td class="num">&#8358;7,244,620.00</td>
+            <td class="num">4.1%</td>
+            <td class="num">150.0</td>
+            <td class="num">37.0</td>
+            <td class="num">&#8358;48,297.47</td>
+            <td class="num">&#8358;195,800.54</td>
+        </tr><tr>
+            <td>7</td>
+            <td>Echo Scan Services Opebi</td>
+            <td class="num">&#8358;5,136,891.56</td>
+            <td class="num">2.9%</td>
+            <td class="num">49.0</td>
+            <td class="num">47.0</td>
+            <td class="num">&#8358;104,834.52</td>
+            <td class="num">&#8358;109,295.57</td>
+        </tr><tr>
+            <td>8</td>
+            <td>Medicaid Radiodiagnostics And Clinic Limited</td>
+            <td class="num">&#8358;3,388,700.00</td>
+            <td class="num">1.9%</td>
+            <td class="num">38.0</td>
+            <td class="num">37.0</td>
+            <td class="num">&#8358;89,176.32</td>
+            <td class="num">&#8358;91,586.49</td>
+        </tr><tr>
+            <td>9</td>
+            <td>Everight Diagnostic And Laboratory Services Limited</td>
+            <td class="num">&#8358;3,185,828.00</td>
+            <td class="num">1.8%</td>
+            <td class="num">52.0</td>
+            <td class="num">39.0</td>
+            <td class="num">&#8358;61,265.92</td>
+            <td class="num">&#8358;81,687.90</td>
+        </tr><tr>
+            <td>10</td>
+            <td>Grabbo Fertility Clinic& Diagnostic Center</td>
+            <td class="num">&#8358;3,007,200.00</td>
+            <td class="num">1.7%</td>
+            <td class="num">46.0</td>
+            <td class="num">16.0</td>
+            <td class="num">&#8358;65,373.91</td>
+            <td class="num">&#8358;187,950.00</td>
+        </tr><tr>
+            <td>11</td>
+            <td>Medplus Pharmacy Limited Saka Tinubu</td>
+            <td class="num">&#8358;2,702,282.95</td>
+            <td class="num">1.5%</td>
+            <td class="num">123.0</td>
+            <td class="num">58.0</td>
+            <td class="num">&#8358;21,969.78</td>
+            <td class="num">&#8358;46,591.09</td>
+        </tr><tr>
+            <td>12</td>
+            <td>Vinca Hospital</td>
+            <td class="num">&#8358;2,584,782.50</td>
+            <td class="num">1.5%</td>
+            <td class="num">122.0</td>
+            <td class="num">40.0</td>
+            <td class="num">&#8358;21,186.74</td>
+            <td class="num">&#8358;64,619.56</td>
+        </tr><tr>
+            <td>13</td>
+            <td>E-Clinics And Diagnostic Ltd Abuja</td>
+            <td class="num">&#8358;2,579,540.00</td>
+            <td class="num">1.5%</td>
+            <td class="num">50.0</td>
+            <td class="num">38.0</td>
+            <td class="num">&#8358;51,590.80</td>
+            <td class="num">&#8358;67,882.63</td>
+        </tr><tr>
+            <td>14</td>
+            <td>Bethel Dental Clinic</td>
+            <td class="num">&#8358;2,525,810.45</td>
+            <td class="num">1.4%</td>
+            <td class="num">131.0</td>
+            <td class="num">91.0</td>
+            <td class="num">&#8358;19,281.00</td>
+            <td class="num">&#8358;27,756.16</td>
+        </tr><tr>
+            <td>15</td>
+            <td>Locus Eye Clinic</td>
+            <td class="num">&#8358;1,970,042.50</td>
+            <td class="num">1.1%</td>
+            <td class="num">61.0</td>
+            <td class="num">44.0</td>
+            <td class="num">&#8358;32,295.78</td>
+            <td class="num">&#8358;44,773.69</td>
+        </tr><tr>
+            <td>16</td>
+            <td>Sycamore Pharmacy</td>
+            <td class="num">&#8358;1,934,700.00</td>
+            <td class="num">1.1%</td>
+            <td class="num">54.0</td>
+            <td class="num">35.0</td>
+            <td class="num">&#8358;35,827.78</td>
+            <td class="num">&#8358;55,277.14</td>
+        </tr><tr>
+            <td>17</td>
+            <td>Leah Medical Centre</td>
+            <td class="num">&#8358;1,811,578.61</td>
+            <td class="num">1.0%</td>
+            <td class="num">95.0</td>
+            <td class="num">21.0</td>
+            <td class="num">&#8358;19,069.25</td>
+            <td class="num">&#8358;86,265.65</td>
+        </tr><tr>
+            <td>18</td>
+            <td>National Hospital Abuja</td>
+            <td class="num">&#8358;1,584,064.05</td>
+            <td class="num">0.9%</td>
+            <td class="num">6.0</td>
+            <td class="num">4.0</td>
+            <td class="num">&#8358;264,010.68</td>
+            <td class="num">&#8358;396,016.01</td>
+        </tr><tr>
+            <td>19</td>
+            <td>Kelina Hospital Abuja</td>
+            <td class="num">&#8358;1,382,500.00</td>
+            <td class="num">0.8%</td>
+            <td class="num">44.0</td>
+            <td class="num">12.0</td>
+            <td class="num">&#8358;31,420.45</td>
+            <td class="num">&#8358;115,208.33</td>
+        </tr><tr>
+            <td>20</td>
+            <td>Beaconhealth Diagnostics Lekki</td>
+            <td class="num">&#8358;1,357,322.25</td>
+            <td class="num">0.8%</td>
+            <td class="num">16.0</td>
+            <td class="num">15.0</td>
+            <td class="num">&#8358;84,832.64</td>
+            <td class="num">&#8358;90,488.15</td>
+        </tr></tbody>
+    </table>
+  </div>
 
-<h2>Claims by Age Group</h2>
-<table class="dataframe table">
-  <thead>
-    <tr style="text-align: right;">
-      <th></th>
-      <th>Total_Paid</th>
-      <th>Claim_Count</th>
-      <th>Avg_Paid</th>
-    </tr>
-    <tr>
-      <th>Age_Group</th>
-      <th></th>
-      <th></th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th>0-5</th>
-      <td>19,037,041.64</td>
-      <td>3853</td>
-      <td>4,940.84</td>
-    </tr>
-    <tr>
-      <th>6-12</th>
-      <td>18,295,624.20</td>
-      <td>3801</td>
-      <td>4,813.37</td>
-    </tr>
-    <tr>
-      <th>13-18</th>
-      <td>13,130,588.39</td>
-      <td>2344</td>
-      <td>5,601.79</td>
-    </tr>
-    <tr>
-      <th>19-30</th>
-      <td>21,750,543.81</td>
-      <td>3009</td>
-      <td>7,228.50</td>
-    </tr>
-    <tr>
-      <th>31-45</th>
-      <td>64,304,610.98</td>
-      <td>8297</td>
-      <td>7,750.34</td>
-    </tr>
-    <tr>
-      <th>46-60</th>
-      <td>42,960,483.21</td>
-      <td>6208</td>
-      <td>6,920.18</td>
-    </tr>
-    <tr>
-      <th>60+</th>
-      <td>749,516.30</td>
-      <td>67</td>
-      <td>11,186.81</td>
-    </tr>
-  </tbody>
-</table>
+  <!-- DEPARTMENT BREAKDOWN -->
+  <div class="section">
+    <h2>Department <span class="accent">Breakdown</span></h2>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Department</th>
+          <th class="num">Total Paid</th>
+          <th class="num">% of Total</th>
+          <th class="num">Unique Claims</th>
+          <th class="num">Avg Per Visit</th>
+        </tr>
+      </thead>
+      <tbody><tr>
+            <td>1</td>
+            <td>Medication</td>
+            <td class="num">&#8358;32,742,421.82</td>
+            <td class="num">18.4%</td>
+            <td class="num">3,144.0</td>
+            <td class="num">&#8358;10,414.26</td>
+        </tr><tr>
+            <td>2</td>
+            <td>Pathology  - Laboratory</td>
+            <td class="num">&#8358;20,810,253.58</td>
+            <td class="num">11.7%</td>
+            <td class="num">2,101.0</td>
+            <td class="num">&#8358;9,904.93</td>
+        </tr><tr>
+            <td>3</td>
+            <td>GP Consultations</td>
+            <td class="num">&#8358;14,476,757.73</td>
+            <td class="num">8.2%</td>
+            <td class="num">2,259.0</td>
+            <td class="num">&#8358;6,408.48</td>
+        </tr><tr>
+            <td>4</td>
+            <td>Specialist Consultations</td>
+            <td class="num">&#8358;13,185,440.00</td>
+            <td class="num">7.4%</td>
+            <td class="num">571.0</td>
+            <td class="num">&#8358;23,091.84</td>
+        </tr><tr>
+            <td>5</td>
+            <td>Advanced Investigations</td>
+            <td class="num">&#8358;12,904,185.26</td>
+            <td class="num">7.3%</td>
+            <td class="num">414.0</td>
+            <td class="num">&#8358;31,169.53</td>
+        </tr><tr>
+            <td>6</td>
+            <td>Chronic Medication</td>
+            <td class="num">&#8358;9,110,158.44</td>
+            <td class="num">5.1%</td>
+            <td class="num">650.0</td>
+            <td class="num">&#8358;14,015.63</td>
+        </tr><tr>
+            <td>7</td>
+            <td>Dentistry</td>
+            <td class="num">&#8358;6,074,752.83</td>
+            <td class="num">3.4%</td>
+            <td class="num">262.0</td>
+            <td class="num">&#8358;23,186.08</td>
+        </tr><tr>
+            <td>8</td>
+            <td>Maternity Delivery</td>
+            <td class="num">&#8358;5,102,424.00</td>
+            <td class="num">2.9%</td>
+            <td class="num">22.0</td>
+            <td class="num">&#8358;231,928.36</td>
+        </tr><tr>
+            <td>9</td>
+            <td>Full Blood Count</td>
+            <td class="num">&#8358;5,059,339.20</td>
+            <td class="num">2.9%</td>
+            <td class="num">1,067.0</td>
+            <td class="num">&#8358;4,741.65</td>
+        </tr><tr>
+            <td>10</td>
+            <td>Ward Fees</td>
+            <td class="num">&#8358;4,775,500.00</td>
+            <td class="num">2.7%</td>
+            <td class="num">110.0</td>
+            <td class="num">&#8358;43,413.64</td>
+        </tr><tr>
+            <td>11</td>
+            <td>Lens and Frames</td>
+            <td class="num">&#8358;4,774,000.00</td>
+            <td class="num">2.7%</td>
+            <td class="num">102.0</td>
+            <td class="num">&#8358;46,803.92</td>
+        </tr><tr>
+            <td>12</td>
+            <td>Congenital Anomaly Treatment</td>
+            <td class="num">&#8358;4,503,520.00</td>
+            <td class="num">2.5%</td>
+            <td class="num">199.0</td>
+            <td class="num">&#8358;22,630.75</td>
+        </tr><tr>
+            <td>13</td>
+            <td>Major Surgery</td>
+            <td class="num">&#8358;4,365,100.00</td>
+            <td class="num">2.5%</td>
+            <td class="num">6.0</td>
+            <td class="num">&#8358;727,516.67</td>
+        </tr><tr>
+            <td>14</td>
+            <td>Fertility Services (Consultation & Investigation)</td>
+            <td class="num">&#8358;4,332,144.99</td>
+            <td class="num">2.4%</td>
+            <td class="num">344.0</td>
+            <td class="num">&#8358;12,593.44</td>
+        </tr><tr>
+            <td>15</td>
+            <td>Surgeries</td>
+            <td class="num">&#8358;3,920,351.00</td>
+            <td class="num">2.2%</td>
+            <td class="num">10.0</td>
+            <td class="num">&#8358;392,035.10</td>
+        </tr></tbody>
+    </table>
+  </div>
 
-<h2>Top 20 Diagnoses by Cost</h2>
-<table class="dataframe table">
-  <thead>
-    <tr style="text-align: right;">
-      <th></th>
-      <th>Total_Paid</th>
-      <th>Claim_Count</th>
-      <th>Avg_Paid</th>
-    </tr>
-    <tr>
-      <th>Diagnosis_Description</th>
-      <th></th>
-      <th></th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th>Plasmodium falciparum malaria, unspecified</th>
-      <td>3,389,339.21</td>
-      <td>957</td>
-      <td>3,541.63</td>
-    </tr>
-    <tr>
-      <th>Respiratory distress syndrome of newborn</th>
-      <td>2,436,440.00</td>
-      <td>66</td>
-      <td>36,915.76</td>
-    </tr>
-    <tr>
-      <th>Plasmoduim falciparum malaria</th>
-      <td>2,115,714.36</td>
-      <td>247</td>
-      <td>8,565.65</td>
-    </tr>
-    <tr>
-      <th>Sepsis, unspecified organism</th>
-      <td>1,735,747.74</td>
-      <td>366</td>
-      <td>4,742.48</td>
-    </tr>
-    <tr>
-      <th>Leiomyoma of uterus</th>
-      <td>1,578,695.00</td>
-      <td>25</td>
-      <td>63,147.80</td>
-    </tr>
-    <tr>
-      <th>Essential (primary) hypertension</th>
-      <td>1,464,006.22</td>
-      <td>156</td>
-      <td>9,384.66</td>
-    </tr>
-    <tr>
-      <th>Other puerperal infections</th>
-      <td>1,327,127.00</td>
-      <td>36</td>
-      <td>36,864.64</td>
-    </tr>
-    <tr>
-      <th>Elevated cancer antigen 125 [CA 125]</th>
-      <td>1,200,000.00</td>
-      <td>1</td>
-      <td>1,200,000.00</td>
-    </tr>
-    <tr>
-      <th>Medical care, unspecified</th>
-      <td>1,152,497.31</td>
-      <td>90</td>
-      <td>12,805.53</td>
-    </tr>
-    <tr>
-      <th>Hypertrophy of tonsils with hypertrophy of adenoids</th>
-      <td>983,607.52</td>
-      <td>45</td>
-      <td>21,857.94</td>
-    </tr>
-    <tr>
-      <th>Glaucoma suspect</th>
-      <td>727,500.00</td>
-      <td>38</td>
-      <td>19,144.74</td>
-    </tr>
-    <tr>
-      <th>Gingivitis and periodontal diseases</th>
-      <td>678,150.00</td>
-      <td>96</td>
-      <td>7,064.06</td>
-    </tr>
-    <tr>
-      <th>Encounter for screening, unspecified</th>
-      <td>651,679.50</td>
-      <td>104</td>
-      <td>6,266.15</td>
-    </tr>
-    <tr>
-      <th>Unspecified malaria</th>
-      <td>608,459.67</td>
-      <td>155</td>
-      <td>3,925.55</td>
-    </tr>
-    <tr>
-      <th>Acute upper respiratory infection, unspecified</th>
-      <td>525,847.00</td>
-      <td>104</td>
-      <td>5,056.22</td>
-    </tr>
-    <tr>
-      <th>Pain, unspecified</th>
-      <td>511,963.50</td>
-      <td>53</td>
-      <td>9,659.69</td>
-    </tr>
-    <tr>
-      <th>Constipation</th>
-      <td>445,331.50</td>
-      <td>27</td>
-      <td>16,493.76</td>
-    </tr>
-    <tr>
-      <th>Other specified sepsis</th>
-      <td>402,694.00</td>
-      <td>49</td>
-      <td>8,218.24</td>
-    </tr>
-    <tr>
-      <th>Hypermetropia, bilateral</th>
-      <td>389,500.00</td>
-      <td>24</td>
-      <td>16,229.17</td>
-    </tr>
-    <tr>
-      <th>Other septicaemia</th>
-      <td>369,358.60</td>
-      <td>58</td>
-      <td>6,368.25</td>
-    </tr>
-  </tbody>
-</table>
+  <!-- AGE DISTRIBUTION -->
+  <div class="section">
+    <h2>Claims by <span class="accent">Age Group</span></h2>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Age Group</th>
+          <th class="num">Total Paid</th>
+          <th class="num">Unique Claims</th>
+          <th class="num">Unique Members</th>
+          <th class="num">Avg Per Visit</th>
+          <th class="num">Avg Per Member</th>
+        </tr>
+      </thead>
+      <tbody><tr>
+            <td>0-5</td>
+            <td class="num">&#8358;19,037,041.64</td>
+            <td class="num">654.0</td>
+            <td class="num">150.0</td>
+            <td class="num">&#8358;29,108.63</td>
+            <td class="num">&#8358;126,913.61</td>
+        </tr><tr>
+            <td>6-12</td>
+            <td class="num">&#8358;18,295,624.20</td>
+            <td class="num">681.0</td>
+            <td class="num">207.0</td>
+            <td class="num">&#8358;26,865.82</td>
+            <td class="num">&#8358;88,384.66</td>
+        </tr><tr>
+            <td>13-18</td>
+            <td class="num">&#8358;13,130,588.39</td>
+            <td class="num">432.0</td>
+            <td class="num">151.0</td>
+            <td class="num">&#8358;30,394.88</td>
+            <td class="num">&#8358;86,957.54</td>
+        </tr><tr>
+            <td>19-30</td>
+            <td class="num">&#8358;21,750,543.81</td>
+            <td class="num">592.0</td>
+            <td class="num">114.0</td>
+            <td class="num">&#8358;36,740.78</td>
+            <td class="num">&#8358;190,794.24</td>
+        </tr><tr>
+            <td>31-45</td>
+            <td class="num">&#8358;64,304,610.98</td>
+            <td class="num">1,691.0</td>
+            <td class="num">266.0</td>
+            <td class="num">&#8358;38,027.56</td>
+            <td class="num">&#8358;241,746.66</td>
+        </tr><tr>
+            <td>46-60</td>
+            <td class="num">&#8358;42,960,483.21</td>
+            <td class="num">1,094.0</td>
+            <td class="num">183.0</td>
+            <td class="num">&#8358;39,269.18</td>
+            <td class="num">&#8358;234,756.74</td>
+        </tr><tr>
+            <td>60+</td>
+            <td class="num">&#8358;749,516.30</td>
+            <td class="num">14.0</td>
+            <td class="num">3.0</td>
+            <td class="num">&#8358;53,536.88</td>
+            <td class="num">&#8358;249,838.77</td>
+        </tr></tbody>
+    </table>
+  </div>
 
-<h2>Monthly Claims Trend</h2>
-<table class="dataframe table">
-  <thead>
-    <tr style="text-align: right;">
-      <th></th>
-      <th>Total_Paid</th>
-      <th>Claim_Count</th>
-    </tr>
-    <tr>
-      <th>Month</th>
-      <th></th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th>2025-07</th>
-      <td>9,658,773.77</td>
-      <td>1459</td>
-    </tr>
-    <tr>
-      <th>2025-08</th>
-      <td>24,843,887.40</td>
-      <td>5588</td>
-    </tr>
-    <tr>
-      <th>2025-09</th>
-      <td>25,682,376.80</td>
-      <td>3804</td>
-    </tr>
-    <tr>
-      <th>2025-10</th>
-      <td>26,156,257.19</td>
-      <td>3312</td>
-    </tr>
-    <tr>
-      <th>2025-11</th>
-      <td>29,202,085.74</td>
-      <td>3095</td>
-    </tr>
-    <tr>
-      <th>2025-12</th>
-      <td>18,578,142.24</td>
-      <td>2836</td>
-    </tr>
-    <tr>
-      <th>2026-01</th>
-      <td>35,881,197.76</td>
-      <td>5676</td>
-    </tr>
-    <tr>
-      <th>2026-02</th>
-      <td>15,268,892.60</td>
-      <td>2519</td>
-    </tr>
-    <tr>
-      <th>2026-03</th>
-      <td>699,226.15</td>
-      <td>37</td>
-    </tr>
-  </tbody>
-</table>
+  <!-- MONTHLY TREND -->
+  <div class="section">
+    <h2>Monthly Claims <span class="accent">Trend</span></h2>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Month</th>
+          <th class="num">Unique Claims</th>
+          <th class="num">Unique Members</th>
+          <th class="num">Total Paid</th>
+          <th class="num">Avg Per Member</th>
+          <th class="num">Avg Per Visit</th>
+        </tr>
+      </thead>
+      <tbody><tr>
+            <td>July 2025</td>
+            <td class="num">313.0</td>
+            <td class="num">208.0</td>
+            <td class="num">&#8358;9,658,773.77</td>
+            <td class="num">&#8358;46,436.41</td>
+            <td class="num">&#8358;30,858.70</td>
+        </tr><tr>
+            <td>August 2025</td>
+            <td class="num">1,094.0</td>
+            <td class="num">429.0</td>
+            <td class="num">&#8358;24,843,887.40</td>
+            <td class="num">&#8358;57,911.16</td>
+            <td class="num">&#8358;22,709.22</td>
+        </tr><tr>
+            <td>September 2025</td>
+            <td class="num">773.0</td>
+            <td class="num">428.0</td>
+            <td class="num">&#8358;25,682,376.80</td>
+            <td class="num">&#8358;60,005.55</td>
+            <td class="num">&#8358;33,224.29</td>
+        </tr><tr>
+            <td>October 2025</td>
+            <td class="num">625.0</td>
+            <td class="num">363.0</td>
+            <td class="num">&#8358;26,156,257.19</td>
+            <td class="num">&#8358;72,055.80</td>
+            <td class="num">&#8358;41,850.01</td>
+        </tr><tr>
+            <td>November 2025</td>
+            <td class="num">586.0</td>
+            <td class="num">377.0</td>
+            <td class="num">&#8358;29,202,085.74</td>
+            <td class="num">&#8358;77,459.11</td>
+            <td class="num">&#8358;49,832.91</td>
+        </tr><tr>
+            <td>December 2025</td>
+            <td class="num">540.0</td>
+            <td class="num">336.0</td>
+            <td class="num">&#8358;18,578,142.24</td>
+            <td class="num">&#8358;55,292.09</td>
+            <td class="num">&#8358;34,403.97</td>
+        </tr><tr>
+            <td>January 2026</td>
+            <td class="num">827.0</td>
+            <td class="num">488.0</td>
+            <td class="num">&#8358;35,881,197.76</td>
+            <td class="num">&#8358;73,527.04</td>
+            <td class="num">&#8358;43,387.18</td>
+        </tr><tr>
+            <td>February 2026</td>
+            <td class="num">563.0</td>
+            <td class="num">322.0</td>
+            <td class="num">&#8358;15,268,892.60</td>
+            <td class="num">&#8358;47,418.92</td>
+            <td class="num">&#8358;27,120.59</td>
+        </tr><tr>
+            <td>March 2026</td>
+            <td class="num">20.0</td>
+            <td class="num">16.0</td>
+            <td class="num">&#8358;699,226.15</td>
+            <td class="num">&#8358;43,701.63</td>
+            <td class="num">&#8358;34,961.31</td>
+        </tr></tbody>
+    </table>
+  </div>
 
-<h2>Enrollment by Plan</h2>
-<table class="dataframe table">
-  <thead>
-    <tr style="text-align: right;">
-      <th></th>
-      <th>Members</th>
-      <th>Avg_Premium</th>
-      <th>Total_Premium</th>
-    </tr>
-    <tr>
-      <th>Plan</th>
-      <th></th>
-      <th></th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th>PENCOM - PROMAXFAM</th>
-      <td>1241</td>
-      <td>239,034.99</td>
-      <td>296,642,420.04</td>
-    </tr>
-    <tr>
-      <th>PENCOM - PROFAM</th>
-      <td>137</td>
-      <td>70,916.54</td>
-      <td>9,715,565.58</td>
-    </tr>
-    <tr>
-      <th>PENCOM - PROMAX BLACKCARD</th>
-      <td>84</td>
-      <td>236,125.33</td>
-      <td>19,834,527.78</td>
-    </tr>
-    <tr>
-      <th>PENCOM - PROMAXIND</th>
-      <td>39</td>
-      <td>240,415.39</td>
-      <td>9,376,200.12</td>
-    </tr>
-  </tbody>
-</table>
+  <!-- TOP DIAGNOSES -->
+  <div class="section">
+    <h2>Top 20 <span class="accent">Diagnoses</span> by Cost</h2>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Diagnosis</th>
+          <th class="num">Total Paid</th>
+          <th class="num">Unique Claims</th>
+          <th class="num">Avg Per Visit</th>
+        </tr>
+      </thead>
+      <tbody><tr>
+            <td>1</td>
+            <td>Plasmodium falciparum malaria, unspecified</td>
+            <td class="num">&#8358;3,389,339.21</td>
+            <td class="num">150.0</td>
+            <td class="num">&#8358;22,595.59</td>
+        </tr><tr>
+            <td>2</td>
+            <td>Respiratory distress syndrome of newborn</td>
+            <td class="num">&#8358;2,436,440.00</td>
+            <td class="num">1.0</td>
+            <td class="num">&#8358;2,436,440.00</td>
+        </tr><tr>
+            <td>3</td>
+            <td>Plasmoduim falciparum malaria</td>
+            <td class="num">&#8358;2,115,714.36</td>
+            <td class="num">37.0</td>
+            <td class="num">&#8358;57,181.47</td>
+        </tr><tr>
+            <td>4</td>
+            <td>Sepsis, unspecified organism</td>
+            <td class="num">&#8358;1,735,747.74</td>
+            <td class="num">46.0</td>
+            <td class="num">&#8358;37,733.65</td>
+        </tr><tr>
+            <td>5</td>
+            <td>Leiomyoma of uterus</td>
+            <td class="num">&#8358;1,578,695.00</td>
+            <td class="num">2.0</td>
+            <td class="num">&#8358;789,347.50</td>
+        </tr><tr>
+            <td>6</td>
+            <td>Essential (primary) hypertension</td>
+            <td class="num">&#8358;1,464,006.22</td>
+            <td class="num">34.0</td>
+            <td class="num">&#8358;43,059.01</td>
+        </tr><tr>
+            <td>7</td>
+            <td>Other puerperal infections</td>
+            <td class="num">&#8358;1,327,127.00</td>
+            <td class="num">1.0</td>
+            <td class="num">&#8358;1,327,127.00</td>
+        </tr><tr>
+            <td>8</td>
+            <td>Elevated cancer antigen 125 [CA 125]</td>
+            <td class="num">&#8358;1,200,000.00</td>
+            <td class="num">1.0</td>
+            <td class="num">&#8358;1,200,000.00</td>
+        </tr><tr>
+            <td>9</td>
+            <td>Medical care, unspecified</td>
+            <td class="num">&#8358;1,152,497.31</td>
+            <td class="num">27.0</td>
+            <td class="num">&#8358;42,685.09</td>
+        </tr><tr>
+            <td>10</td>
+            <td>Hypertrophy of tonsils with hypertrophy of adenoids</td>
+            <td class="num">&#8358;983,607.52</td>
+            <td class="num">1.0</td>
+            <td class="num">&#8358;983,607.52</td>
+        </tr><tr>
+            <td>11</td>
+            <td>Glaucoma suspect</td>
+            <td class="num">&#8358;727,500.00</td>
+            <td class="num">8.0</td>
+            <td class="num">&#8358;90,937.50</td>
+        </tr><tr>
+            <td>12</td>
+            <td>Gingivitis and periodontal diseases</td>
+            <td class="num">&#8358;678,150.00</td>
+            <td class="num">21.0</td>
+            <td class="num">&#8358;32,292.86</td>
+        </tr><tr>
+            <td>13</td>
+            <td>Encounter for screening, unspecified</td>
+            <td class="num">&#8358;651,679.50</td>
+            <td class="num">6.0</td>
+            <td class="num">&#8358;108,613.25</td>
+        </tr><tr>
+            <td>14</td>
+            <td>Unspecified malaria</td>
+            <td class="num">&#8358;608,459.67</td>
+            <td class="num">27.0</td>
+            <td class="num">&#8358;22,535.54</td>
+        </tr><tr>
+            <td>15</td>
+            <td>Acute upper respiratory infection, unspecified</td>
+            <td class="num">&#8358;525,847.00</td>
+            <td class="num">22.0</td>
+            <td class="num">&#8358;23,902.14</td>
+        </tr><tr>
+            <td>16</td>
+            <td>Pain, unspecified</td>
+            <td class="num">&#8358;511,963.50</td>
+            <td class="num">21.0</td>
+            <td class="num">&#8358;24,379.21</td>
+        </tr><tr>
+            <td>17</td>
+            <td>Constipation</td>
+            <td class="num">&#8358;445,331.50</td>
+            <td class="num">1.0</td>
+            <td class="num">&#8358;445,331.50</td>
+        </tr><tr>
+            <td>18</td>
+            <td>Other specified sepsis</td>
+            <td class="num">&#8358;402,694.00</td>
+            <td class="num">4.0</td>
+            <td class="num">&#8358;100,673.50</td>
+        </tr><tr>
+            <td>19</td>
+            <td>Hypermetropia, bilateral</td>
+            <td class="num">&#8358;389,500.00</td>
+            <td class="num">7.0</td>
+            <td class="num">&#8358;55,642.86</td>
+        </tr><tr>
+            <td>20</td>
+            <td>Other septicaemia</td>
+            <td class="num">&#8358;369,358.60</td>
+            <td class="num">9.0</td>
+            <td class="num">&#8358;41,039.84</td>
+        </tr></tbody>
+    </table>
+  </div>
 
-<h2>Claim Status Distribution</h2>
-<table class="dataframe table">
-  <thead>
-    <tr style="text-align: right;">
-      <th></th>
-      <th>count</th>
-    </tr>
-    <tr>
-      <th>Claim_Status</th>
-      <th></th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <th>Paid Claims</th>
-      <td>27208</td>
-    </tr>
-    <tr>
-      <th>Awaiting Payment</th>
-      <td>995</td>
-    </tr>
-    <tr>
-      <th>Claims for adjudication</th>
-      <td>123</td>
-    </tr>
-  </tbody>
-</table>
+  <!-- PLAN DISTRIBUTION -->
+  <div class="section">
+    <h2>Enrollment by <span class="accent">Plan</span></h2>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Plan</th>
+          <th class="num">Members</th>
+          <th class="num">Avg Premium</th>
+          <th class="num">Total Premium</th>
+        </tr>
+      </thead>
+      <tbody><tr>
+                <td>PENCOM - PROMAXFAM</td>
+                <td class="num">1,241</td>
+                <td class="num">&#8358;239,034.99</td>
+                <td class="num">&#8358;296,642,420.04</td>
+            </tr><tr>
+                <td>PENCOM - PROFAM</td>
+                <td class="num">137</td>
+                <td class="num">&#8358;70,916.54</td>
+                <td class="num">&#8358;9,715,565.58</td>
+            </tr><tr>
+                <td>PENCOM - PROMAX BLACKCARD</td>
+                <td class="num">84</td>
+                <td class="num">&#8358;236,125.33</td>
+                <td class="num">&#8358;19,834,527.78</td>
+            </tr><tr>
+                <td>PENCOM - PROMAXIND</td>
+                <td class="num">39</td>
+                <td class="num">&#8358;240,415.39</td>
+                <td class="num">&#8358;9,376,200.12</td>
+            </tr></tbody>
+    </table>
+  </div>
 
-<div class="footer">
-  PENCOM Analytics Report | Data source: Leadway Health Insurance | Generated by analytics toolkit
-</div>
+  <!-- CLAIM STATUS -->
+  <div class="section">
+    <h2>Claim <span class="accent">Status</span> Distribution</h2>
+    <table class="data-table">
+      <thead><tr><th>Status</th><th class="num">Count</th></tr></thead>
+      <tbody><tr><td>Paid Claims</td><td class='num'>27,208</td></tr><tr><td>Awaiting Payment</td><td class='num'>995</td></tr><tr><td>Claims for adjudication</td><td class='num'>123</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="footer">
+    PENCOM Analytics Report &nbsp;|&nbsp; Leadway Health Insurance &nbsp;|&nbsp; Generated 31 March 2026
+  </div>
 
 </div>
 </body>
