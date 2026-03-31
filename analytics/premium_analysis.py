@@ -4,6 +4,7 @@ Analyzes member demographics, premium distribution, enrollment status,
 and plan breakdowns.
 """
 
+import numpy as np
 import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
@@ -84,16 +85,101 @@ def plan_distribution(enrollment):
     ).sort_values("Members", ascending=False).round(2)
 
 
-def premium_vs_claims(enrollment, claims):
-    """Compare total premiums collected vs claims paid per organization."""
-    prem_by_org = enrollment.groupby("Organization")["Premium"].sum()
-    claims_by_org = claims.groupby("Organization")["Amount_Paid"].sum()
-    comparison = pd.DataFrame({
-        "Total_Premium": prem_by_org,
-        "Total_Claims_Paid": claims_by_org,
+def compute_earned_premium(enrollment, as_of=None):
+    """
+    Calculate earned premium based on the elapsed portion of each policy period.
+
+    Earned Premium = Written Premium * (days elapsed / total policy days)
+    Only policies with valid Effective_Date and Expiry_Date are included.
+    """
+    if as_of is None:
+        as_of = pd.Timestamp.now().normalize()
+    else:
+        as_of = pd.Timestamp(as_of)
+
+    df = enrollment.dropna(subset=["Effective_Date", "Expiry_Date", "Premium"]).copy()
+    df = df[df["Premium"] > 0]
+
+    df["Effective_Date"] = pd.to_datetime(df["Effective_Date"], errors="coerce")
+    df["Expiry_Date"] = pd.to_datetime(df["Expiry_Date"], errors="coerce")
+    df = df.dropna(subset=["Effective_Date", "Expiry_Date"])
+
+    total_days = (df["Expiry_Date"] - df["Effective_Date"]).dt.days
+    elapsed_days = (np.minimum(as_of, df["Expiry_Date"]) - df["Effective_Date"]).dt.days
+    elapsed_days = elapsed_days.clip(lower=0)
+
+    earning_fraction = (elapsed_days / total_days).clip(upper=1.0)
+    df["Earned_Premium"] = df["Premium"] * earning_fraction
+
+    return df
+
+
+def split_claims_by_status(claims):
+    """
+    Split claims into Paid, Pipeline, and categorize for MLR.
+
+    - Paid Claims: Claim_Status == 'Paid Claims'
+    - Pipeline Claims: Awaiting Payment, Claims for adjudication, In Process
+    """
+    paid = claims[claims["Claim_Status"] == "Paid Claims"]
+    pipeline = claims[claims["Claim_Status"].isin([
+        "Awaiting Payment", "Claims for adjudication", "In Process"
+    ])]
+    return paid, pipeline
+
+
+def compute_mlr(enrollment, claims, ibnr_by_org=None, as_of=None):
+    """
+    Medical Loss Ratio per organization.
+
+    MLR = (Paid Claims + Pipeline Claims + IBNR) / Earned Premium
+
+    Args:
+        enrollment: Combined enrollment/production DataFrame
+        claims: Claims DataFrame
+        ibnr_by_org: dict of {org_name: ibnr_df} from ibnr_analysis.ibnr_by_organization()
+                     Each df must have an 'IBNR_Estimate' column.
+        as_of: Date to compute earned premium as of (default: today)
+    """
+    # Earned premium by org
+    earned_df = compute_earned_premium(enrollment, as_of=as_of)
+    earned_by_org = earned_df.groupby("Organization")["Earned_Premium"].sum()
+    written_by_org = earned_df.groupby("Organization")["Premium"].sum()
+
+    # Paid and pipeline claims by org
+    paid, pipeline = split_claims_by_status(claims)
+    paid_by_org = paid.groupby("Organization")["Amount_Paid"].sum()
+    pipeline_by_org = pipeline.groupby("Organization")["Amount_Claimed"].sum()
+
+    # IBNR by org
+    ibnr_series = {}
+    if ibnr_by_org:
+        for org, df in ibnr_by_org.items():
+            ibnr_series[org] = df["IBNR_Estimate"].sum()
+    ibnr_by_org_s = pd.Series(ibnr_series, name="IBNR")
+
+    # Build MLR table
+    mlr = pd.DataFrame({
+        "Written_Premium": written_by_org,
+        "Earned_Premium": earned_by_org,
+        "Paid_Claims": paid_by_org,
+        "Pipeline_Claims": pipeline_by_org,
+        "IBNR": ibnr_by_org_s,
     }).fillna(0)
-    comparison["Loss_Ratio"] = (comparison["Total_Claims_Paid"] / comparison["Total_Premium"] * 100).round(1)
-    return comparison
+
+    mlr["Total_Incurred"] = mlr["Paid_Claims"] + mlr["Pipeline_Claims"] + mlr["IBNR"]
+    mlr["MLR"] = (mlr["Total_Incurred"] / mlr["Earned_Premium"] * 100).round(1)
+    mlr["MLR"] = mlr["MLR"].replace([np.inf, -np.inf], np.nan)
+
+    return mlr.round(2)
+
+
+def premium_vs_claims(enrollment, claims, ibnr_by_org=None, as_of=None):
+    """
+    MLR comparison: (Paid + Pipeline + IBNR) / Earned Premium per organization.
+    This replaces the old simple loss ratio calculation.
+    """
+    return compute_mlr(enrollment, claims, ibnr_by_org=ibnr_by_org, as_of=as_of)
 
 
 def plot_enrollment_by_org(enrollment):
@@ -144,35 +230,49 @@ def plot_state_distribution(enrollment):
     plt.close(fig)
 
 
-def plot_loss_ratio(enrollment, claims):
-    """Premium vs claims comparison chart."""
-    comparison = premium_vs_claims(enrollment, claims)
-    if comparison.empty:
+def plot_mlr(enrollment, claims, ibnr_by_org=None, as_of=None):
+    """Stacked bar chart: Earned Premium vs (Paid + Pipeline + IBNR) with MLR labels."""
+    mlr = compute_mlr(enrollment, claims, ibnr_by_org=ibnr_by_org, as_of=as_of)
+    if mlr.empty:
         return
-    fig, ax = plt.subplots(figsize=(10, 6))
-    x = range(len(comparison))
+    fig, ax = plt.subplots(figsize=(12, 7))
+    x = np.arange(len(mlr))
     width = 0.35
-    ax.bar([i - width/2 for i in x], comparison["Total_Premium"], width, label="Premium Collected", color="steelblue")
-    ax.bar([i + width/2 for i in x], comparison["Total_Claims_Paid"], width, label="Claims Paid", color="coral")
-    for i, (_, row) in enumerate(comparison.iterrows()):
-        if row["Total_Premium"] > 0:
-            ax.text(i, max(row["Total_Premium"], row["Total_Claims_Paid"]),
-                    f"LR: {row['Loss_Ratio']}%", ha="center", va="bottom", fontsize=9, fontweight="bold")
-    ax.set_xticks(list(x))
-    ax.set_xticklabels(comparison.index, rotation=15)
-    ax.set_title("Premium Collected vs Claims Paid (Loss Ratio)", fontsize=14, fontweight="bold")
+
+    # Earned premium bars
+    ax.bar(x - width/2, mlr["Earned_Premium"], width, label="Earned Premium", color="steelblue")
+
+    # Stacked incurred bars: Paid + Pipeline + IBNR
+    ax.bar(x + width/2, mlr["Paid_Claims"], width, label="Paid Claims", color="coral")
+    ax.bar(x + width/2, mlr["Pipeline_Claims"], width, bottom=mlr["Paid_Claims"],
+           label="Pipeline Claims", color="orange")
+    ax.bar(x + width/2, mlr["IBNR"], width,
+           bottom=mlr["Paid_Claims"] + mlr["Pipeline_Claims"],
+           label="IBNR", color="gold")
+
+    # MLR labels
+    for i, (_, row) in enumerate(mlr.iterrows()):
+        top = max(row["Earned_Premium"], row["Total_Incurred"])
+        mlr_val = row["MLR"]
+        label = f"MLR: {mlr_val:.1f}%" if pd.notna(mlr_val) else "MLR: N/A"
+        ax.text(i, top * 1.02, label, ha="center", va="bottom", fontsize=10, fontweight="bold")
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(mlr.index, rotation=15)
+    ax.set_title("Medical Loss Ratio: (Paid + Pipeline + IBNR) / Earned Premium",
+                 fontsize=14, fontweight="bold")
     ax.set_ylabel("Amount (Naira)")
     ax.yaxis.set_major_formatter(mticker.FuncFormatter(format_naira))
-    ax.legend()
+    ax.legend(loc="upper right")
     plt.tight_layout()
-    fig.savefig(OUTPUT_DIR / "loss_ratio.png", dpi=150)
+    fig.savefig(OUTPUT_DIR / "mlr.png", dpi=150)
     plt.close(fig)
 
 
-def generate_all_charts(enrollment, claims):
+def generate_all_charts(enrollment, claims, ibnr_by_org=None, as_of=None):
     """Generate all premium/enrollment charts."""
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     plot_enrollment_by_org(enrollment)
     plot_gender_distribution(enrollment)
     plot_state_distribution(enrollment)
-    plot_loss_ratio(enrollment, claims)
+    plot_mlr(enrollment, claims, ibnr_by_org=ibnr_by_org, as_of=as_of)

@@ -113,8 +113,8 @@ def main():
         print("\n>> Plan Distribution")
         print_table(premium_analysis.plan_distribution(enrollment).head(10))
 
-        print("\n>> Premium vs Claims (Loss Ratio)")
-        print_table(premium_analysis.premium_vs_claims(enrollment, claims))
+        print("\n>> Medical Loss Ratio: (Paid + Pipeline + IBNR) / Earned Premium")
+        print("   (MLR computed after IBNR section below, see MLR ANALYSIS)")
     else:
         print("No enrollment data available.")
 
@@ -183,6 +183,26 @@ def main():
         org_total = df["IBNR_Estimate"].sum()
         print(f"   {org}: {org_total:,.0f} additional claims estimated as IBNR")
 
+    # ── MLR Analysis ──────────────────────────────────────────────────
+    section("MLR ANALYSIS (Medical Loss Ratio)")
+
+    if not enrollment.empty:
+        print("MLR = (Paid Claims + Pipeline Claims + IBNR) / Earned Premium\n")
+
+        # Claims breakdown by status
+        paid_claims, pipeline_claims = premium_analysis.split_claims_by_status(claims)
+        print(f">> Claims Breakdown:")
+        print(f"   Paid Claims:     {len(paid_claims):>8,} records   N{paid_claims['Amount_Paid'].sum():>18,.2f}")
+        print(f"   Pipeline Claims: {len(pipeline_claims):>8,} records   N{pipeline_claims['Amount_Claimed'].sum():>18,.2f}")
+        print(f"   IBNR (Amount):   {'':>8s}            N{total_amount_ibnr:>18,.2f}")
+
+        mlr_table = premium_analysis.compute_mlr(enrollment, claims, ibnr_by_org=org_ibnr)
+        print("\n>> MLR by Organization")
+        print_table(mlr_table)
+    else:
+        print("No enrollment data available for MLR calculation.")
+        mlr_table = pd.DataFrame()
+
     # ── Generate Charts ────────────────────────────────────────────────
     section("GENERATING CHARTS")
 
@@ -190,8 +210,8 @@ def main():
     claims_analysis.generate_all_charts(claims)
 
     if not enrollment.empty:
-        print("Generating enrollment charts...")
-        premium_analysis.generate_all_charts(enrollment, claims)
+        print("Generating enrollment & MLR charts...")
+        premium_analysis.generate_all_charts(enrollment, claims, ibnr_by_org=org_ibnr)
 
     if not hospitals.empty:
         print("Generating hospital network charts...")
@@ -216,7 +236,7 @@ def main():
         if not enrollment.empty:
             premium_analysis.org_enrollment_stats(enrollment).to_excel(writer, sheet_name="Enrollment Stats")
             premium_analysis.plan_distribution(enrollment).to_excel(writer, sheet_name="Plan Distribution")
-            premium_analysis.premium_vs_claims(enrollment, claims).to_excel(writer, sheet_name="Loss Ratio")
+            premium_analysis.compute_mlr(enrollment, claims, ibnr_by_org=org_ibnr).to_excel(writer, sheet_name="MLR")
 
         if not hospitals.empty:
             hospital_analysis.network_summary(hospitals).to_excel(writer, sheet_name="Hospital Network")
@@ -246,23 +266,32 @@ def main():
     if not enrollment.empty:
         total_enrolled = len(enrollment)
         active = enrollment[enrollment.get("Status", pd.Series()) == "Active"].shape[0]
-        total_premium = enrollment["Premium"].sum()
-        loss_ratio = (total_claims_paid / total_premium * 100) if total_premium > 0 else 0
+        earned_df = premium_analysis.compute_earned_premium(enrollment)
+        total_earned = earned_df["Earned_Premium"].sum()
+        total_written = earned_df["Premium"].sum()
+        paid_total = claims[claims["Claim_Status"] == "Paid Claims"]["Amount_Paid"].sum()
+        pipeline_total = claims[claims["Claim_Status"].isin(
+            ["Awaiting Payment", "Claims for adjudication", "In Process"]
+        )]["Amount_Claimed"].sum()
+        overall_incurred = paid_total + pipeline_total + total_amount_ibnr
+        overall_mlr = (overall_incurred / total_earned * 100) if total_earned > 0 else 0
         print(f"4. Total enrolled members: {total_enrolled:,} ({active:,} active)")
-        print(f"5. Total premium collected: N{total_premium:,.2f}")
-        print(f"6. Overall loss ratio: {loss_ratio:.1f}%")
+        print(f"5. Written premium: N{total_written:,.2f}")
+        print(f"6. Earned premium: N{total_earned:,.2f}")
+        print(f"7. Total incurred (Paid + Pipeline + IBNR): N{overall_incurred:,.2f}")
+        print(f"8. Overall MLR: {overall_mlr:.1f}%")
 
     if not hospitals.empty:
-        print(f"7. Hospital network: {hospitals['Provider_Name'].nunique():,} unique providers")
-        print(f"8. Geographic coverage: {hospitals['State'].nunique()} states, {hospitals['Zone'].nunique()} zones")
+        print(f"9. Hospital network: {hospitals['Provider_Name'].nunique():,} unique providers")
+        print(f"10. Geographic coverage: {hospitals['State'].nunique()} states, {hospitals['Zone'].nunique()} zones")
 
     top_dept = claims_analysis.department_breakdown(claims).head(1)
     if not top_dept.empty:
-        print(f"9. Highest-cost department: {top_dept.index[0]} (N{top_dept['Total_Paid'].iloc[0]:,.2f})")
+        print(f"11. Highest-cost department: {top_dept.index[0]} (N{top_dept['Total_Paid'].iloc[0]:,.2f})")
 
     top_org = claims_analysis.summary_by_organization(claims).head(1)
     if not top_org.empty:
-        print(f"10. Largest claims org: {top_org.index[0]} (N{top_org['Total_Paid'].iloc[0]:,.2f})")
+        print(f"12. Largest claims org: {top_org.index[0]} (N{top_org['Total_Paid'].iloc[0]:,.2f})")
 
     print(f"\n{'='*70}")
     print("  ANALYTICS COMPLETE")
