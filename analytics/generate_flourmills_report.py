@@ -4,7 +4,7 @@
 import pandas as pd
 import numpy as np
 from pathlib import Path
-from analytics.data_loader import load_claims, load_premiums, load_production, load_hospitals
+from analytics.data_loader import load_claims, load_premiums, load_production, load_hospitals, BASE_DIR
 from analytics import claims_analysis, premium_analysis, ibnr_analysis
 
 
@@ -494,6 +494,27 @@ def generate_report():
     # ── Medication by therapeutic class ──
     med_all = fm[fm["Department"].str.contains("Medication|Chronic Medication", case=False, na=False)].copy()
 
+    # Load tariff lookup to resolve billing codes to drug names
+    tariff_lookup = pd.read_excel(BASE_DIR / "master tariff upload.xlsx",
+                                  usecols=["LEADWAY CODE", "LEADWAY DESCRIPTION"])
+    tariff_lookup = tariff_lookup.dropna(subset=["LEADWAY CODE", "LEADWAY DESCRIPTION"])
+    tariff_lookup["LEADWAY CODE"] = tariff_lookup["LEADWAY CODE"].astype(str).str.strip()
+    tariff_lookup["LEADWAY DESCRIPTION"] = tariff_lookup["LEADWAY DESCRIPTION"].astype(str).str.strip()
+    tariff_lookup = tariff_lookup.drop_duplicates(subset="LEADWAY CODE", keep="first")
+    tariff_map = dict(zip(tariff_lookup["LEADWAY CODE"], tariff_lookup["LEADWAY DESCRIPTION"]))
+
+    # Resolve tariff codes: if Description is a billing code, look up the drug name
+    def resolve_description(desc):
+        if pd.isna(desc):
+            return desc
+        d = str(desc).strip()
+        # If it looks like a tariff code (no spaces, starts with letters then digits)
+        if len(d) < 15 and any(c.isdigit() for c in d) and " " not in d:
+            return tariff_map.get(d, d)
+        return d
+
+    med_all["Drug_Name"] = med_all["Description"].apply(resolve_description)
+
     def classify_drug(desc):
         if pd.isna(desc):
             return "Tariff-Coded Prescriptions"
@@ -573,12 +594,12 @@ def generate_report():
         # Anticonvulsants / Neurological
         if any(x in d for x in ["LEVETIRACETAM", "KEPPRA", "NEVIRAPINE", "BANOCIDE"]):
             return "Neurological / Anticonvulsants"
-        # If description is a tariff code (no spaces, short, has digits)
-        if len(d.strip()) < 12 and any(c.isdigit() for c in d) and " " not in d.strip():
-            return "Tariff-Coded Prescriptions"
+        # If still a tariff code after lookup (unresolved)
+        if len(d.strip()) < 15 and any(c.isdigit() for c in d) and " " not in d.strip():
+            return "Unresolved Tariff Codes"
         return "Other Medications"
 
-    med_all["Drug_Class"] = med_all["Description"].apply(classify_drug)
+    med_all["Drug_Class"] = med_all["Drug_Name"].apply(classify_drug)
 
     drug_class_summary = med_all.groupby("Drug_Class").agg(
         Total_Paid=("Amount_Paid", "sum"),
@@ -602,9 +623,9 @@ def generate_report():
             <td class="num" style="font-weight:700;">{fmt_full(row['Avg_Per_Claim'])}</td>
         </tr>"""
 
-        # Top 5 individual drugs within this class (skip tariff-coded)
-        if cls != "Tariff-Coded Prescriptions":
-            cls_drugs = med_all[med_all["Drug_Class"] == cls].groupby("Description").agg(
+        # Top 5 individual drugs within this class
+        if cls != "Unresolved Tariff Codes":
+            cls_drugs = med_all[med_all["Drug_Class"] == cls].groupby("Drug_Name").agg(
                 Total_Paid=("Amount_Paid", "sum"),
                 Unique_Claims=("Claim_Number", "nunique"),
                 Unique_Members=("Member_ID", "nunique"),
