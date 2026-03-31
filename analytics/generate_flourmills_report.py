@@ -496,39 +496,86 @@ def generate_report():
 
     def classify_drug(desc):
         if pd.isna(desc):
-            return "Other Medications"
+            return "Tariff-Coded Prescriptions"
         d = str(desc).upper()
-        if any(x in d for x in ["ARTEMETH", "COARTEM", "LONART", "ARTESUNATE", "MALARI", "EMAL", "LUMARTEM", "PLASMOTRIM"]):
+        # Antimalarials
+        if any(x in d for x in ["ARTEMETH", "ARTHEMETER", "COARTEM", "LONART", "ARTESUNATE",
+                                  "MALARI", "EMAL", "LUMARTEM", "PLASMOTRIM", "PALUTHER",
+                                  "QUININE", "CHLOROQUINE", "FANSIDAR", "AMATEM", "P ALAXIN",
+                                  "ACT TABLET", "P-ALAXIN"]):
             return "Antimalarials"
-        if any(x in d for x in ["CEFTRIAXONE", "AUGMENTIN", "AMOXICILLIN", "AZITHROMYCIN", "CIPROFLOXACIN",
-                                  "METRONIDAZOLE", "FLAGYL", "CEFUROXIME", "ROCEPHIN", "ERYTHROMYCIN",
-                                  "DOXYCYCLINE", "GENTAMICIN", "CLOXACILLIN", "AMPICILLIN", "LEVOFLOXACIN",
-                                  "ZINNAT", "CEFIXIME", "AMPICLOX", "SEPTRIN"]):
+        # Antibiotics
+        if any(x in d for x in ["CEFTRIAXONE", "AUGMENTIN", "AMOXICILLIN", "AMOXICILIN",
+                                  "AMOXYCILLIN", "AMOXYL", "AMOXIL", "AMOVIN", "AMOXICLAV",
+                                  "AMOKSICLAV", "AZITHROMYCIN", "CIPROFLOXACIN", "CIPROTAB",
+                                  "METRONIDAZOLE", "FLAGYL", "CEFUROXIME", "ROCEPHIN",
+                                  "ERYTHROMYCIN", "DOXYCYCLINE", "GENTAMICIN", "GENTAMYCIN",
+                                  "CLOXACILLIN", "AMPICILLIN", "LEVOFLOXACIN", "ZINNAT",
+                                  "CEFIXIME", "AMPICLOX", "SEPTRIN", "CEFTAZIDIME",
+                                  "CLARITHROMYCIN", "MEROPENEM", "CILOXAN"]):
             return "Antibiotics"
-        if any(x in d for x in ["PARACETAMOL", "DICLOFENAC", "IBUPROFEN", "TRAMADOL", "PIROXICAM",
-                                  "KETOPROFEN", "FELDENE", "CELEBREX", "VOLTAREN"]):
+        # Analgesics / Pain Relief / Muscle Relaxants
+        if any(x in d for x in ["PARACETAMOL", "PARASAM", "DICLOFENAC", "IBUPROFEN",
+                                  "TRAMADOL", "PIROXICAM", "KETOPROFEN", "FELDENE",
+                                  "CELEBREX", "VOLTAREN", "ARTHROTEC", "COCODAMOL",
+                                  "PENTAZOCINE", "MORPHINE", "NEUROGESIC", "ORPHENADRINE",
+                                  "NORFLEX", "SIRDALUD", "TIZANIDINE", "PREGABALIN", "LYRICA"]):
             return "Analgesics / Pain Relief"
-        if any(x in d for x in ["OMEPRAZOLE", "GAVISCON", "BUSCOPAN", "RANITIDINE", "LOPERAMIDE",
-                                  "LANSOPRAZOLE", "PANTOPRAZOLE", "GESTID", "ESOMEPRAZOLE", "RABEPRAZOLE"]):
+        # Gastrointestinal
+        if any(x in d for x in ["OMEPRAZOLE", "GAVISCON", "GASCOL", "BUSCOPAN", "RANITIDINE",
+                                  "LOPERAMIDE", "LANSOPRAZOLE", "PANTOPRAZOLE", "GESTID",
+                                  "ESOMEPRAZOLE", "RABEPRAZOLE", "FLORANORM", "ORS",
+                                  "ORAL REHYDRA", "ONDASENTRON", "ONDANSETRON"]):
             return "Gastrointestinal"
-        if any(x in d for x in ["LORATIDINE", "LORATADINE", "CETIRIZINE", "PIRITON", "CHLORPHENIRAMINE",
-                                  "FEXOFENADINE"]):
+        # Eye Care / Ophthalmology
+        if any(x in d for x in ["EYE DROP", "EYE DROPS", "ALOMIDE", "TEARS NATURALE",
+                                  "EFEMOLINE", "LATANOPROST", "NEPAFENAC", "NEVANAC",
+                                  "XALATAN", "XALACOM", "COSOPT", "BRIMONIDINE", "AZOPT",
+                                  "HYPROMELLOSE", "EVOLVE EYE", "ZADITEN", "OPHTHALMIC"]):
+            return "Eye Care / Ophthalmology"
+        # Antihistamines / Allergy
+        if any(x in d for x in ["LORATIDINE", "LORATADINE", "CETIRIZINE", "PIRITON",
+                                  "CHLORPHENIRAMINE", "FEXOFENADINE"]):
             return "Antihistamines / Allergy"
+        # Cough, Cold & Respiratory
         if any(x in d for x in ["COUGH", "MENTHODEX", "ASCOREX", "RHINATHIOL", "BENYLIN",
-                                  "SALBUTAMOL", "VENTOLIN", "INHALER", "AMINOPHYLLINE", "BROMHEXINE"]):
+                                  "SALBUTAMOL", "VENTOLIN", "INHALER", "AMINOPHYLLINE",
+                                  "BROMHEXINE", "STREPSIL", "LOZENGE"]):
             return "Cough, Cold & Respiratory"
-        if any(x in d for x in ["VITAMIN", "FOLIC ACID", "FERROUS", "IRON", "CALCIMAX", "CALCIUM",
-                                  "ZINC", "MULTIVIT", "PREGNACARE", "RANFERON", "B COMPLEX"]):
+        # Vitamins & Supplements
+        if any(x in d for x in ["VITAMIN", "FOLIC ACID", "FERROUS", "IRON", "CALCIMAX",
+                                  "CALCIUM", "ZINC", "MULTIVIT", "PREGNACARE", "RANFERON",
+                                  "B COMPLEX"]):
             return "Vitamins & Supplements"
-        if any(x in d for x in ["NORMAL SALINE", "DEXTROSE", "RINGER", "INFUSION", "DRIP", "IV FLUID",
-                                  "DARROWS", "HARTMANN"]):
+        # IV Fluids & Infusions
+        if any(x in d for x in ["NORMAL SALINE", "DEXTROSE", "RINGER", "INFUSION",
+                                  "DRIP", "IV FLUID", "DARROWS", "HARTMANN"]):
             return "IV Fluids & Infusions"
-        if any(x in d for x in ["AMLODIPINE", "LISINOPRIL", "ATENOLOL", "LOSARTAN", "NIFEDIPINE",
-                                  "RAMIPRIL", "VALSARTAN", "TELMISARTAN", "ENALAPRIL", "ASPIRIN",
-                                  "CLOPIDOGREL", "ATORVASTATIN", "SIMVASTATIN"]):
+        # Cardiovascular / Antihypertensives
+        if any(x in d for x in ["AMLODIPINE", "LISINOPRIL", "ATENOLOL", "LOSARTAN",
+                                  "NIFEDIPINE", "RAMIPRIL", "VALSARTAN", "TELMISARTAN",
+                                  "ENALAPRIL", "ASPIRIN", "CLOPIDOGREL", "ATORVASTATIN",
+                                  "ATOVASTATIN", "SIMVASTATIN", "ROSUVASTATIN", "CRESTOR",
+                                  "ALDOMET", "METHYLDOPA", "INDAPAMIDE", "CARDIOTAN",
+                                  "TRANEXAMIC"]):
             return "Cardiovascular"
-        if any(x in d for x in ["METFORMIN", "GLIMEPIRIDE", "INSULIN", "GLUCOPHAGE", "GLICLAZIDE", "DAONIL"]):
+        # Antidiabetics
+        if any(x in d for x in ["METFORMIN", "GLIMEPIRIDE", "INSULIN", "GLUCOPHAGE",
+                                  "GLICLAZIDE", "DAONIL", "GLIPTUS"]):
             return "Antidiabetics"
+        # Steroids / Anti-inflammatory
+        if any(x in d for x in ["DEXAMETHASONE", "HYDROCORTISONE", "HYDROCORTIZONE",
+                                  "METHYLPREDNISOLONE", "PREDNISOLONE"]):
+            return "Steroids / Anti-inflammatory"
+        # Antifungals
+        if any(x in d for x in ["FLUCONAZOLE", "DIFLUCAN", "KLOVINAL"]):
+            return "Antifungals"
+        # Anticonvulsants / Neurological
+        if any(x in d for x in ["LEVETIRACETAM", "KEPPRA", "NEVIRAPINE", "BANOCIDE"]):
+            return "Neurological / Anticonvulsants"
+        # If description is a tariff code (no spaces, short, has digits)
+        if len(d.strip()) < 12 and any(c.isdigit() for c in d) and " " not in d.strip():
+            return "Tariff-Coded Prescriptions"
         return "Other Medications"
 
     med_all["Drug_Class"] = med_all["Description"].apply(classify_drug)
