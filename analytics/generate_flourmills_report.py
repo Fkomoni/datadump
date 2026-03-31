@@ -185,21 +185,34 @@ def generate_report():
     )
 
     # Map claims Scheme to Plan — only the 3 core plans
+    # Strip whitespace from Scheme to handle trailing spaces
+    fm_stripped = fm.copy()
+    fm_stripped["Scheme"] = fm_stripped["Scheme"].str.strip()
+
     valid_plans = ["PLUS - Flour Mills", "PRO - Flour Mills", "MAX- Flour Mills"]
-    plan_paid = fm[(fm["Claim_Status"] == "Paid Claims") & (fm["Scheme"].isin(valid_plans))].groupby("Scheme").agg(
+    plan_paid = fm_stripped[(fm_stripped["Claim_Status"] == "Paid Claims") & (fm_stripped["Scheme"].isin(valid_plans))].groupby("Scheme").agg(
         Paid_Claims=("Amount_Paid", "sum"),
         Unique_Claims=("Claim_Number", "nunique"),
         Unique_Members=("Member_ID", "nunique"),
     )
-    plan_pipeline = fm[fm["Claim_Status"].isin(
+    plan_pipeline = fm_stripped[fm_stripped["Claim_Status"].isin(
         ["Awaiting Payment", "Claims for adjudication", "In Process"]
-    ) & (fm["Scheme"].isin(valid_plans))].groupby("Scheme").agg(
+    ) & (fm_stripped["Scheme"].isin(valid_plans))].groupby("Scheme").agg(
         Pipeline_Claims=("Amount_Claimed", "sum"),
     )
 
     plan_lr = earned_by_plan.join(plan_paid, how="outer").join(plan_pipeline, how="outer").fillna(0)
     plan_lr = plan_lr[plan_lr.index.isin(valid_plans)]
-    plan_lr["Total_Incurred"] = plan_lr["Paid_Claims"] + plan_lr["Pipeline_Claims"]
+
+    # Allocate IBNR proportionally across plans based on paid claims share
+    total_plan_paid = plan_lr["Paid_Claims"].sum()
+    if total_plan_paid > 0:
+        plan_lr["IBNR"] = (plan_lr["Paid_Claims"] / total_plan_paid * ibnr_total).round(2)
+    else:
+        plan_lr["IBNR"] = 0
+
+    # Total Incurred = Paid + Pipeline + IBNR
+    plan_lr["Total_Incurred"] = plan_lr["Paid_Claims"] + plan_lr["Pipeline_Claims"] + plan_lr["IBNR"]
     plan_lr["MLR"] = np.where(
         plan_lr["Earned_Premium"] > 0,
         (plan_lr["Total_Incurred"] / plan_lr["Earned_Premium"] * 100),
