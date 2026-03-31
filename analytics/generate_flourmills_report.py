@@ -159,6 +159,67 @@ def generate_report():
             <td class="num {mlr_class}">{pct(s_cor) if s_earned > 0 else 'N/A'}</td>
         </tr>"""
 
+    # ── Loss Ratio by Plan ──
+    earned_by_plan = earned_df.groupby("Plan").agg(
+        Written_Premium=("Premium", "sum"),
+        Earned_Premium=("Earned_Premium", "sum"),
+        Members=("Member_ID", "count"),
+    )
+
+    # Map claims Scheme to Plan (they match directly)
+    plan_paid = fm[fm["Claim_Status"] == "Paid Claims"].groupby("Scheme").agg(
+        Paid_Claims=("Amount_Paid", "sum"),
+        Unique_Claims=("Claim_Number", "nunique"),
+        Unique_Members=("Member_ID", "nunique"),
+    )
+    plan_pipeline = fm[fm["Claim_Status"].isin(
+        ["Awaiting Payment", "Claims for adjudication", "In Process"]
+    )].groupby("Scheme").agg(
+        Pipeline_Claims=("Amount_Claimed", "sum"),
+    )
+
+    plan_lr = earned_by_plan.join(plan_paid, how="outer").join(plan_pipeline, how="outer").fillna(0)
+    plan_lr["Total_Incurred"] = plan_lr["Paid_Claims"] + plan_lr["Pipeline_Claims"]
+    plan_lr["MLR"] = np.where(
+        plan_lr["Earned_Premium"] > 0,
+        (plan_lr["Total_Incurred"] / plan_lr["Earned_Premium"] * 100),
+        0
+    )
+    plan_lr["COR"] = plan_lr["MLR"] + admin_pct + nhia_pct
+    plan_lr["Avg_Per_Member"] = np.where(
+        plan_lr["Unique_Members"] > 0,
+        plan_lr["Paid_Claims"] / plan_lr["Unique_Members"],
+        0
+    )
+    plan_lr["Avg_Per_Visit"] = np.where(
+        plan_lr["Unique_Claims"] > 0,
+        plan_lr["Paid_Claims"] / plan_lr["Unique_Claims"],
+        0
+    )
+    plan_lr = plan_lr.sort_values("Paid_Claims", ascending=False)
+
+    plan_lr_rows = ""
+    for i, (plan_name, row) in enumerate(plan_lr.iterrows(), 1):
+        p_mlr = row["MLR"]
+        p_cor = row["COR"]
+        mlr_cls = "danger" if p_mlr > 100 else ("warning" if p_mlr > 85 else "good")
+        has_earned = row["Earned_Premium"] > 0
+        plan_lr_rows += f"""<tr>
+            <td>{i}</td>
+            <td><strong>{plan_name}</strong></td>
+            <td class="num">{int(row['Members']):,}</td>
+            <td class="num">{int(row['Unique_Members']):,}</td>
+            <td class="num">{int(row['Unique_Claims']):,}</td>
+            <td class="num">{fmt_full(row['Earned_Premium'])}</td>
+            <td class="num">{fmt_full(row['Paid_Claims'])}</td>
+            <td class="num">{fmt_full(row['Pipeline_Claims'])}</td>
+            <td class="num">{fmt_full(row['Total_Incurred'])}</td>
+            <td class="num">{fmt_full(row['Avg_Per_Member'])}</td>
+            <td class="num">{fmt_full(row['Avg_Per_Visit'])}</td>
+            <td class="num {mlr_cls}">{pct(p_mlr) if has_earned else 'N/A'}</td>
+            <td class="num {mlr_cls}">{pct(p_cor) if has_earned else 'N/A'}</td>
+        </tr>"""
+
     # ── Top 20 providers ──
     top_prov = fm.groupby("Provider").agg(
         Total_Paid=("Amount_Paid", "sum"),
@@ -613,6 +674,38 @@ def generate_report():
     <table class="data-table">
       <thead><tr><th>Department</th>{sub_headers}</tr></thead>
       <tbody>{sub_dept_rows}</tbody>
+    </table>
+    </div>
+  </div>
+
+  <!-- LOSS RATIO BY PLAN -->
+  <div class="section">
+    <h2>Loss Ratio by <span class="accent">Plan</span></h2>
+    <p style="color:var(--text-muted);font-size:13px;margin-bottom:16px;">
+      MLR colour coding: <span style="color:#16a34a;font-weight:700;">Green &lt; 85%</span> &nbsp;
+      <span style="color:var(--coral);font-weight:700;">Orange 85-100%</span> &nbsp;
+      <span style="color:var(--crimson);font-weight:700;">Red &gt; 100%</span>
+    </p>
+    <div class="scroll-x">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Plan</th>
+          <th class="num">Enrolled</th>
+          <th class="num">Claimants</th>
+          <th class="num">Unique Claims</th>
+          <th class="num">Earned Premium</th>
+          <th class="num">Paid Claims</th>
+          <th class="num">Pipeline</th>
+          <th class="num">Total Incurred</th>
+          <th class="num">Avg/Member</th>
+          <th class="num">Avg/Visit</th>
+          <th class="num">MLR</th>
+          <th class="num">COR</th>
+        </tr>
+      </thead>
+      <tbody>{plan_lr_rows}</tbody>
     </table>
     </div>
   </div>
