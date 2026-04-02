@@ -332,6 +332,107 @@ def generate_report():
             <td class="num">{row['Claims']:,}</td>
         </tr>"""
 
+    # ── Demographics ──
+    prod["DOB"] = pd.to_datetime(prod["Member Date Of Birth"], errors="coerce")
+    prod["Age"] = ((pd.Timestamp.now() - prod["DOB"]).dt.days / 365.25).astype(int)
+    prod["Rel"] = prod["Member Relationship"].str.strip()
+
+    # Members by relationship with premium and claims
+    prod_dedup = prod.drop_duplicates(subset="L", keep="first")
+
+    # Relationship breakdown with MLR
+    rel_demo = []
+    for r_name in ["Main member", "Spouse", "Son", "Daughter", "SELF"]:
+        r_members = prod[prod["Rel"] == r_name]["L"].tolist()
+        r_count = len(r_members)
+        if r_count == 0:
+            continue
+        r_prem = prod[prod["Rel"] == r_name]["Individual Premium Fees"].sum()
+        r_claims_paid = claims[claims["Member Ship No"].isin(r_members)]["Amt Paid"].sum()
+        r_unique_claims = claims[claims["Member Ship No"].isin(r_members)]["Claim NUmber"].nunique()
+        r_claimants = claims[claims["Member Ship No"].isin(r_members)]["Member Ship No"].nunique()
+        # Earned premium for this group
+        r_ep = ep[ep.index.isin(prod[prod["Rel"] == r_name].index)]
+        r_earned = r_ep["Earned"].sum() if not r_ep.empty else 0
+        # Use proportion of total earned
+        r_earned_share = r_prem / written_total * earned_total if written_total > 0 else 0
+        r_mlr = (r_claims_paid / r_earned_share * 100) if r_earned_share > 0 else 0
+        rel_demo.append((r_name, r_count, r_claimants, r_unique_claims, r_prem, r_earned_share, r_claims_paid, r_mlr))
+
+    demo_rel_rows = ""
+    for r_name, r_count, r_claimants, r_claims, r_prem, r_earned, r_paid, r_mlr in rel_demo:
+        mlr_cls = "danger" if r_mlr > 100 else ("warning" if r_mlr > 85 else "good")
+        demo_rel_rows += f"""<tr>
+            <td><strong>{r_name}</strong></td>
+            <td class="num">{r_count:,}</td>
+            <td class="num">{r_claimants:,}</td>
+            <td class="num">{r_claims:,}</td>
+            <td class="num">{fmt_full(r_prem)}</td>
+            <td class="num">{fmt_full(r_earned)}</td>
+            <td class="num">{fmt_full(r_paid)}</td>
+            <td class="num">{fmt_full(r_paid / r_claimants if r_claimants > 0 else 0)}</td>
+            <td class="num {mlr_cls}">{pct(r_mlr)}</td>
+        </tr>"""
+
+    # Gender breakdown
+    gender_data = []
+    for g in ["Male", "Female"]:
+        g_members = prod[prod["Member Gender"] == g]["L"].tolist()
+        g_count = len(g_members)
+        g_prem = prod[prod["Member Gender"] == g]["Individual Premium Fees"].sum()
+        g_paid = claims[claims["Member Ship No"].isin(g_members)]["Amt Paid"].sum()
+        g_claimants = claims[claims["Member Ship No"].isin(g_members)]["Member Ship No"].nunique()
+        g_earned_share = g_prem / written_total * earned_total if written_total > 0 else 0
+        g_mlr = (g_paid / g_earned_share * 100) if g_earned_share > 0 else 0
+        gender_data.append((g, g_count, g_claimants, g_prem, g_earned_share, g_paid, g_mlr))
+
+    demo_gender_rows = ""
+    for g, g_count, g_claimants, g_prem, g_earned, g_paid, g_mlr in gender_data:
+        mlr_cls = "danger" if g_mlr > 100 else ("warning" if g_mlr > 85 else "good")
+        demo_gender_rows += f"""<tr>
+            <td><strong>{g}</strong></td>
+            <td class="num">{g_count:,}</td>
+            <td class="num">{g_claimants:,}</td>
+            <td class="num">{fmt_full(g_prem)}</td>
+            <td class="num">{fmt_full(g_earned)}</td>
+            <td class="num">{fmt_full(g_paid)}</td>
+            <td class="num">{fmt_full(g_paid / g_claimants if g_claimants > 0 else 0)}</td>
+            <td class="num {mlr_cls}">{pct(g_mlr)}</td>
+        </tr>"""
+
+    # Age group breakdown
+    bins = [0, 5, 12, 18, 30, 45, 60, 100]
+    labels = ["0-5", "6-12", "13-18", "19-30", "31-45", "46-60", "60+"]
+    prod["Age_Group"] = pd.cut(prod["Age"], bins=bins, labels=labels, right=True)
+    demo_age_rows = ""
+    for ag in labels:
+        ag_members = prod[prod["Age_Group"] == ag]["L"].tolist()
+        ag_count = len(ag_members)
+        if ag_count == 0:
+            continue
+        ag_prem = prod[prod["Age_Group"] == ag]["Individual Premium Fees"].sum()
+        ag_paid = claims[claims["Member Ship No"].isin(ag_members)]["Amt Paid"].sum()
+        ag_claimants = claims[claims["Member Ship No"].isin(ag_members)]["Member Ship No"].nunique()
+        ag_earned_share = ag_prem / written_total * earned_total if written_total > 0 else 0
+        ag_mlr = (ag_paid / ag_earned_share * 100) if ag_earned_share > 0 else 0
+        mlr_cls = "danger" if ag_mlr > 100 else ("warning" if ag_mlr > 85 else "good")
+        demo_age_rows += f"""<tr>
+            <td><strong>{ag}</strong></td>
+            <td class="num">{ag_count:,}</td>
+            <td class="num">{ag_claimants:,}</td>
+            <td class="num">{fmt_full(ag_prem)}</td>
+            <td class="num">{fmt_full(ag_earned_share)}</td>
+            <td class="num">{fmt_full(ag_paid)}</td>
+            <td class="num">{fmt_full(ag_paid / ag_claimants if ag_claimants > 0 else 0)}</td>
+            <td class="num {mlr_cls}">{pct(ag_mlr)}</td>
+        </tr>"""
+
+    # Plan summary (single plan but show the stats)
+    plan_members = total_enrolled
+    plan_active = prod[prod["Member Status Desc"] == "Active"].shape[0]
+    plan_terminated = prod[prod["Member Status Desc"] == "Terminated"].shape[0]
+    plan_avg_prem = written_total / plan_members if plan_members > 0 else 0
+
     # ── Medication by Class ──
     med = claims[claims["DEPARTMENT"].str.contains("Medication|Chronic Medication|VITAMIN", case=False, na=False)].copy()
     def resolve_desc(desc):
@@ -527,6 +628,33 @@ def generate_report():
     <table class="data-table"><thead><tr>
       <th>Month</th><th class="num">Unique Claims</th><th class="num">Members</th><th class="num">Total Paid</th><th class="num">Avg/Member</th><th class="num">Visits/Member</th>
     </tr></thead><tbody>{monthly_rows}</tbody></table>
+  </div>
+
+  <!-- DEMOGRAPHICS -->
+  <div class="section" style="background:var(--navy);color:white;border-radius:14px;">
+    <h2 style="color:white;border-bottom-color:rgba(255,255,255,0.15);">Member Demographics</h2>
+    <p style="opacity:0.7;font-size:13px;">VOYSE - PROMAX &nbsp;|&nbsp; {plan_members} enrolled ({plan_active} active, {plan_terminated} terminated) &nbsp;|&nbsp; Avg Premium: {fmt_full(plan_avg_prem)}</p>
+  </div>
+
+  <div class="section">
+    <h2>MLR by <span class="accent">Relationship</span></h2>
+    <div class="scroll-x"><table class="data-table"><thead><tr>
+      <th>Relationship</th><th class="num">Enrolled</th><th class="num">Claimants</th><th class="num">Claims</th><th class="num">Written Premium</th><th class="num">Earned Premium</th><th class="num">Claims Paid</th><th class="num">Avg/Claimant</th><th class="num">MLR</th>
+    </tr></thead><tbody>{demo_rel_rows}</tbody></table></div>
+  </div>
+
+  <div class="section">
+    <h2>MLR by <span class="accent">Gender</span></h2>
+    <div class="scroll-x"><table class="data-table"><thead><tr>
+      <th>Gender</th><th class="num">Enrolled</th><th class="num">Claimants</th><th class="num">Written Premium</th><th class="num">Earned Premium</th><th class="num">Claims Paid</th><th class="num">Avg/Claimant</th><th class="num">MLR</th>
+    </tr></thead><tbody>{demo_gender_rows}</tbody></table></div>
+  </div>
+
+  <div class="section">
+    <h2>MLR by <span class="accent">Age Group</span></h2>
+    <div class="scroll-x"><table class="data-table"><thead><tr>
+      <th>Age Group</th><th class="num">Enrolled</th><th class="num">Claimants</th><th class="num">Written Premium</th><th class="num">Earned Premium</th><th class="num">Claims Paid</th><th class="num">Avg/Claimant</th><th class="num">MLR</th>
+    </tr></thead><tbody>{demo_age_rows}</tbody></table></div>
   </div>
 
   <div class="section" style="border-left:4px solid var(--crimson);">
