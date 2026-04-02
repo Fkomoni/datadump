@@ -154,7 +154,11 @@ def generate_report():
             factors[c] = cum_tri.loc[mask, n].sum() / cum_tri.loc[mask, c].sum()
         else:
             factors[c] = 1.0
-    # Project ultimate with 5M floor
+    # Project ultimate — ₦3M expected monthly bill baseline
+    # Months with catastrophic claims (Sep/Nov) are one-off events;
+    # their ultimate = current reported (no additional IBNR needed)
+    catastrophic_threshold = 4_000_000  # months above this had catastrophic cases
+    normal_floor = 3_000_000
     ibnr_results = []
     for idx, row in cum_tri.iterrows():
         current = 0
@@ -167,7 +171,11 @@ def generate_report():
         for col in cols:
             if col >= current_lag and col in factors:
                 ultimate *= factors[col]
-        ultimate = max(ultimate, 5_000_000)
+        # If month already has catastrophic spend, don't inflate further
+        if current > catastrophic_threshold:
+            ultimate = max(ultimate, current)  # no floor — already exceeded
+        else:
+            ultimate = max(ultimate, normal_floor)
         ibnr_est = max(ultimate - current, 0)
         ibnr_results.append({"Month": idx, "Current": current, "Lag": current_lag, "Ultimate": round(ultimate, 2), "IBNR": round(ibnr_est, 2)})
     ibnr_df = pd.DataFrame(ibnr_results).set_index("Month")
@@ -218,8 +226,8 @@ def generate_report():
     member_names = claims.groupby("Member Ship No")["Principal Member"].first()
     prod_premium = prod.set_index("L")["Individual Premium Fees"].to_dict()
 
-    early_rows = ""
-    early_count = 0
+    # Collect early claimers into a list, then sort by spend descending
+    early_list = []
     for mid, first_claim in member_first_claim.items():
         eff = prod_dates.get(mid)
         if pd.notna(eff) and pd.notna(first_claim):
@@ -227,20 +235,24 @@ def generate_report():
             total = member_total_paid.get(mid, 0)
             prem = prod_premium.get(mid, 0)
             if days <= 30 and total > 200000:
-                early_count += 1
-                ratio = total / prem if prem > 0 else 0
-                cls = "danger" if ratio > 5 else ("warning" if ratio > 2 else "")
-                name = member_names.get(mid, "")
-                early_rows += f"""<tr>
-                    <td>{mid}</td>
-                    <td>{name}</td>
-                    <td class="num">{str(eff)[:10]}</td>
-                    <td class="num">{str(first_claim)[:10]}</td>
-                    <td class="num">{days}d</td>
-                    <td class="num">{fmt_full(total)}</td>
-                    <td class="num">{fmt_full(prem)}</td>
-                    <td class="num {cls}">{ratio:.1f}x</td>
-                </tr>"""
+                early_list.append((mid, member_names.get(mid, ""), eff, first_claim, days, total, prem))
+
+    early_list.sort(key=lambda x: x[5], reverse=True)  # sort by total spent desc
+    early_count = len(early_list)
+    early_rows = ""
+    for mid, name, eff, first_claim, days, total, prem in early_list:
+        ratio = total / prem if prem > 0 else 0
+        cls = "danger" if ratio > 5 else ("warning" if ratio > 2 else "")
+        early_rows += f"""<tr>
+            <td>{mid}</td>
+            <td>{name}</td>
+            <td class="num">{str(eff)[:10]}</td>
+            <td class="num">{str(first_claim)[:10]}</td>
+            <td class="num">{days}d</td>
+            <td class="num">{fmt_full(total)}</td>
+            <td class="num">{fmt_full(prem)}</td>
+            <td class="num {cls}">{ratio:.1f}x</td>
+        </tr>"""
 
     # ── Top Spending Families ──
     family_rows = ""
