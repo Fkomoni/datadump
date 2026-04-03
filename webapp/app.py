@@ -379,7 +379,12 @@ def generate_report_from_files(files, admin_pct, nhia_pct, broker_fee, additiona
             Members=("Member_ID", "nunique") if "Member_ID" in claims.columns else ("Amount_Paid", "count"),
         ).sort_index()
         for period, row in monthly.iterrows():
-            monthly_rows += f'<tr><td>{month_label(period)}</td><td class="num">{row["Claims"]:,}</td><td class="num">{row["Members"]:,}</td><td class="num">{fmt_full(row["Paid"])}</td></tr>'
+            m_claims = row["Claims"]
+            m_members = row["Members"]
+            m_paid = row["Paid"]
+            m_avg = m_paid / m_members if m_members > 0 else 0
+            m_visits = m_claims / m_members if m_members > 0 else 0
+            monthly_rows += f'<tr><td>{month_label(period)}</td><td class="num">{m_claims:,}</td><td class="num">{m_members:,}</td><td class="num">{fmt_full(m_paid)}</td><td class="num">{fmt_full(m_avg)}</td><td class="num">{m_visits:.1f}</td></tr>'
 
     # ── Top Providers ──
     prov_rows = ""
@@ -437,6 +442,67 @@ def generate_report_from_files(files, admin_pct, nhia_pct, broker_fee, additiona
         disease_agg["Pct"] = (disease_agg["Paid"] / paid_total * 100).round(1)
         for i, (cat, row) in enumerate(disease_agg.head(10).iterrows(), 1):
             disease_cat_rows += f'<tr><td>{i}</td><td>{cat}</td><td class="num">{fmt_full(row["Paid"])}</td><td class="num">{pct(row["Pct"])}</td><td class="num">{row["Claims"]:,}</td></tr>'
+
+    # ── MLR by Age Group ──
+    age_mlr_rows = ""
+    if "Age" in claims.columns and earned_total > 0:
+        age_bins = [0, 5, 18, 30, 40, 50, 60, 70, 120]
+        age_labels = ["0-5", "6-18", "19-30", "31-40", "41-50", "51-60", "61-70", "71+"]
+        claims["Age_Group"] = pd.cut(claims["Age"].dropna(), bins=age_bins, labels=age_labels, right=True)
+        age_agg = claims.dropna(subset=["Age_Group"]).groupby("Age_Group", observed=True).agg(
+            Paid=("Amount_Paid", "sum"),
+            Claims=("Claim_Number", "nunique") if "Claim_Number" in claims.columns else ("Amount_Paid", "count"),
+            Members=("Member_ID", "nunique") if "Member_ID" in claims.columns else ("Amount_Paid", "count"),
+        )
+        # Distribute earned premium proportionally by member count for age-group MLR
+        total_age_members = age_agg["Members"].sum()
+        for grp, row in age_agg.iterrows():
+            if row["Members"] == 0:
+                continue
+            grp_earned = earned_total * (row["Members"] / total_age_members) if total_age_members > 0 else 0
+            grp_mlr = (row["Paid"] / grp_earned * 100) if grp_earned > 0 else 0
+            grp_avg = row["Paid"] / row["Members"] if row["Members"] > 0 else 0
+            mlr_class = "danger" if grp_mlr > 100 else ("warning" if grp_mlr > 85 else "good")
+            age_mlr_rows += f'<tr><td>{grp}</td><td class="num">{row["Members"]:,}</td><td class="num">{row["Claims"]:,}</td><td class="num">{fmt_full(row["Paid"])}</td><td class="num">{fmt_full(grp_earned)}</td><td class="num {mlr_class}">{pct(grp_mlr)}</td><td class="num">{fmt_full(grp_avg)}</td></tr>'
+
+    # ── Early High Claimers ──
+    early_claimers_rows = ""
+    early_claimers_count = 0
+    if prod is not None and "Effective_Date" in prod.columns and "Member_ID" in prod.columns and "Member_ID" in claims.columns:
+        # Build member join dates and premium from production data
+        member_join = prod.dropna(subset=["Effective_Date", "Member_ID"]).groupby("Member_ID").agg(
+            Join_Date=("Effective_Date", "min"),
+            Premium=("Premium", "sum") if "Premium" in prod.columns else ("Effective_Date", "count"),
+        )
+        # Get first claim date and total spent per member
+        member_claims = claims.dropna(subset=["Treatment_Date"]).groupby("Member_ID").agg(
+            First_Claim=("Treatment_Date", "min"),
+            Total_Spent=("Amount_Paid", "sum"),
+        )
+        # Merge
+        ehc = member_join.join(member_claims, how="inner")
+        ehc["Days"] = (ehc["First_Claim"] - ehc["Join_Date"]).dt.days
+        # Filter: spent over 200K within 30 days of enrolment
+        ehc_flagged = ehc[(ehc["Days"].abs() <= 30) & (ehc["Total_Spent"] > 200_000)].sort_values("Total_Spent", ascending=False)
+        early_claimers_count = len(ehc_flagged)
+
+        # Get principal member name for initials
+        principal_map = {}
+        if "Principal_Member" in claims.columns:
+            principal_map = claims.dropna(subset=["Member_ID", "Principal_Member"]).drop_duplicates("Member_ID").set_index("Member_ID")["Principal_Member"].to_dict()
+
+        for mid, row in ehc_flagged.head(20).iterrows():
+            full_name = str(principal_map.get(mid, "")).strip()
+            initials = to_initials(full_name) if full_name else ""
+            join_dt = row["Join_Date"].strftime("%Y-%m-%d") if pd.notna(row["Join_Date"]) else ""
+            first_dt = row["First_Claim"].strftime("%Y-%m-%d") if pd.notna(row["First_Claim"]) else ""
+            days_val = int(row["Days"])
+            days_str = f"{days_val}d"
+            premium_val = row["Premium"] if "Premium" in prod.columns and pd.notna(row["Premium"]) and row["Premium"] > 0 else 0
+            spend_ratio = row["Total_Spent"] / premium_val if premium_val > 0 else 0
+            ratio_cls = "danger" if spend_ratio > 5 else ("warning" if spend_ratio > 2 else "")
+            ratio_str = f"{spend_ratio:.1f}x" if premium_val > 0 else "N/A"
+            early_claimers_rows += f'<tr><td>{mid}</td><td>{initials}</td><td class="num">{join_dt}</td><td class="num">{first_dt}</td><td class="num">{days_str}</td><td class="num">{fmt_full(row["Total_Spent"])}</td><td class="num">{fmt_full(premium_val) if premium_val > 0 else "—"}</td><td class="num {ratio_cls}">{ratio_str}</td></tr>'
 
     # ── What Went Wrong (MLR > 90%) ──
     what_went_wrong_html = ""
@@ -633,8 +699,8 @@ def generate_report_from_files(files, admin_pct, nhia_pct, broker_fee, additiona
       <tr class="total"><td>COR</td><td>{pct(cor_pct)}</td></tr>
     </table>
   </div>
-  <div class="section"><h2>Monthly <span class="accent">Trend</span></h2>
-    <table class="data-table"><thead><tr><th>Month</th><th class="num">Claims</th><th class="num">Members</th><th class="num">Total Paid</th></tr></thead>
+  <div class="section"><h2>Monthly Claims <span class="accent">Trend</span></h2>
+    <table class="data-table"><thead><tr><th>Month</th><th class="num">Unique Claims</th><th class="num">Members</th><th class="num">Total Paid</th><th class="num">Avg/Member</th><th class="num">Visits/Member</th></tr></thead>
     <tbody>{monthly_rows}</tbody></table></div>
   <div class="section"><h2>Top <span class="accent">Providers</span></h2>
     <table class="data-table"><thead><tr><th>#</th><th>Provider</th><th class="num">Total Paid</th><th class="num">%</th><th class="num">Claims</th></tr></thead>
@@ -643,6 +709,8 @@ def generate_report_from_files(files, admin_pct, nhia_pct, broker_fee, additiona
     <table class="data-table"><thead><tr><th>#</th><th>Department</th><th class="num">Total Paid</th><th class="num">%</th><th class="num">Claims</th></tr></thead>
     <tbody>{dept_rows}</tbody></table></div>
   {"" if not disease_cat_rows else '<div class="section"><h2>Top 10 <span class="accent">Disease Categories</span></h2><table class="data-table"><thead><tr><th>#</th><th>Disease Category</th><th class="num">Total Paid</th><th class="num">%</th><th class="num">Claims</th></tr></thead><tbody>' + disease_cat_rows + '</tbody></table></div>'}
+  {"" if not age_mlr_rows else '<div class="section"><h2>MLR by <span class="accent">Age Group</span></h2><table class="data-table"><thead><tr><th>Age Group</th><th class="num">Members</th><th class="num">Claims</th><th class="num">Total Paid</th><th class="num">Earned Premium</th><th class="num">MLR</th><th class="num">Avg/Member</th></tr></thead><tbody>' + age_mlr_rows + '</tbody></table></div>'}
+  {"" if not early_claimers_rows else '<div class="section"><h2>Early High <span class="accent">Claimers</span></h2><p style="color:var(--text-muted);font-size:13px;margin-bottom:16px;">Members who spent over &#8358;200K within 30 days of enrolment (' + str(early_claimers_count) + ' flagged)</p><table class="data-table"><thead><tr><th>Member ID</th><th>Principal</th><th class="num">Join Date</th><th class="num">First Claim</th><th class="num">Days</th><th class="num">Total Spent</th><th class="num">Premium</th><th class="num">Spend/Premium</th></tr></thead><tbody>' + early_claimers_rows + '</tbody></table></div>'}
   {what_went_wrong_html}
   {pricing_html}
   {recommendations_html}
