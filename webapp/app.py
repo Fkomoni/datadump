@@ -379,7 +379,12 @@ def generate_report_from_files(files, admin_pct, nhia_pct, broker_fee, additiona
             Members=("Member_ID", "nunique") if "Member_ID" in claims.columns else ("Amount_Paid", "count"),
         ).sort_index()
         for period, row in monthly.iterrows():
-            monthly_rows += f'<tr><td>{month_label(period)}</td><td class="num">{row["Claims"]:,}</td><td class="num">{row["Members"]:,}</td><td class="num">{fmt_full(row["Paid"])}</td></tr>'
+            m_claims = row["Claims"]
+            m_members = row["Members"]
+            m_paid = row["Paid"]
+            m_avg = m_paid / m_members if m_members > 0 else 0
+            m_visits = m_claims / m_members if m_members > 0 else 0
+            monthly_rows += f'<tr><td>{month_label(period)}</td><td class="num">{m_claims:,}</td><td class="num">{m_members:,}</td><td class="num">{fmt_full(m_paid)}</td><td class="num">{fmt_full(m_avg)}</td><td class="num">{m_visits:.1f}</td></tr>'
 
     # ── Top Providers ──
     prov_rows = ""
@@ -397,12 +402,190 @@ def generate_report_from_files(files, admin_pct, nhia_pct, broker_fee, additiona
         for i, (name, row) in enumerate(dept.head(15).iterrows(), 1):
             dept_rows += f'<tr><td>{i}</td><td>{name}</td><td class="num">{fmt_full(row["Paid"])}</td><td class="num">{pct(row["Pct"])}</td><td class="num">{row["Claims"]:,}</td></tr>'
 
-    # ── Claim Status ──
-    status_rows = ""
-    if "Claim_Status" in claims.columns and "Claim_Number" in claims.columns:
-        status = claims.groupby("Claim_Status")["Claim_Number"].nunique().sort_values(ascending=False)
-        for s, count in status.items():
-            status_rows += f'<tr><td>{s}</td><td class="num">{count:,}</td></tr>'
+    # ── Disease Category (Diagnosis Bands) ──
+    disease_cat_rows = ""
+    if "Diagnosis_Description" in claims.columns:
+        disease_categories = {
+            "Malaria": ["malaria", "plasmodium"],
+            "Respiratory Infections": ["respiratory", "pneumonia", "bronchitis", "asthma", "cough", "influenza", "flu", "pharyngitis", "sinusitis", "tonsillitis", "rhinitis", "laryngitis", "upper respiratory", "lower respiratory", "urt", "lrt", "urti", "lrti", "nasal"],
+            "Cardiovascular & Hypertension": ["hypertension", "hypertensive", "cardiac", "heart", "cardiovascular", "angina", "stroke", "cerebrovascular", "ischaemic", "ischemic", "coronary", "arrhythmia", "blood pressure"],
+            "Diabetes & Metabolic": ["diabet", "glucose", "metabolic", "thyroid", "cholesterol", "lipid", "obesity", "gout", "hyperglycaemia", "hypoglycaemia"],
+            "Gastrointestinal": ["gastro", "gastritis", "ulcer", "diarrh", "dyspepsia", "colitis", "intestin", "abdominal", "stomach", "bowel", "hepatitis", "liver", "gerd", "reflux", "constipation", "appendic", "hernia", "pancreat", "gallstone", "peptic"],
+            "Musculoskeletal": ["arthritis", "osteo", "muscul", "joint", "back pain", "spine", "spinal", "fracture", "rheumat", "ortho", "lumbar", "cervical", "spondyl", "musculo"],
+            "Eye & Ophthalmology": ["eye", "ophthalm", "visual", "cataract", "glaucoma", "conjunctiv", "retina", "myopia", "optical", "vision"],
+            "Dental & Oral": ["dental", "tooth", "teeth", "oral", "gingiv", "caries", "periodon", "dentition"],
+            "Obstetric & Maternity": ["pregnan", "matern", "obstetric", "antenatal", "postnatal", "delivery", "caesarean", "c-section", "labour", "labor", "gestation", "neonatal", "perinatal"],
+            "Surgery & Procedures": ["surgery", "surgical", "operation", "procedure", "excision", "repair", "implant", "biopsy", "laparoscop", "endoscop"],
+            "Dermatology & Skin": ["skin", "dermat", "eczema", "rash", "wound", "abscess", "cellulitis", "fungal", "urticaria", "psoriasis", "acne"],
+            "Genitourinary": ["urinary", "kidney", "renal", "bladder", "urin", "prostat", "uti", "nephri", "genital", "pelvic"],
+            "Infections & Parasitic": ["typhoid", "infection", "sepsis", "hiv", "tuberculosis", "measles", "chicken pox", "viral", "bacterial", "fever", "parasit"],
+            "Oncology": ["cancer", "tumour", "tumor", "malignan", "carcinoma", "oncolog", "leukaemia", "leukemia", "lymphoma", "neoplasm"],
+            "Mental Health & Neurology": ["mental", "depression", "anxiety", "psychi", "epilep", "seizure", "migraine", "headache", "neuro", "insomnia", "bipolar"],
+            "ENT": ["ear", "nose", "throat", "otitis", "hearing", "vertigo", "adenoid"],
+        }
+
+        def classify_diagnosis(desc):
+            if not desc or str(desc).strip() == "":
+                return "Other / Unclassified"
+            desc_lower = str(desc).lower()
+            for category, keywords in disease_categories.items():
+                for kw in keywords:
+                    if kw in desc_lower:
+                        return category
+            return "Other / Unclassified"
+
+        claims["Disease_Category"] = claims["Diagnosis_Description"].apply(classify_diagnosis)
+        disease_agg = claims.groupby("Disease_Category").agg(
+            Paid=("Amount_Paid", "sum"),
+            Claims=("Claim_Number", "nunique") if "Claim_Number" in claims.columns else ("Amount_Paid", "count"),
+        ).sort_values("Paid", ascending=False)
+        disease_agg["Pct"] = (disease_agg["Paid"] / paid_total * 100).round(1)
+        for i, (cat, row) in enumerate(disease_agg.head(10).iterrows(), 1):
+            disease_cat_rows += f'<tr><td>{i}</td><td>{cat}</td><td class="num">{fmt_full(row["Paid"])}</td><td class="num">{pct(row["Pct"])}</td><td class="num">{row["Claims"]:,}</td></tr>'
+
+    # ── MLR by Age Group ──
+    age_mlr_rows = ""
+    if "Age" in claims.columns and earned_total > 0:
+        age_bins = [0, 5, 18, 30, 40, 50, 60, 70, 120]
+        age_labels = ["0-5", "6-18", "19-30", "31-40", "41-50", "51-60", "61-70", "71+"]
+        claims["Age_Group"] = pd.cut(claims["Age"].dropna(), bins=age_bins, labels=age_labels, right=True)
+        age_agg = claims.dropna(subset=["Age_Group"]).groupby("Age_Group", observed=True).agg(
+            Paid=("Amount_Paid", "sum"),
+            Claims=("Claim_Number", "nunique") if "Claim_Number" in claims.columns else ("Amount_Paid", "count"),
+            Members=("Member_ID", "nunique") if "Member_ID" in claims.columns else ("Amount_Paid", "count"),
+        )
+        # Distribute earned premium proportionally by member count for age-group MLR
+        total_age_members = age_agg["Members"].sum()
+        for grp, row in age_agg.iterrows():
+            if row["Members"] == 0:
+                continue
+            grp_earned = earned_total * (row["Members"] / total_age_members) if total_age_members > 0 else 0
+            grp_mlr = (row["Paid"] / grp_earned * 100) if grp_earned > 0 else 0
+            grp_avg = row["Paid"] / row["Members"] if row["Members"] > 0 else 0
+            mlr_class = "danger" if grp_mlr > 100 else ("warning" if grp_mlr > 85 else "good")
+            age_mlr_rows += f'<tr><td>{grp}</td><td class="num">{row["Members"]:,}</td><td class="num">{row["Claims"]:,}</td><td class="num">{fmt_full(row["Paid"])}</td><td class="num">{fmt_full(grp_earned)}</td><td class="num {mlr_class}">{pct(grp_mlr)}</td><td class="num">{fmt_full(grp_avg)}</td></tr>'
+
+    # ── Early High Claimers ──
+    early_claimers_rows = ""
+    early_claimers_count = 0
+    if prod is not None and "Effective_Date" in prod.columns and "Member_ID" in prod.columns and "Member_ID" in claims.columns:
+        # Build member join dates and premium from production data
+        member_join = prod.dropna(subset=["Effective_Date", "Member_ID"]).groupby("Member_ID").agg(
+            Join_Date=("Effective_Date", "min"),
+            Premium=("Premium", "sum") if "Premium" in prod.columns else ("Effective_Date", "count"),
+        )
+        # Get first claim date and total spent per member
+        member_claims = claims.dropna(subset=["Treatment_Date"]).groupby("Member_ID").agg(
+            First_Claim=("Treatment_Date", "min"),
+            Total_Spent=("Amount_Paid", "sum"),
+        )
+        # Merge
+        ehc = member_join.join(member_claims, how="inner")
+        ehc["Days"] = (ehc["First_Claim"] - ehc["Join_Date"]).dt.days
+        # Filter: spent over 200K within 30 days of enrolment
+        ehc_flagged = ehc[(ehc["Days"].abs() <= 30) & (ehc["Total_Spent"] > 200_000)].sort_values("Total_Spent", ascending=False)
+        early_claimers_count = len(ehc_flagged)
+
+        # Get principal member name for initials
+        principal_map = {}
+        if "Principal_Member" in claims.columns:
+            principal_map = claims.dropna(subset=["Member_ID", "Principal_Member"]).drop_duplicates("Member_ID").set_index("Member_ID")["Principal_Member"].to_dict()
+
+        for mid, row in ehc_flagged.head(20).iterrows():
+            full_name = str(principal_map.get(mid, "")).strip()
+            initials = to_initials(full_name) if full_name else ""
+            join_dt = row["Join_Date"].strftime("%Y-%m-%d") if pd.notna(row["Join_Date"]) else ""
+            first_dt = row["First_Claim"].strftime("%Y-%m-%d") if pd.notna(row["First_Claim"]) else ""
+            days_val = int(row["Days"])
+            days_str = f"{days_val}d"
+            premium_val = row["Premium"] if "Premium" in prod.columns and pd.notna(row["Premium"]) and row["Premium"] > 0 else 0
+            spend_ratio = row["Total_Spent"] / premium_val if premium_val > 0 else 0
+            ratio_cls = "danger" if spend_ratio > 5 else ("warning" if spend_ratio > 2 else "")
+            ratio_str = f"{spend_ratio:.1f}x" if premium_val > 0 else "N/A"
+            early_claimers_rows += f'<tr><td>{mid}</td><td>{initials}</td><td class="num">{join_dt}</td><td class="num">{first_dt}</td><td class="num">{days_str}</td><td class="num">{fmt_full(row["Total_Spent"])}</td><td class="num">{fmt_full(premium_val) if premium_val > 0 else "—"}</td><td class="num {ratio_cls}">{ratio_str}</td></tr>'
+
+    # ── What Went Wrong (MLR > 90%) ──
+    what_went_wrong_html = ""
+    if mlr_pct > 90 and earned_total > 0:
+        issues = []
+        # Identify top cost-driving disease categories
+        if "Diagnosis_Description" in claims.columns and "Disease_Category" in claims.columns:
+            top_cats = claims.groupby("Disease_Category")["Amount_Paid"].sum().sort_values(ascending=False).head(3)
+            top_cat_names = ", ".join(top_cats.index.tolist())
+            top_cat_pct = (top_cats.sum() / paid_total * 100)
+            issues.append(f"The top 3 disease categories (<strong>{top_cat_names}</strong>) account for <strong>{top_cat_pct:.0f}%</strong> of total paid claims, indicating heavy cost concentration.")
+        # High-cost providers
+        if "Provider" in claims.columns:
+            top3_prov = claims.groupby("Provider")["Amount_Paid"].sum().sort_values(ascending=False).head(3)
+            top3_prov_pct = (top3_prov.sum() / paid_total * 100)
+            issues.append(f"The top 3 providers consume <strong>{top3_prov_pct:.0f}%</strong> of paid claims. Provider concentration risk is elevated.")
+        # High utilisation per member
+        if unique_members > 0:
+            freq = unique_claims / unique_members
+            issues.append(f"Average claims frequency is <strong>{freq:.1f} visits per member</strong>. {'This is high and suggests over-utilisation.' if freq > 3 else 'Monitor for upward trends.'}")
+        # Pipeline pressure
+        if pipeline_total > 0 and earned_total > 0:
+            pipeline_pct = pipeline_total / earned_total * 100
+            if pipeline_pct > 10:
+                issues.append(f"Outstanding pipeline claims represent <strong>{pipeline_pct:.1f}%</strong> of earned premium — a significant liability exposure.")
+        # IBNR warning
+        if ibnr_total > 0 and earned_total > 0:
+            ibnr_pct_ep = ibnr_total / earned_total * 100
+            if ibnr_pct_ep > 5:
+                issues.append(f"IBNR reserve estimate is <strong>{ibnr_pct_ep:.1f}%</strong> of earned premium, indicating delayed claims reporting.")
+
+        if issues:
+            items = "".join(f"<li>{i}</li>" for i in issues)
+            what_went_wrong_html = f'''<div class="alert-card warning-card">
+    <h2>&#9888; What Went <span class="accent">Wrong</span></h2>
+    <p class="alert-subtitle">MLR is at <strong>{pct(mlr_pct)}</strong> — claims are consuming a disproportionate share of premium income.</p>
+    <ul class="insight-list">{items}</ul></div>'''
+
+    # ── Is the Plan Adequately Priced? (MLR > 100%) ──
+    pricing_html = ""
+    if mlr_pct > 100 and earned_total > 0:
+        shortfall = total_incurred - earned_total
+        required_premium = total_incurred / 0.85  # target 85% MLR
+        premium_increase_pct = ((required_premium - earned_total) / earned_total * 100) if earned_total > 0 else 0
+        per_member_deficit = shortfall / total_enrolled if total_enrolled > 0 else 0
+
+        pricing_points = []
+        pricing_points.append(f"Total incurred claims (<strong>{fmt_full(total_incurred)}</strong>) exceed earned premium (<strong>{fmt_full(earned_total)}</strong>) by <strong>{fmt_full(shortfall)}</strong>.")
+        pricing_points.append(f"To achieve a target MLR of 85%, the required annual premium would be approximately <strong>{fmt_full(required_premium)}</strong> — a <strong>{premium_increase_pct:.0f}%</strong> increase.")
+        if per_member_deficit > 0:
+            pricing_points.append(f"The per-member deficit is <strong>{fmt_full(per_member_deficit)}</strong>, which must be recovered through premium adjustment or benefit redesign.")
+        pricing_points.append("The current premium structure is <strong>not sustainable</strong>. Without corrective action, the plan will continue to operate at a loss.")
+
+        items = "".join(f"<li>{i}</li>" for i in pricing_points)
+        pricing_html = f'''<div class="alert-card danger-card">
+    <h2>&#128200; Is the Plan <span class="accent">Adequately Priced?</span></h2>
+    <p class="alert-subtitle">MLR exceeds 100% — the plan is paying out more in claims than it earns in premium.</p>
+    <ul class="insight-list">{items}</ul></div>'''
+
+    # ── Key Recommendations ──
+    recommendations = []
+    if mlr_pct > 100:
+        recommendations.append("Initiate an immediate premium review. Current pricing does not cover incurred claims and the plan is operating at a loss.")
+    elif mlr_pct > 90:
+        recommendations.append("Conduct a premium adequacy assessment at the next renewal cycle. The MLR is approaching unsustainable levels.")
+    if "Provider" in claims.columns:
+        recommendations.append("Negotiate provider tariff agreements and expand the preferred provider network to control unit costs.")
+    if "Disease_Category" in claims.columns:
+        top_cat = claims.groupby("Disease_Category")["Amount_Paid"].sum().idxmax()
+        recommendations.append(f"Implement targeted wellness and disease management programmes for <strong>{top_cat}</strong>, the highest cost disease category.")
+    if unique_members > 0 and unique_claims / unique_members > 3:
+        recommendations.append("Introduce utilisation management controls such as pre-authorisation for high-cost procedures and specialist referrals.")
+    if pipeline_total > 0 and earned_total > 0 and (pipeline_total / earned_total * 100) > 10:
+        recommendations.append("Accelerate claims adjudication to reduce pipeline backlog and improve reserve forecasting accuracy.")
+    if ibnr_total > 0:
+        recommendations.append("Strengthen claims reporting timelines with providers to reduce IBNR exposure and improve loss estimation.")
+    recommendations.append("Review benefit design — consider co-payments, sub-limits, or exclusions on high-frequency, low-severity claims to reduce overall utilisation.")
+    recommendations.append("Schedule quarterly claims experience reviews to monitor trends and enable early intervention.")
+
+    reco_items = "".join(f"<li>{r}</li>" for r in recommendations)
+    recommendations_html = f'''<div class="alert-card reco-card">
+    <h2>&#128161; Key <span class="accent">Recommendations</span></h2>
+    <ol class="insight-list numbered">{reco_items}</ol></div>'''
 
     logo = get_logo_b64()
 
@@ -455,6 +638,27 @@ def generate_report_from_files(files, admin_pct, nhia_pct, broker_fee, additiona
   .mlr-table tr.total td {{ border-top: 2px solid var(--crimson); font-weight: 800; font-size: 15px; }}
   .mlr-table tr.total td:last-child {{ color: var(--coral); }}
   .footer {{ text-align: center; color: var(--text-muted); font-size: 11px; margin-top: 20px; padding: 20px; }}
+  .dl-btn {{ display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; background: var(--crimson); color: var(--white); border: none; border-radius: 8px; font-family: inherit; font-size: 13px; font-weight: 700; text-decoration: none; cursor: pointer; transition: background 0.2s; margin-left: auto; }}
+  .dl-btn:hover {{ background: #a00d24; }}
+  .dl-btn svg {{ width: 16px; height: 16px; }}
+  .alert-card {{ border-radius: 14px; padding: 32px; margin-bottom: 24px; }}
+  .alert-card h2 {{ font-weight: 700; font-size: 20px; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 2px solid rgba(0,0,0,0.08); }}
+  .alert-card h2 span.accent {{ color: var(--crimson); }}
+  .alert-subtitle {{ font-size: 14px; color: var(--text-muted); margin-bottom: 16px; font-weight: 500; }}
+  .alert-subtitle strong {{ color: var(--text-dark); }}
+  .insight-list {{ margin: 0; padding-left: 20px; }}
+  .insight-list li {{ padding: 8px 0; font-size: 13px; line-height: 1.7; border-bottom: 1px solid rgba(0,0,0,0.04); }}
+  .insight-list li:last-child {{ border: none; }}
+  .insight-list li strong {{ color: var(--navy); }}
+  .warning-card {{ background: #FFF7ED; border: 2px solid var(--coral); box-shadow: 0 2px 8px rgba(232,119,34,0.1); }}
+  .warning-card h2 {{ color: var(--coral); }}
+  .danger-card {{ background: #FEF2F2; border: 2px solid var(--crimson); box-shadow: 0 2px 8px rgba(200,16,46,0.1); }}
+  .danger-card h2 {{ color: var(--crimson); }}
+  .reco-card {{ background: #F0FDF4; border: 2px solid #16a34a; box-shadow: 0 2px 8px rgba(22,163,74,0.1); }}
+  .reco-card h2 {{ color: #16a34a; }}
+  .reco-card h2 span.accent {{ color: #15803d; }}
+  .insight-list.numbered {{ list-style-type: decimal; }}
+  @media print {{ .dl-btn {{ display: none; }} }}
 </style>
 </head>
 <body>
@@ -462,6 +666,7 @@ def generate_report_from_files(files, admin_pct, nhia_pct, broker_fee, additiona
   <div class="header">
     {'<img src="data:image/jpeg;base64,' + logo + '" alt="Leadway Health">' if logo else ''}
     <div><h1>{client_name}</h1><div class="subtitle">Analytics Report &nbsp;|&nbsp; {pd.Timestamp.now().strftime('%d %B %Y')}</div></div>
+    <button class="dl-btn" onclick="downloadReport()" style="margin-left:auto;"><svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor' stroke-width='2'><path stroke-linecap='round' stroke-linejoin='round' d='M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V3'/></svg>Download</button>
   </div>
   {addl_note}
   <div class="section">
@@ -494,8 +699,8 @@ def generate_report_from_files(files, admin_pct, nhia_pct, broker_fee, additiona
       <tr class="total"><td>COR</td><td>{pct(cor_pct)}</td></tr>
     </table>
   </div>
-  <div class="section"><h2>Monthly <span class="accent">Trend</span></h2>
-    <table class="data-table"><thead><tr><th>Month</th><th class="num">Claims</th><th class="num">Members</th><th class="num">Total Paid</th></tr></thead>
+  <div class="section"><h2>Monthly Claims <span class="accent">Trend</span></h2>
+    <table class="data-table"><thead><tr><th>Month</th><th class="num">Unique Claims</th><th class="num">Members</th><th class="num">Total Paid</th><th class="num">Avg/Member</th><th class="num">Visits/Member</th></tr></thead>
     <tbody>{monthly_rows}</tbody></table></div>
   <div class="section"><h2>Top <span class="accent">Providers</span></h2>
     <table class="data-table"><thead><tr><th>#</th><th>Provider</th><th class="num">Total Paid</th><th class="num">%</th><th class="num">Claims</th></tr></thead>
@@ -503,11 +708,26 @@ def generate_report_from_files(files, admin_pct, nhia_pct, broker_fee, additiona
   <div class="section"><h2>Department <span class="accent">Breakdown</span></h2>
     <table class="data-table"><thead><tr><th>#</th><th>Department</th><th class="num">Total Paid</th><th class="num">%</th><th class="num">Claims</th></tr></thead>
     <tbody>{dept_rows}</tbody></table></div>
-  <div class="section"><h2>Claim <span class="accent">Status</span></h2>
-    <table class="data-table"><thead><tr><th>Status</th><th class="num">Unique Claims</th></tr></thead>
-    <tbody>{status_rows}</tbody></table></div>
+  {"" if not disease_cat_rows else '<div class="section"><h2>Top 10 <span class="accent">Disease Categories</span></h2><table class="data-table"><thead><tr><th>#</th><th>Disease Category</th><th class="num">Total Paid</th><th class="num">%</th><th class="num">Claims</th></tr></thead><tbody>' + disease_cat_rows + '</tbody></table></div>'}
+  {"" if not age_mlr_rows else '<div class="section"><h2>MLR by <span class="accent">Age Group</span></h2><table class="data-table"><thead><tr><th>Age Group</th><th class="num">Members</th><th class="num">Claims</th><th class="num">Total Paid</th><th class="num">Earned Premium</th><th class="num">MLR</th><th class="num">Avg/Member</th></tr></thead><tbody>' + age_mlr_rows + '</tbody></table></div>'}
+  {"" if not early_claimers_rows else '<div class="section"><h2>Early High <span class="accent">Claimers</span></h2><p style="color:var(--text-muted);font-size:13px;margin-bottom:16px;">Members who spent over &#8358;200K within 30 days of enrolment (' + str(early_claimers_count) + ' flagged)</p><table class="data-table"><thead><tr><th>Member ID</th><th>Principal</th><th class="num">Join Date</th><th class="num">First Claim</th><th class="num">Days</th><th class="num">Total Spent</th><th class="num">Premium</th><th class="num">Spend/Premium</th></tr></thead><tbody>' + early_claimers_rows + '</tbody></table></div>'}
+  {what_went_wrong_html}
+  {pricing_html}
+  {recommendations_html}
   <div class="footer">Generated by Leadway Health Analytics &nbsp;|&nbsp; {pd.Timestamp.now().strftime('%d %B %Y')}</div>
-</div></body></html>"""
+</div>
+<script>
+function downloadReport() {{
+  var el = document.createElement('a');
+  el.setAttribute('href', 'data:text/html;charset=utf-8,' + encodeURIComponent(document.documentElement.outerHTML));
+  el.setAttribute('download', '{clean_name}_Report.html');
+  el.style.display = 'none';
+  document.body.appendChild(el);
+  el.click();
+  document.body.removeChild(el);
+}}
+</script>
+</body></html>"""
 
     # Save report
     clean_name = str(client_name).strip().replace(" ", "_")[:30]
@@ -520,6 +740,12 @@ def generate_report_from_files(files, admin_pct, nhia_pct, broker_fee, additiona
 @login_required
 def view_report(filename):
     return send_file(REPORTS_DIR / filename)
+
+
+@app.route("/download/<filename>")
+@login_required
+def download_report(filename):
+    return send_file(REPORTS_DIR / filename, as_attachment=True)
 
 
 if __name__ == "__main__":

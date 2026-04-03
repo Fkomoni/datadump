@@ -33,6 +33,10 @@
   .reports-list li { padding: 12px 16px; border-bottom: 1px solid var(--light-grey); }
   .reports-list li:hover { background: #E8F4FD; }
   .reports-list a { text-decoration: none; color: var(--navy); font-weight: 500; }
+  .reports-list li { display: flex; align-items: center; justify-content: space-between; }
+  .dl-btn { display: inline-flex; align-items: center; gap: 4px; padding: 6px 14px; background: var(--crimson); color: white; border: none; border-radius: 6px; font-family: inherit; font-size: 12px; font-weight: 600; text-decoration: none; cursor: pointer; transition: background 0.2s; white-space: nowrap; }
+  .dl-btn:hover { background: #a00d24; }
+  .dl-btn svg { width: 14px; height: 14px; }
   .note { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
   .user-bar { display: flex; justify-content: flex-end; align-items: center; gap: 16px; margin-bottom: 16px; font-size: 13px; }
   .user-bar span { color: var(--text-muted); }
@@ -85,7 +89,7 @@
     <h2>Previous <span>Reports</span></h2>
     <ul class="reports-list">
       {% for r in reports %}
-      <li><a href="/report/{{ r.file }}">{{ r.name }}</a></li>
+      <li><a href="/report/{{ r.file }}">{{ r.name }}</a><a class="dl-btn" href="/download/{{ r.file }}"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V3"/></svg>Download</a></li>
       {% endfor %}
     </ul>
   </div>
