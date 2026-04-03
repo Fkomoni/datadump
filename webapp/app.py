@@ -397,6 +397,47 @@ def generate_report_from_files(files, admin_pct, nhia_pct, broker_fee, additiona
         for i, (name, row) in enumerate(dept.head(15).iterrows(), 1):
             dept_rows += f'<tr><td>{i}</td><td>{name}</td><td class="num">{fmt_full(row["Paid"])}</td><td class="num">{pct(row["Pct"])}</td><td class="num">{row["Claims"]:,}</td></tr>'
 
+    # ── Disease Category (Diagnosis Bands) ──
+    disease_cat_rows = ""
+    if "Diagnosis_Description" in claims.columns:
+        disease_categories = {
+            "Malaria": ["malaria", "plasmodium"],
+            "Respiratory Infections": ["respiratory", "pneumonia", "bronchitis", "asthma", "cough", "influenza", "flu", "pharyngitis", "sinusitis", "tonsillitis", "rhinitis", "laryngitis", "upper respiratory", "lower respiratory", "urt", "lrt", "urti", "lrti", "nasal"],
+            "Cardiovascular & Hypertension": ["hypertension", "hypertensive", "cardiac", "heart", "cardiovascular", "angina", "stroke", "cerebrovascular", "ischaemic", "ischemic", "coronary", "arrhythmia", "blood pressure"],
+            "Diabetes & Metabolic": ["diabet", "glucose", "metabolic", "thyroid", "cholesterol", "lipid", "obesity", "gout", "hyperglycaemia", "hypoglycaemia"],
+            "Gastrointestinal": ["gastro", "gastritis", "ulcer", "diarrh", "dyspepsia", "colitis", "intestin", "abdominal", "stomach", "bowel", "hepatitis", "liver", "gerd", "reflux", "constipation", "appendic", "hernia", "pancreat", "gallstone", "peptic"],
+            "Musculoskeletal": ["arthritis", "osteo", "muscul", "joint", "back pain", "spine", "spinal", "fracture", "rheumat", "ortho", "lumbar", "cervical", "spondyl", "musculo"],
+            "Eye & Ophthalmology": ["eye", "ophthalm", "visual", "cataract", "glaucoma", "conjunctiv", "retina", "myopia", "optical", "vision"],
+            "Dental & Oral": ["dental", "tooth", "teeth", "oral", "gingiv", "caries", "periodon", "dentition"],
+            "Obstetric & Maternity": ["pregnan", "matern", "obstetric", "antenatal", "postnatal", "delivery", "caesarean", "c-section", "labour", "labor", "gestation", "neonatal", "perinatal"],
+            "Surgery & Procedures": ["surgery", "surgical", "operation", "procedure", "excision", "repair", "implant", "biopsy", "laparoscop", "endoscop"],
+            "Dermatology & Skin": ["skin", "dermat", "eczema", "rash", "wound", "abscess", "cellulitis", "fungal", "urticaria", "psoriasis", "acne"],
+            "Genitourinary": ["urinary", "kidney", "renal", "bladder", "urin", "prostat", "uti", "nephri", "genital", "pelvic"],
+            "Infections & Parasitic": ["typhoid", "infection", "sepsis", "hiv", "tuberculosis", "measles", "chicken pox", "viral", "bacterial", "fever", "parasit"],
+            "Oncology": ["cancer", "tumour", "tumor", "malignan", "carcinoma", "oncolog", "leukaemia", "leukemia", "lymphoma", "neoplasm"],
+            "Mental Health & Neurology": ["mental", "depression", "anxiety", "psychi", "epilep", "seizure", "migraine", "headache", "neuro", "insomnia", "bipolar"],
+            "ENT": ["ear", "nose", "throat", "otitis", "hearing", "vertigo", "adenoid"],
+        }
+
+        def classify_diagnosis(desc):
+            if not desc or str(desc).strip() == "":
+                return "Other / Unclassified"
+            desc_lower = str(desc).lower()
+            for category, keywords in disease_categories.items():
+                for kw in keywords:
+                    if kw in desc_lower:
+                        return category
+            return "Other / Unclassified"
+
+        claims["Disease_Category"] = claims["Diagnosis_Description"].apply(classify_diagnosis)
+        disease_agg = claims.groupby("Disease_Category").agg(
+            Paid=("Amount_Paid", "sum"),
+            Claims=("Claim_Number", "nunique") if "Claim_Number" in claims.columns else ("Amount_Paid", "count"),
+        ).sort_values("Paid", ascending=False)
+        disease_agg["Pct"] = (disease_agg["Paid"] / paid_total * 100).round(1)
+        for i, (cat, row) in enumerate(disease_agg.head(10).iterrows(), 1):
+            disease_cat_rows += f'<tr><td>{i}</td><td>{cat}</td><td class="num">{fmt_full(row["Paid"])}</td><td class="num">{pct(row["Pct"])}</td><td class="num">{row["Claims"]:,}</td></tr>'
+
     # ── Claim Status ──
     status_rows = ""
     if "Claim_Status" in claims.columns and "Claim_Number" in claims.columns:
@@ -508,6 +549,7 @@ def generate_report_from_files(files, admin_pct, nhia_pct, broker_fee, additiona
   <div class="section"><h2>Department <span class="accent">Breakdown</span></h2>
     <table class="data-table"><thead><tr><th>#</th><th>Department</th><th class="num">Total Paid</th><th class="num">%</th><th class="num">Claims</th></tr></thead>
     <tbody>{dept_rows}</tbody></table></div>
+  {"" if not disease_cat_rows else '<div class="section"><h2>Top 10 <span class="accent">Disease Categories</span></h2><table class="data-table"><thead><tr><th>#</th><th>Disease Category</th><th class="num">Total Paid</th><th class="num">%</th><th class="num">Claims</th></tr></thead><tbody>' + disease_cat_rows + '</tbody></table></div>'}
   <div class="section"><h2>Claim <span class="accent">Status</span></h2>
     <table class="data-table"><thead><tr><th>Status</th><th class="num">Unique Claims</th></tr></thead>
     <tbody>{status_rows}</tbody></table></div>
