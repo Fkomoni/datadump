@@ -303,14 +303,14 @@ def generate_report_from_files(files, admin_pct, nhia_pct, broker_fee, additiona
         client_name = prod["Client_Name"].mode().iloc[0] if not prod["Client_Name"].mode().empty else "Client"
 
     # ── Metrics ──
-    unique_claims = claims["Claim_Number"].nunique() if "Claim_Number" in claims.columns else len(claims)
-    unique_members = claims["Member_ID"].nunique() if "Member_ID" in claims.columns else 0
+    unique_claims = int(claims["Claim_Number"].nunique()) if "Claim_Number" in claims.columns else len(claims)
+    unique_members = int(claims["Member_ID"].nunique()) if "Member_ID" in claims.columns else 0
     total_enrolled = len(prod) if prod is not None else unique_members
 
     paid = claims[claims["Claim_Status"] == "Paid Claims"] if "Claim_Status" in claims.columns else claims
     pipeline = claims[claims["Claim_Status"].isin(["Awaiting Payment", "Claims for adjudication", "In Process"])] if "Claim_Status" in claims.columns else pd.DataFrame()
-    paid_total = paid["Amount_Paid"].sum() if "Amount_Paid" in paid.columns else 0
-    pipeline_total = pipeline["Amount_Claimed"].sum() if "Amount_Claimed" in pipeline.columns and not pipeline.empty else 0
+    paid_total = float(paid["Amount_Paid"].sum()) if "Amount_Paid" in paid.columns else 0
+    pipeline_total = float(pipeline["Amount_Claimed"].sum()) if "Amount_Claimed" in pipeline.columns and not pipeline.empty else 0
 
     # Earned premium
     earned_total = 0
@@ -323,8 +323,8 @@ def generate_report_from_files(files, admin_pct, nhia_pct, broker_fee, additiona
         elapsed = (np.minimum(as_of, ep["Expiry_Date"]) - ep["Effective_Date"]).dt.days.clip(lower=0)
         frac = (elapsed / total_days).clip(upper=1.0)
         ep["Earned"] = ep["Premium"] * frac
-        earned_total = ep["Earned"].sum()
-        written_total = ep["Premium"].sum()
+        earned_total = float(ep["Earned"].sum())
+        written_total = float(ep["Premium"].sum())
 
     # Simple IBNR
     ibnr_total = 0
@@ -333,9 +333,9 @@ def generate_report_from_files(files, admin_pct, nhia_pct, broker_fee, additiona
         monthly_paid = df_i.groupby(df_i["Treatment_Date"].dt.to_period("M"))["Amount_Paid"].sum()
         if len(monthly_paid) > 2:
             avg_monthly = monthly_paid.iloc[:-1].median()
-            ibnr_total = max(avg_monthly * 0.3, 0)
+            ibnr_total = float(max(avg_monthly * 0.3, 0))
 
-    total_incurred = paid_total + pipeline_total + ibnr_total
+    total_incurred = float(paid_total + pipeline_total + ibnr_total)
     mlr_pct = (total_incurred / earned_total * 100) if earned_total > 0 else 0
     cor_pct = mlr_pct + admin_pct + nhia_pct
     admin_amount = earned_total * admin_pct / 100
