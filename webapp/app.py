@@ -438,12 +438,88 @@ def generate_report_from_files(files, admin_pct, nhia_pct, broker_fee, additiona
         for i, (cat, row) in enumerate(disease_agg.head(10).iterrows(), 1):
             disease_cat_rows += f'<tr><td>{i}</td><td>{cat}</td><td class="num">{fmt_full(row["Paid"])}</td><td class="num">{pct(row["Pct"])}</td><td class="num">{row["Claims"]:,}</td></tr>'
 
-    # ── Claim Status ──
-    status_rows = ""
-    if "Claim_Status" in claims.columns and "Claim_Number" in claims.columns:
-        status = claims.groupby("Claim_Status")["Claim_Number"].nunique().sort_values(ascending=False)
-        for s, count in status.items():
-            status_rows += f'<tr><td>{s}</td><td class="num">{count:,}</td></tr>'
+    # ── What Went Wrong (MLR > 90%) ──
+    what_went_wrong_html = ""
+    if mlr_pct > 90 and earned_total > 0:
+        issues = []
+        # Identify top cost-driving disease categories
+        if "Diagnosis_Description" in claims.columns and "Disease_Category" in claims.columns:
+            top_cats = claims.groupby("Disease_Category")["Amount_Paid"].sum().sort_values(ascending=False).head(3)
+            top_cat_names = ", ".join(top_cats.index.tolist())
+            top_cat_pct = (top_cats.sum() / paid_total * 100)
+            issues.append(f"The top 3 disease categories (<strong>{top_cat_names}</strong>) account for <strong>{top_cat_pct:.0f}%</strong> of total paid claims, indicating heavy cost concentration.")
+        # High-cost providers
+        if "Provider" in claims.columns:
+            top3_prov = claims.groupby("Provider")["Amount_Paid"].sum().sort_values(ascending=False).head(3)
+            top3_prov_pct = (top3_prov.sum() / paid_total * 100)
+            issues.append(f"The top 3 providers consume <strong>{top3_prov_pct:.0f}%</strong> of paid claims. Provider concentration risk is elevated.")
+        # High utilisation per member
+        if unique_members > 0:
+            freq = unique_claims / unique_members
+            issues.append(f"Average claims frequency is <strong>{freq:.1f} visits per member</strong>. {'This is high and suggests over-utilisation.' if freq > 3 else 'Monitor for upward trends.'}")
+        # Pipeline pressure
+        if pipeline_total > 0 and earned_total > 0:
+            pipeline_pct = pipeline_total / earned_total * 100
+            if pipeline_pct > 10:
+                issues.append(f"Outstanding pipeline claims represent <strong>{pipeline_pct:.1f}%</strong> of earned premium — a significant liability exposure.")
+        # IBNR warning
+        if ibnr_total > 0 and earned_total > 0:
+            ibnr_pct_ep = ibnr_total / earned_total * 100
+            if ibnr_pct_ep > 5:
+                issues.append(f"IBNR reserve estimate is <strong>{ibnr_pct_ep:.1f}%</strong> of earned premium, indicating delayed claims reporting.")
+
+        if issues:
+            items = "".join(f"<li>{i}</li>" for i in issues)
+            what_went_wrong_html = f'''<div class="alert-card warning-card">
+    <h2>&#9888; What Went <span class="accent">Wrong</span></h2>
+    <p class="alert-subtitle">MLR is at <strong>{pct(mlr_pct)}</strong> — claims are consuming a disproportionate share of premium income.</p>
+    <ul class="insight-list">{items}</ul></div>'''
+
+    # ── Is the Plan Adequately Priced? (MLR > 100%) ──
+    pricing_html = ""
+    if mlr_pct > 100 and earned_total > 0:
+        shortfall = total_incurred - earned_total
+        required_premium = total_incurred / 0.85  # target 85% MLR
+        premium_increase_pct = ((required_premium - earned_total) / earned_total * 100) if earned_total > 0 else 0
+        per_member_deficit = shortfall / total_enrolled if total_enrolled > 0 else 0
+
+        pricing_points = []
+        pricing_points.append(f"Total incurred claims (<strong>{fmt_full(total_incurred)}</strong>) exceed earned premium (<strong>{fmt_full(earned_total)}</strong>) by <strong>{fmt_full(shortfall)}</strong>.")
+        pricing_points.append(f"To achieve a target MLR of 85%, the required annual premium would be approximately <strong>{fmt_full(required_premium)}</strong> — a <strong>{premium_increase_pct:.0f}%</strong> increase.")
+        if per_member_deficit > 0:
+            pricing_points.append(f"The per-member deficit is <strong>{fmt_full(per_member_deficit)}</strong>, which must be recovered through premium adjustment or benefit redesign.")
+        pricing_points.append("The current premium structure is <strong>not sustainable</strong>. Without corrective action, the plan will continue to operate at a loss.")
+
+        items = "".join(f"<li>{i}</li>" for i in pricing_points)
+        pricing_html = f'''<div class="alert-card danger-card">
+    <h2>&#128200; Is the Plan <span class="accent">Adequately Priced?</span></h2>
+    <p class="alert-subtitle">MLR exceeds 100% — the plan is paying out more in claims than it earns in premium.</p>
+    <ul class="insight-list">{items}</ul></div>'''
+
+    # ── Key Recommendations ──
+    recommendations = []
+    if mlr_pct > 100:
+        recommendations.append("Initiate an immediate premium review. Current pricing does not cover incurred claims and the plan is operating at a loss.")
+    elif mlr_pct > 90:
+        recommendations.append("Conduct a premium adequacy assessment at the next renewal cycle. The MLR is approaching unsustainable levels.")
+    if "Provider" in claims.columns:
+        recommendations.append("Negotiate provider tariff agreements and expand the preferred provider network to control unit costs.")
+    if "Disease_Category" in claims.columns:
+        top_cat = claims.groupby("Disease_Category")["Amount_Paid"].sum().idxmax()
+        recommendations.append(f"Implement targeted wellness and disease management programmes for <strong>{top_cat}</strong>, the highest cost disease category.")
+    if unique_members > 0 and unique_claims / unique_members > 3:
+        recommendations.append("Introduce utilisation management controls such as pre-authorisation for high-cost procedures and specialist referrals.")
+    if pipeline_total > 0 and earned_total > 0 and (pipeline_total / earned_total * 100) > 10:
+        recommendations.append("Accelerate claims adjudication to reduce pipeline backlog and improve reserve forecasting accuracy.")
+    if ibnr_total > 0:
+        recommendations.append("Strengthen claims reporting timelines with providers to reduce IBNR exposure and improve loss estimation.")
+    recommendations.append("Review benefit design — consider co-payments, sub-limits, or exclusions on high-frequency, low-severity claims to reduce overall utilisation.")
+    recommendations.append("Schedule quarterly claims experience reviews to monitor trends and enable early intervention.")
+
+    reco_items = "".join(f"<li>{r}</li>" for r in recommendations)
+    recommendations_html = f'''<div class="alert-card reco-card">
+    <h2>&#128161; Key <span class="accent">Recommendations</span></h2>
+    <ol class="insight-list numbered">{reco_items}</ol></div>'''
 
     logo = get_logo_b64()
 
@@ -499,6 +575,23 @@ def generate_report_from_files(files, admin_pct, nhia_pct, broker_fee, additiona
   .dl-btn {{ display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; background: var(--crimson); color: var(--white); border: none; border-radius: 8px; font-family: inherit; font-size: 13px; font-weight: 700; text-decoration: none; cursor: pointer; transition: background 0.2s; margin-left: auto; }}
   .dl-btn:hover {{ background: #a00d24; }}
   .dl-btn svg {{ width: 16px; height: 16px; }}
+  .alert-card {{ border-radius: 14px; padding: 32px; margin-bottom: 24px; }}
+  .alert-card h2 {{ font-weight: 700; font-size: 20px; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 2px solid rgba(0,0,0,0.08); }}
+  .alert-card h2 span.accent {{ color: var(--crimson); }}
+  .alert-subtitle {{ font-size: 14px; color: var(--text-muted); margin-bottom: 16px; font-weight: 500; }}
+  .alert-subtitle strong {{ color: var(--text-dark); }}
+  .insight-list {{ margin: 0; padding-left: 20px; }}
+  .insight-list li {{ padding: 8px 0; font-size: 13px; line-height: 1.7; border-bottom: 1px solid rgba(0,0,0,0.04); }}
+  .insight-list li:last-child {{ border: none; }}
+  .insight-list li strong {{ color: var(--navy); }}
+  .warning-card {{ background: #FFF7ED; border: 2px solid var(--coral); box-shadow: 0 2px 8px rgba(232,119,34,0.1); }}
+  .warning-card h2 {{ color: var(--coral); }}
+  .danger-card {{ background: #FEF2F2; border: 2px solid var(--crimson); box-shadow: 0 2px 8px rgba(200,16,46,0.1); }}
+  .danger-card h2 {{ color: var(--crimson); }}
+  .reco-card {{ background: #F0FDF4; border: 2px solid #16a34a; box-shadow: 0 2px 8px rgba(22,163,74,0.1); }}
+  .reco-card h2 {{ color: #16a34a; }}
+  .reco-card h2 span.accent {{ color: #15803d; }}
+  .insight-list.numbered {{ list-style-type: decimal; }}
   @media print {{ .dl-btn {{ display: none; }} }}
 </style>
 </head>
@@ -550,9 +643,9 @@ def generate_report_from_files(files, admin_pct, nhia_pct, broker_fee, additiona
     <table class="data-table"><thead><tr><th>#</th><th>Department</th><th class="num">Total Paid</th><th class="num">%</th><th class="num">Claims</th></tr></thead>
     <tbody>{dept_rows}</tbody></table></div>
   {"" if not disease_cat_rows else '<div class="section"><h2>Top 10 <span class="accent">Disease Categories</span></h2><table class="data-table"><thead><tr><th>#</th><th>Disease Category</th><th class="num">Total Paid</th><th class="num">%</th><th class="num">Claims</th></tr></thead><tbody>' + disease_cat_rows + '</tbody></table></div>'}
-  <div class="section"><h2>Claim <span class="accent">Status</span></h2>
-    <table class="data-table"><thead><tr><th>Status</th><th class="num">Unique Claims</th></tr></thead>
-    <tbody>{status_rows}</tbody></table></div>
+  {what_went_wrong_html}
+  {pricing_html}
+  {recommendations_html}
   <div class="footer">Generated by Leadway Health Analytics &nbsp;|&nbsp; {pd.Timestamp.now().strftime('%d %B %Y')}</div>
 </div>
 <script>
