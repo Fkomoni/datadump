@@ -250,10 +250,24 @@ def generate_report_from_files(files, admin_pct, nhia_pct, broker_fee, additiona
         if col in claims.columns:
             claims[col] = pd.to_numeric(claims[col].astype(str).str.replace(",", ""), errors="coerce")
 
-    # Parse dates
+    # Parse dates — handle string dates, Excel serial numbers, and mixed formats
     for col in ["Treatment_Date", "Received_Date"]:
         if col in claims.columns:
-            claims[col] = pd.to_datetime(claims[col], errors="coerce")
+            raw_series = claims[col].copy()
+            # First check if values are numeric (Excel serial numbers)
+            numeric_vals = pd.to_numeric(raw_series, errors="coerce")
+            numeric_count = numeric_vals.notna().sum()
+            excel_like = numeric_vals.notna() & (numeric_vals > 30000) & (numeric_vals < 60000)
+            if excel_like.sum() > numeric_count * 0.5 and numeric_count > 0:
+                # Excel serial number dates (days since 1899-12-30)
+                claims[col] = pd.NaT
+                claims.loc[excel_like, col] = pd.to_datetime("1899-12-30") + pd.to_timedelta(numeric_vals[excel_like], unit="D")
+            else:
+                # Try standard datetime parsing with dayfirst
+                claims[col] = pd.to_datetime(raw_series, errors="coerce", dayfirst=True)
+                # If that failed for most rows, try other formats
+                if claims[col].notna().sum() < len(claims) * 0.3:
+                    claims[col] = pd.to_datetime(raw_series, errors="coerce", format="mixed", dayfirst=True)
 
     # Load production if available
     prod = None
