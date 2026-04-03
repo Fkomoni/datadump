@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leadway Health Analytics</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+  :root { --navy: #1A1A2E; --crimson: #C8102E; --coral: #E87722; --cream: #FAF7F2; --light-grey: #F4F4F6; --medium-grey: #E8E8EC; --white: #FFFFFF; --text-muted: #6B7280; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: var(--cream); color: var(--navy); min-height: 100vh; }
+  .container { max-width: 800px; margin: 0 auto; padding: 40px 20px; }
+  .header { background: var(--navy); padding: 40px; border-radius: 16px; margin-bottom: 40px; display: flex; align-items: center; gap: 24px; }
+  .header img { height: 60px; }
+  .header h1 { color: white; font-weight: 800; font-size: 28px; }
+  .header p { color: rgba(255,255,255,0.7); font-size: 14px; }
+  .card { background: var(--white); border-radius: 14px; padding: 32px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .card h2 { font-size: 20px; font-weight: 700; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--medium-grey); }
+  .card h2 span { color: var(--crimson); }
+  label { display: block; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 8px; margin-top: 20px; }
+  input[type="file"] { width: 100%; padding: 16px; border: 2px dashed var(--medium-grey); border-radius: 10px; background: var(--light-grey); font-family: inherit; cursor: pointer; }
+  input[type="file"]:hover { border-color: var(--crimson); }
+  textarea { width: 100%; padding: 12px; border: 1px solid var(--medium-grey); border-radius: 8px; font-family: inherit; font-size: 14px; resize: vertical; min-height: 80px; }
+  select, input[type="number"] { padding: 10px 14px; border: 1px solid var(--medium-grey); border-radius: 8px; font-family: inherit; font-size: 14px; background: white; }
+  .radio-group { display: flex; gap: 20px; margin-top: 8px; }
+  .radio-group label { display: flex; align-items: center; gap: 8px; cursor: pointer; text-transform: none; font-weight: 500; color: var(--navy); margin: 0; }
+  .radio-group input[type="radio"] { accent-color: var(--crimson); width: 18px; height: 18px; }
+  .broker-fee { display: none; margin-top: 12px; padding: 16px; background: var(--light-grey); border-radius: 8px; }
+  .broker-fee.show { display: block; }
+  .submit-btn { display: block; width: 100%; padding: 16px; background: var(--crimson); color: white; border: none; border-radius: 10px; font-family: inherit; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 30px; transition: background 0.2s; }
+  .submit-btn:hover { background: #a00d24; }
+  .reports-list { list-style: none; }
+  .reports-list li { padding: 12px 16px; border-bottom: 1px solid var(--light-grey); }
+  .reports-list li:hover { background: #E8F4FD; }
+  .reports-list a { text-decoration: none; color: var(--navy); font-weight: 500; }
+  .note { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    {% if logo %}<img src="data:image/jpeg;base64,{{ logo }}" alt="Leadway Health">{% endif %}
+    <div>
+      <h1>Analytics Portal</h1>
+      <p>Upload claims data, get instant performance reports</p>
+    </div>
+  </div>
+
+  <form class="card" action="/upload" method="post" enctype="multipart/form-data">
+    <h2>Upload <span>Data</span></h2>
+
+    <label>Upload Files (Claims, Production/Premium, Benefit, Hospital)</label>
+    <input type="file" name="files" multiple accept=".xlsx,.xls,.csv">
+    <p class="note">Upload claims file (required) + production/premium file (for earned premium). File names should contain "claims", "production", or "premium".</p>
+
+    <label>Is the business brokered?</label>
+    <div class="radio-group">
+      <label><input type="radio" name="brokered" value="no" checked onchange="toggleBroker()"> No — Admin fee 15%</label>
+      <label><input type="radio" name="brokered" value="yes" onchange="toggleBroker()"> Yes — Admin fee 12%</label>
+    </div>
+
+    <div class="broker-fee" id="brokerFee">
+      <label>Broker Fee (%)</label>
+      <input type="number" name="broker_fee" value="0" min="0" max="20" step="0.5">
+      <p class="note">Broker commission percentage on brokered transactions</p>
+    </div>
+
+    <label>Any additional requirements?</label>
+    <textarea name="additional_reqs" placeholder="e.g. Focus on maternity costs, compare subsidiaries, flag high-cost providers..."></textarea>
+
+    <button type="submit" class="submit-btn">Generate Report</button>
+  </form>
+
+  {% if reports %}
+  <div class="card">
+    <h2>Previous <span>Reports</span></h2>
+    <ul class="reports-list">
+      {% for r in reports %}
+      <li><a href="/report/{{ r.file }}">{{ r.name }}</a></li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+function toggleBroker() {
+  const yes = document.querySelector('input[name="brokered"][value="yes"]').checked;
+  document.getElementById('brokerFee').classList.toggle('show', yes);
+}
+</script>
+</body>
+</html>

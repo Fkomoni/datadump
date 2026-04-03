@@ -33,6 +33,13 @@ def month_label(period):
     return period.to_timestamp().strftime("%B %Y")
 
 
+def to_initials(name):
+    if not name or str(name).strip() == "":
+        return ""
+    parts = str(name).strip().split()
+    return " ".join(p[0] + "." for p in parts if p)
+
+
 def classify_drug(desc):
     if pd.isna(desc):
         return "Unresolved"
@@ -245,7 +252,7 @@ def generate_report():
         cls = "danger" if ratio > 5 else ("warning" if ratio > 2 else "")
         early_rows += f"""<tr>
             <td>{mid}</td>
-            <td>{name}</td>
+            <td>{to_initials(name)}</td>
             <td class="num">{str(eff)[:10]}</td>
             <td class="num">{str(first_claim)[:10]}</td>
             <td class="num">{days}d</td>
@@ -268,7 +275,7 @@ def generate_report():
         fam_lr = row["Paid"] / fam_prem * 100 if fam_prem > 0 else 0
         lr_cls = "danger" if fam_lr > 100 else ("warning" if fam_lr > 70 else "good")
         family_rows += f"""<tr>
-            <td>{str(name).strip().title()}</td>
+            <td>{to_initials(name)}</td>
             <td class="num">{row['Members']:,}</td>
             <td class="num">{row['Claims']:,}</td>
             <td class="num">{fmt_full(row['Paid'])}</td>
@@ -725,7 +732,7 @@ def generate_report():
     <tbody>
       <tr><td>Neonatal ICU case (25219085/2) — premature baby requiring incubator, CPAP, neonatologist, Meronem antibiotics</td><td class="num danger">&#8358;6.7M cost against &#8358;300K premium (22.3x). Single case = 30% of all claims paid.</td></tr>
       <tr><td>Caesarean myomectomy + post-operative admission (25219086/1) at Reddington Hospital</td><td class="num danger">&#8358;3.8M cost against &#8358;299K premium (12.6x)</td></tr>
-      <tr><td>Two families (Samuel Tunde, Aririguzo Clinton) consumed &#8358;10.6M — 48% of total paid claims against &#8358;1.5M combined premium</td><td class="num danger">Combined family LR of 707%</td></tr>
+      <tr><td>Two families (S. T., A. C.) consumed &#8358;10.6M — 48% of total paid claims against &#8358;1.5M combined premium</td><td class="num danger">Combined family LR of 707%</td></tr>
       <tr><td>87% of members claimed within 30 days of enrolment — consistent with adverse selection or pre-existing conditions</td><td class="num warning">Waiting period was not enforced or not sufficient</td></tr>
       <tr><td>Sons averaged &#8358;669K per member — 2.6x the average premium of &#8358;261K. Driven by neonatal case.</td><td class="num warning">Dependant risk not adequately priced</td></tr>
       <tr><td>Outreach Signature Women &amp; Children Hospital: &#8358;5.7M from just 2 members (4 claims)</td><td class="num warning">Single provider = 26% of total spend. Provider tariff compliance needs review.</td></tr>
