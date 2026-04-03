@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leadway Health Analytics — Sign In</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+  :root { --navy: #1A1A2E; --crimson: #C8102E; --coral: #E87722; --cream: #FAF7F2; --light-grey: #F4F4F6; --medium-grey: #E8E8EC; --white: #FFFFFF; --text-muted: #6B7280; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: var(--navy); min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+  .login-card { background: var(--white); border-radius: 16px; padding: 48px 40px; width: 100%; max-width: 420px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+  .logo { text-align: center; margin-bottom: 32px; }
+  .logo img { height: 60px; }
+  .logo h1 { font-size: 22px; font-weight: 800; color: var(--navy); margin-top: 12px; }
+  .logo p { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+  label { display: block; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 6px; margin-top: 20px; }
+  input[type="email"], input[type="password"] { width: 100%; padding: 12px 14px; border: 1px solid var(--medium-grey); border-radius: 8px; font-family: inherit; font-size: 14px; transition: border 0.2s; }
+  input:focus { outline: none; border-color: var(--crimson); }
+  .btn { display: block; width: 100%; padding: 14px; background: var(--crimson); color: white; border: none; border-radius: 10px; font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 28px; transition: background 0.2s; }
+  .btn:hover { background: #a00d24; }
+  .flash { background: #FEE2E2; color: var(--crimson); padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<div class="login-card">
+  <div class="logo">
+    {% if logo %}<img src="data:image/jpeg;base64,{{ logo }}" alt="Leadway Health">{% endif %}
+    <h1>Analytics Portal</h1>
+    <p>Sign in to continue</p>
+  </div>
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      {% for msg in messages %}<div class="flash">{{ msg }}</div>{% endfor %}
+    {% endif %}
+  {% endwith %}
+  <form method="post">
+    <label>Email</label>
+    <input type="email" name="email" placeholder="you@leadwayhealth.com" required autofocus>
+    <label>Password</label>
+    <input type="password" name="password" placeholder="Enter password" required>
+    <button type="submit" class="btn">Sign In</button>
+  </form>
+</div>
+</body>
+</html>

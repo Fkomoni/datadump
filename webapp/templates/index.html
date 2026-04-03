@@ -34,10 +34,19 @@
   .reports-list li:hover { background: #E8F4FD; }
   .reports-list a { text-decoration: none; color: var(--navy); font-weight: 500; }
   .note { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+  .user-bar { display: flex; justify-content: flex-end; align-items: center; gap: 16px; margin-bottom: 16px; font-size: 13px; }
+  .user-bar span { color: var(--text-muted); }
+  .user-bar a { color: var(--crimson); text-decoration: none; font-weight: 600; }
+  .user-bar a:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
 <div class="container">
+  <div class="user-bar">
+    <span>{{ user_name }}</span>
+    {% if is_admin %}<a href="/manage-users">Manage Users</a>{% endif %}
+    <a href="/logout">Sign Out</a>
+  </div>
   <div class="header">
     {% if logo %}<img src="data:image/jpeg;base64,{{ logo }}" alt="Leadway Health">{% endif %}
     <div>

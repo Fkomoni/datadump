@@ -5,18 +5,65 @@ import os
 import sys
 import uuid
 import base64
+import json
 from pathlib import Path
-from flask import Flask, render_template, request, redirect, url_for, send_file
+from functools import wraps
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask import Flask, render_template, request, redirect, url_for, send_file, session, flash
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 app = Flask(__name__)
 app.config["UPLOAD_FOLDER"] = Path(__file__).parent / "uploads"
 app.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024  # 100MB
+app.secret_key = os.environ.get("SECRET_KEY", "leadway-health-analytics-2026")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 REPORTS_DIR = BASE_DIR / "reports"
 LOGO_PATH = BASE_DIR / "leadway health logo 20266.jpg"
+USERS_FILE = Path(__file__).parent / "users.json"
+
+
+def load_users():
+    if USERS_FILE.exists():
+        return json.loads(USERS_FILE.read_text())
+    # Default admin user — change password on first login
+    default = {
+        "admin@leadwayhealth.com": {
+            "password": generate_password_hash("admin123"),
+            "name": "Admin",
+            "role": "admin"
+        }
+    }
+    USERS_FILE.write_text(json.dumps(default, indent=2))
+    return default
+
+
+def save_users(users):
+    USERS_FILE.write_text(json.dumps(users, indent=2))
+
+
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if "user" not in session:
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+    return decorated
+
+
+def admin_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if "user" not in session:
+            return redirect(url_for("login"))
+        users = load_users()
+        user = users.get(session["user"], {})
+        if user.get("role") != "admin":
+            flash("Admin access required.")
+            return redirect(url_for("index"))
+        return f(*args, **kwargs)
+    return decorated
 
 
 def get_logo_b64():
@@ -25,16 +72,73 @@ def get_logo_b64():
     return ""
 
 
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    logo = get_logo_b64()
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        password = request.form.get("password", "")
+        users = load_users()
+        user = users.get(email)
+        if user and check_password_hash(user["password"], password):
+            session["user"] = email
+            session["name"] = user.get("name", email.split("@")[0])
+            return redirect(url_for("index"))
+        flash("Invalid email or password.")
+    return render_template("login.html", logo=logo)
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
+
+
+@app.route("/manage-users", methods=["GET", "POST"])
+@admin_required
+def manage_users():
+    logo = get_logo_b64()
+    users = load_users()
+    if request.method == "POST":
+        action = request.form.get("action")
+        if action == "add":
+            email = request.form.get("email", "").strip().lower()
+            name = request.form.get("name", "").strip()
+            password = request.form.get("password", "")
+            role = request.form.get("role", "user")
+            if email and password:
+                users[email] = {
+                    "password": generate_password_hash(password),
+                    "name": name or email.split("@")[0],
+                    "role": role
+                }
+                save_users(users)
+                flash(f"User {email} added.")
+        elif action == "remove":
+            email = request.form.get("email", "").strip().lower()
+            if email in users and email != session["user"]:
+                del users[email]
+                save_users(users)
+                flash(f"User {email} removed.")
+    user_list = [{"email": e, "name": u["name"], "role": u["role"]} for e, u in users.items()]
+    return render_template("manage_users.html", logo=logo, users=user_list)
+
+
 @app.route("/")
+@login_required
 def index():
     logo = get_logo_b64()
+    user_name = session.get("name", "")
+    users = load_users()
+    is_admin = users.get(session.get("user", ""), {}).get("role") == "admin"
     # List existing reports
     reports = sorted(REPORTS_DIR.glob("*.html"), key=lambda f: f.stat().st_mtime, reverse=True) if REPORTS_DIR.exists() else []
     report_list = [{"name": r.stem.replace("_", " "), "file": r.name} for r in reports]
-    return render_template("index.html", logo=logo, reports=report_list)
+    return render_template("index.html", logo=logo, reports=report_list, user_name=user_name, is_admin=is_admin)
 
 
 @app.route("/upload", methods=["POST"])
+@login_required
 def upload():
     # Get form data
     brokered = request.form.get("brokered", "no")
@@ -413,6 +517,7 @@ def generate_report_from_files(files, admin_pct, nhia_pct, broker_fee, additiona
 
 
 @app.route("/report/<filename>")
+@login_required
 def view_report(filename):
     return send_file(REPORTS_DIR / filename)
 
