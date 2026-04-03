@@ -588,6 +588,7 @@ def generate_report_from_files(files, admin_pct, nhia_pct, broker_fee, additiona
     <ol class="insight-list numbered">{reco_items}</ol></div>'''
 
     logo = get_logo_b64()
+    clean_name = str(client_name).strip().replace(" ", "_")[:30]
 
     # ── Additional info ──
     fee_note = ""
@@ -730,7 +731,6 @@ function downloadReport() {{
 </body></html>"""
 
     # Save report
-    clean_name = str(client_name).strip().replace(" ", "_")[:30]
     report_path = REPORTS_DIR / f"{clean_name}_Report_{session_id}.html"
     report_path.write_text(html)
     return report_path
