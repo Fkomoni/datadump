@@ -124,6 +124,16 @@ def manage_users():
     return render_template("manage_users.html", logo=logo, users=user_list)
 
 
+def list_reports(prefix=""):
+    """List HTML reports, optionally filtered by filename prefix."""
+    if not REPORTS_DIR.exists():
+        return []
+    all_reports = sorted(REPORTS_DIR.glob("*.html"), key=lambda f: f.stat().st_mtime, reverse=True)
+    if prefix:
+        all_reports = [r for r in all_reports if r.name.lower().startswith(prefix.lower())]
+    return [{"name": r.stem.replace("_", " "), "file": r.name} for r in all_reports]
+
+
 @app.route("/")
 @login_required
 def index():
@@ -131,15 +141,25 @@ def index():
     user_name = session.get("name", "")
     users = load_users()
     is_admin = users.get(session.get("user", ""), {}).get("role") == "admin"
-    # List existing reports
-    reports = sorted(REPORTS_DIR.glob("*.html"), key=lambda f: f.stat().st_mtime, reverse=True) if REPORTS_DIR.exists() else []
-    report_list = [{"name": r.stem.replace("_", " "), "file": r.name} for r in reports]
-    return render_template("index.html", logo=logo, reports=report_list, user_name=user_name, is_admin=is_admin)
+    report_list = list_reports()
+    return render_template("dashboard.html", logo=logo, reports=report_list, user_name=user_name, is_admin=is_admin)
 
 
-@app.route("/upload", methods=["POST"])
+# ═══════════════════════════════════════════════
+# MODULE 1 — Utilization Report
+# ═══════════════════════════════════════════════
+
+@app.route("/utilization")
 @login_required
-def upload():
+def utilization():
+    logo = get_logo_b64()
+    report_list = list_reports()
+    return render_template("utilization.html", logo=logo, reports=report_list)
+
+
+@app.route("/utilization/upload", methods=["POST"])
+@login_required
+def utilization_upload():
     # Get form data
     brokered = request.form.get("brokered", "no")
     broker_fee = float(request.form.get("broker_fee", 0)) if brokered == "yes" else 0
@@ -154,7 +174,7 @@ def upload():
     # Handle file uploads
     files = request.files.getlist("files")
     if not files or all(f.filename == "" for f in files):
-        return redirect(url_for("index"))
+        return redirect(url_for("utilization"))
 
     # Save uploaded files
     session_id = str(uuid.uuid4())[:8]
@@ -749,6 +769,67 @@ function downloadReport() {{
     report_path.write_text(html)
     return report_path
 
+
+# ═══════════════════════════════════════════════
+# MODULE 2 — Provider Analysis
+# ═══════════════════════════════════════════════
+
+@app.route("/provider-analysis")
+@login_required
+def provider_analysis():
+    logo = get_logo_b64()
+    report_list = list_reports("Provider_")
+    return render_template("provider_analysis.html", logo=logo, reports=report_list)
+
+
+@app.route("/provider-analysis/upload", methods=["POST"])
+@login_required
+def provider_analysis_upload():
+    flash("Provider Analysis module coming soon.")
+    return redirect(url_for("provider_analysis"))
+
+
+# ═══════════════════════════════════════════════
+# MODULE 3 — Benefit Benchmarking
+# ═══════════════════════════════════════════════
+
+@app.route("/benefit-benchmarking")
+@login_required
+def benefit_benchmarking():
+    logo = get_logo_b64()
+    report_list = list_reports("Benefit_")
+    return render_template("benefit_benchmarking.html", logo=logo, reports=report_list)
+
+
+@app.route("/benefit-benchmarking/upload", methods=["POST"])
+@login_required
+def benefit_benchmarking_upload():
+    flash("Benefit Benchmarking module coming soon.")
+    return redirect(url_for("benefit_benchmarking"))
+
+
+# ═══════════════════════════════════════════════
+# MODULE 4 — Pricing Tool
+# ═══════════════════════════════════════════════
+
+@app.route("/pricing-tool")
+@login_required
+def pricing_tool():
+    logo = get_logo_b64()
+    report_list = list_reports("Pricing_")
+    return render_template("pricing_tool.html", logo=logo, reports=report_list)
+
+
+@app.route("/pricing-tool/upload", methods=["POST"])
+@login_required
+def pricing_tool_upload():
+    flash("Pricing Tool module coming soon.")
+    return redirect(url_for("pricing_tool"))
+
+
+# ═══════════════════════════════════════════════
+# Shared — Report viewing & download
+# ═══════════════════════════════════════════════
 
 @app.route("/report/<filename>")
 @login_required

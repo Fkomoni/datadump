@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Provider Analysis — Leadway Health</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+  :root { --navy: #1A1A2E; --crimson: #C8102E; --coral: #E87722; --cream: #FAF7F2; --light-grey: #F4F4F6; --medium-grey: #E8E8EC; --white: #FFFFFF; --text-muted: #6B7280; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: var(--cream); color: var(--navy); min-height: 100vh; }
+  .container { max-width: 800px; margin: 0 auto; padding: 40px 20px; }
+  .back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); text-decoration: none; font-size: 13px; font-weight: 600; margin-bottom: 20px; }
+  .back-link:hover { color: var(--crimson); }
+  .header { background: var(--navy); padding: 40px; border-radius: 16px; margin-bottom: 40px; display: flex; align-items: center; gap: 24px; }
+  .header img { height: 60px; }
+  .header h1 { color: white; font-weight: 800; font-size: 28px; }
+  .header p { color: rgba(255,255,255,0.7); font-size: 14px; }
+  .card { background: var(--white); border-radius: 14px; padding: 32px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .card h2 { font-size: 20px; font-weight: 700; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--medium-grey); }
+  .card h2 span { color: var(--coral); }
+  label { display: block; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 8px; margin-top: 20px; }
+  input[type="file"] { width: 100%; padding: 16px; border: 2px dashed var(--medium-grey); border-radius: 10px; background: var(--light-grey); font-family: inherit; cursor: pointer; }
+  input[type="file"]:hover { border-color: var(--coral); }
+  .submit-btn { display: block; width: 100%; padding: 16px; background: var(--coral); color: white; border: none; border-radius: 10px; font-family: inherit; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 30px; transition: background 0.2s; }
+  .submit-btn:hover { background: #c96a1c; }
+  .note { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+  .reports-list { list-style: none; }
+  .reports-list li { padding: 12px 16px; border-bottom: 1px solid var(--light-grey); display: flex; align-items: center; justify-content: space-between; }
+  .reports-list li:hover { background: #FFF7ED; }
+  .reports-list a { text-decoration: none; color: var(--navy); font-weight: 500; }
+  .dl-btn { display: inline-flex; align-items: center; gap: 4px; padding: 6px 14px; background: var(--coral); color: white; border: none; border-radius: 6px; font-family: inherit; font-size: 12px; font-weight: 600; text-decoration: none; cursor: pointer; transition: background 0.2s; white-space: nowrap; }
+  .dl-btn:hover { background: #c96a1c; }
+  .dl-btn svg { width: 14px; height: 14px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/" class="back-link">&larr; Back to Dashboard</a>
+
+  <div class="header">
+    {% if logo %}<img src="data:image/jpeg;base64,{{ logo }}" alt="Leadway Health">{% endif %}
+    <div>
+      <h1>Provider Analysis</h1>
+      <p>Provider performance, cost benchmarking, network utilisation, and tariff analysis</p>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages() %}{% if messages %}<div style="background:#FFF7ED;border:2px solid var(--coral);border-radius:10px;padding:16px 20px;margin-bottom:20px;font-weight:600;font-size:14px;color:var(--coral);">{{ messages[0] }}</div>{% endif %}{% endwith %}
+
+  <form class="card" action="/provider-analysis/upload" method="post" enctype="multipart/form-data">
+    <h2>Upload <span>Data</span></h2>
+
+    <label>Claims File</label>
+    <input type="file" name="claims_file" accept=".xlsx,.xls,.csv">
+    <p class="note">File with provider, claims, and amount data. Name should contain "claims".</p>
+
+    <label>Hospital / Provider List (optional)</label>
+    <input type="file" name="hospital_file" accept=".xlsx,.xls,.csv">
+    <p class="note">Provider directory with location, tier, and network information.</p>
+
+    <label>Tariff Schedule (optional)</label>
+    <input type="file" name="tariff_file" accept=".xlsx,.xls,.csv">
+    <p class="note">Master tariff file for benchmarking provider charges against agreed rates.</p>
+
+    <button type="submit" class="submit-btn">Analyse Providers</button>
+  </form>
+
+  {% if reports %}
+  <div class="card">
+    <h2>Previous <span>Provider Reports</span></h2>
+    <ul class="reports-list">
+      {% for r in reports %}
+      <li><a href="/report/{{ r.file }}">{{ r.name }}</a><a class="dl-btn" href="/download/{{ r.file }}"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V3"/></svg>Download</a></li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+</div>
+</body>
+</html>

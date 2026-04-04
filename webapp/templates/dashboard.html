@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leadway Health Analytics</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+  :root { --navy: #1A1A2E; --crimson: #C8102E; --coral: #E87722; --cream: #FAF7F2; --light-grey: #F4F4F6; --medium-grey: #E8E8EC; --white: #FFFFFF; --text-muted: #6B7280; --green: #16a34a; --blue: #2563EB; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: var(--cream); color: var(--navy); min-height: 100vh; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 40px 20px; }
+  .user-bar { display: flex; justify-content: flex-end; align-items: center; gap: 16px; margin-bottom: 16px; font-size: 13px; }
+  .user-bar span { color: var(--text-muted); }
+  .user-bar a { color: var(--crimson); text-decoration: none; font-weight: 600; }
+  .user-bar a:hover { text-decoration: underline; }
+  .header { background: var(--navy); padding: 40px; border-radius: 16px; margin-bottom: 40px; display: flex; align-items: center; gap: 24px; }
+  .header img { height: 60px; }
+  .header h1 { color: white; font-weight: 800; font-size: 28px; }
+  .header p { color: rgba(255,255,255,0.7); font-size: 14px; margin-top: 4px; }
+  .modules-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 24px; margin-bottom: 40px; }
+  .module-card { background: var(--white); border-radius: 14px; padding: 28px 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); border: 2px solid transparent; transition: all 0.25s; cursor: pointer; text-decoration: none; color: inherit; display: block; position: relative; overflow: hidden; }
+  .module-card:hover { border-color: var(--crimson); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+  .module-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; font-size: 22px; }
+  .module-icon.red { background: #FEE2E2; color: var(--crimson); }
+  .module-icon.orange { background: #FFF7ED; color: var(--coral); }
+  .module-icon.green { background: #F0FDF4; color: var(--green); }
+  .module-icon.blue { background: #EFF6FF; color: var(--blue); }
+  .module-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+  .module-card p { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+  .module-tag { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; padding: 3px 8px; border-radius: 4px; margin-top: 14px; }
+  .module-tag.analysis { background: #EFF6FF; color: var(--blue); }
+  .module-tag.financial { background: #FFF7ED; color: var(--coral); }
+  .module-tag.operations { background: #F0FDF4; color: var(--green); }
+
+  .recent-section { background: var(--white); border-radius: 14px; padding: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .recent-section h2 { font-size: 20px; font-weight: 700; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--medium-grey); }
+  .recent-section h2 span { color: var(--crimson); }
+  .reports-list { list-style: none; }
+  .reports-list li { padding: 12px 16px; border-bottom: 1px solid var(--light-grey); display: flex; align-items: center; justify-content: space-between; }
+  .reports-list li:hover { background: #E8F4FD; }
+  .reports-list a { text-decoration: none; color: var(--navy); font-weight: 500; }
+  .dl-btn { display: inline-flex; align-items: center; gap: 4px; padding: 6px 14px; background: var(--crimson); color: white; border: none; border-radius: 6px; font-family: inherit; font-size: 12px; font-weight: 600; text-decoration: none; cursor: pointer; transition: background 0.2s; white-space: nowrap; }
+  .dl-btn:hover { background: #a00d24; }
+  .dl-btn svg { width: 14px; height: 14px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="user-bar">
+    <span>{{ user_name }}</span>
+    {% if is_admin %}<a href="/manage-users">Manage Users</a>{% endif %}
+    <a href="/logout">Sign Out</a>
+  </div>
+
+  <div class="header">
+    {% if logo %}<img src="data:image/jpeg;base64,{{ logo }}" alt="Leadway Health">{% endif %}
+    <div>
+      <h1>Analytics Platform</h1>
+      <p>Health insurance analytics, reporting, and decision-support tools</p>
+    </div>
+  </div>
+
+  <div class="modules-grid">
+    <a href="/utilization" class="module-card">
+      <div class="module-icon red">&#128202;</div>
+      <h3>Utilization Report</h3>
+      <p>Claims analysis, MLR, disease categories, early high claimers, and key recommendations.</p>
+      <span class="module-tag analysis">Analysis</span>
+    </a>
+
+    <a href="/provider-analysis" class="module-card">
+      <div class="module-icon orange">&#127973;</div>
+      <h3>Provider Analysis</h3>
+      <p>Provider performance, cost benchmarking, network utilisation, and tariff analysis.</p>
+      <span class="module-tag operations">Operations</span>
+    </a>
+
+    <a href="/benefit-benchmarking" class="module-card">
+      <div class="module-icon green">&#128203;</div>
+      <h3>Benefit Benchmarking</h3>
+      <p>Plan design comparison, benefit utilisation by category, sub-limit tracking, and gap analysis.</p>
+      <span class="module-tag analysis">Analysis</span>
+    </a>
+
+    <a href="/pricing-tool" class="module-card">
+      <div class="module-icon blue">&#128176;</div>
+      <h3>Pricing Tool</h3>
+      <p>Premium adequacy, renewal pricing, experience rating, and what-if scenario modelling.</p>
+      <span class="module-tag financial">Financial</span>
+    </a>
+  </div>
+
+  {% if reports %}
+  <div class="recent-section">
+    <h2>Recent <span>Reports</span></h2>
+    <ul class="reports-list">
+      {% for r in reports[:10] %}
+      <li>
+        <a href="/report/{{ r.file }}">{{ r.name }}</a>
+        <a class="dl-btn" href="/download/{{ r.file }}"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V3"/></svg>Download</a>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+</div>
+</body>
+</html>
