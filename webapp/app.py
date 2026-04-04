@@ -778,7 +778,6 @@ PROVIDER_MODULES = {
     "tariff-intelligence": {"title": "Tariff Intelligence", "desc": "Analyse provider charges against master tariff, identify outliers and overcharges.", "icon": "&#128200;", "color": "#1B1464"},
     "fwa-insights": {"title": "FWA Insights", "desc": "Fraud, waste & abuse detection — flag suspicious patterns, duplicate claims, upcoding.", "icon": "&#128270;", "color": "#1B1464"},
     "tariff-mapper": {"title": "Tariff Mapper", "desc": "Map provider codes to master tariff, reconcile naming differences, standardise billing.", "icon": "&#128268;", "color": "#1B1464"},
-    "provider-analytics": {"title": "Provider Analytics", "desc": "Provider performance scoring, cost benchmarking, network utilisation, referral patterns.", "icon": "&#127973;", "color": "#1B1464"},
     "plan-access": {"title": "Plan Access Argument Generator", "desc": "Generate data-backed arguments for provider tier upgrades or plan access negotiations.", "icon": "&#128220;", "color": "#1B1464"},
 }
 
@@ -786,7 +785,6 @@ PROVIDER_MODULES = {
 @app.route("/tariff-intelligence")
 @app.route("/fwa-insights")
 @app.route("/tariff-mapper")
-@app.route("/provider-analytics")
 @app.route("/plan-access")
 @login_required
 def provider_submodule():
@@ -801,13 +799,337 @@ def provider_submodule():
 @app.route("/tariff-intelligence/upload", methods=["POST"])
 @app.route("/fwa-insights/upload", methods=["POST"])
 @app.route("/tariff-mapper/upload", methods=["POST"])
-@app.route("/provider-analytics/upload", methods=["POST"])
 @app.route("/plan-access/upload", methods=["POST"])
 @login_required
 def provider_submodule_upload():
     slug = request.path.replace("/upload", "").strip("/")
     flash(f"{PROVIDER_MODULES.get(slug, {}).get('title', 'Module')} — coming soon.")
     return redirect(f"/{slug}")
+
+
+# ═══════════════════════════════════════════════
+# PROVIDER ANALYTICS — Full module
+# ═══════════════════════════════════════════════
+
+@app.route("/provider-analytics")
+@login_required
+def provider_analytics():
+    logo = get_logo_b64()
+    report_list = list_reports("ProviderAnalytics_")
+    return render_template("provider_analytics.html", logo=logo, reports=report_list)
+
+
+@app.route("/provider-analytics/upload", methods=["POST"])
+@login_required
+def provider_analytics_upload():
+    import pandas as pd
+    import numpy as np
+
+    claims_file = request.files.get("claims_file")
+    if not claims_file or claims_file.filename == "":
+        flash("Please upload a claims file.")
+        return redirect(url_for("provider_analytics"))
+
+    session_id = str(uuid.uuid4())[:8]
+    upload_dir = app.config["UPLOAD_FOLDER"] / session_id
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    fpath = upload_dir / claims_file.filename
+    claims_file.save(fpath)
+
+    # Parse
+    if str(fpath).endswith(".csv"):
+        df = pd.read_csv(fpath)
+    else:
+        df = pd.read_excel(fpath)
+    df.columns = [c.replace("\n", " ").replace("\r", " ").strip() for c in df.columns]
+
+    # ── Column mapping ──
+    col_map = {}
+    for col in df.columns:
+        cl = col.lower().strip()
+        if cl in ("amt paid", "claims paid", "amount paid"): col_map[col] = "Amt_Paid"
+        elif cl in ("amt claimed", "amount claimed"): col_map[col] = "Amt_Claimed"
+        elif cl in ("claim number", "claim no", "claim numb"): col_map[col] = "Claim_No"
+        elif cl in ("membershipno", "enrolee id", "member id", "member enrollee id"): col_map[col] = "Enrolee_ID"
+        elif cl in ("treatment date", "encounter date"): col_map[col] = "Treatment_Date"
+        elif cl in ("provider", "provider name"): col_map[col] = "Provider"
+        elif cl in ("group name", "group"): col_map[col] = "Group_Name"
+        elif cl in ("scheme", "scheme name"): col_map[col] = "Scheme"
+        elif cl in ("service type",): col_map[col] = "Service_Type"
+        elif cl in ("tariff descr", "tariff description"): col_map[col] = "Tariff_Descr"
+        elif cl in ("benefit", "benefit type"): col_map[col] = "Benefit"
+        elif cl in ("diag descr", "diagnosis description"): col_map[col] = "Diag_Descr"
+        elif cl in ("diagnosis",): col_map[col] = "Diagnosis"
+        elif cl in ("claim status",): col_map[col] = "Claim_Status"
+        elif cl in ("relationship type", "relationship"): col_map[col] = "Relationship"
+        elif cl in ("member gender", "member sex", "gender"): col_map[col] = "Gender"
+        elif cl in ("member age", "age"): col_map[col] = "Member_Age"
+        elif cl in ("prov location", "provider location", "state"): col_map[col] = "Prov_Location"
+    df.rename(columns=col_map, inplace=True)
+
+    # ── Parse types ──
+    for col in ["Amt_Paid", "Amt_Claimed"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col].astype(str).str.replace(",", "").str.replace("₦", ""), errors="coerce").fillna(0)
+
+    if "Treatment_Date" in df.columns:
+        raw = df["Treatment_Date"].astype(str).str.strip().replace({"############": pd.NA, "nan": pd.NA})
+        num = pd.to_numeric(raw, errors="coerce")
+        excel_like = num.notna() & (num > 30000) & (num < 60000)
+        if excel_like.sum() > num.notna().sum() * 0.3 and num.notna().sum() > 0:
+            df["Treatment_Date"] = pd.NaT
+            df.loc[excel_like, "Treatment_Date"] = pd.to_datetime("1899-12-30") + pd.to_timedelta(num[excel_like], unit="D")
+        else:
+            df["Treatment_Date"] = pd.to_datetime(raw, errors="coerce", dayfirst=True)
+
+    # Normalise service type
+    if "Service_Type" in df.columns:
+        st = df["Service_Type"].astype(str).str.strip().str.lower()
+        df.loc[st.isin(["outpatient", "opd", "out-patient", "mtn pha"]), "Service_Type"] = "Outpatient"
+        df.loc[st.isin(["inpatient", "ipd", "in-patient"]), "Service_Type"] = "Inpatient"
+
+    # Exclude abandoned
+    if "Claim_Status" in df.columns:
+        df = df[~df["Claim_Status"].str.lower().str.strip().isin(["abandoned", "rejected", "declined"])]
+
+    # Effective spend
+    df["Spend"] = df["Amt_Paid"] if "Amt_Paid" in df.columns else 0
+    if "Amt_Claimed" in df.columns and "Amt_Paid" in df.columns:
+        zero_paid = df["Amt_Paid"].fillna(0) == 0
+        df.loc[zero_paid, "Spend"] = df.loc[zero_paid, "Amt_Claimed"]
+
+    # Family ID
+    if "Enrolee_ID" in df.columns:
+        df["Family_ID"] = df["Enrolee_ID"].astype(str).str[:8]
+
+    # ── Generate report ──
+    try:
+        report_path = generate_provider_report(df, session_id)
+        return redirect(url_for("view_report", filename=report_path.name))
+    except Exception:
+        import traceback
+        return f"<pre>Error generating report:\n{traceback.format_exc()}</pre>", 500
+
+
+def generate_provider_report(df, session_id):
+    """Generate a comprehensive Provider Analytics HTML report."""
+    import pandas as pd
+    import numpy as np
+
+    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    logo = get_logo_b64()
+
+    def fmt(x):
+        if abs(x) >= 1_000_000: return f"&#8358;{x/1_000_000:,.2f}M"
+        if abs(x) >= 1_000: return f"&#8358;{x/1_000:,.0f}K"
+        return f"&#8358;{x:,.0f}"
+
+    def fmt_full(x): return f"&#8358;{x:,.0f}"
+    def pct(x): return f"{x:.1f}%"
+
+    total_spend = float(df["Spend"].sum())
+    total_claims = int(df["Claim_No"].nunique()) if "Claim_No" in df.columns else len(df)
+    total_members = int(df["Enrolee_ID"].nunique()) if "Enrolee_ID" in df.columns else 0
+    providers_list = sorted(df["Provider"].dropna().unique().tolist()) if "Provider" in df.columns else []
+    provider_label = providers_list[0] if len(providers_list) == 1 else f"{len(providers_list)} Providers"
+
+    # ── 1. Monthly Overview ──
+    monthly_rows = ""
+    if "Treatment_Date" in df.columns:
+        d = df.dropna(subset=["Treatment_Date"]).copy()
+        d["Month"] = d["Treatment_Date"].dt.to_period("M")
+        g = d.groupby("Month").agg(spend=("Spend", "sum"),
+            members=("Enrolee_ID", "nunique") if "Enrolee_ID" in df.columns else ("Spend", "count"),
+            visits=("Claim_No", "nunique") if "Claim_No" in df.columns else ("Spend", "count")).sort_index()
+        prev = None
+        for p, r in g.iterrows():
+            s, m, v = float(r["spend"]), int(r["members"]), int(r["visits"])
+            apm = round(s / max(m, 1))
+            apv = round(s / max(v, 1))
+            mom = f'{((s - prev) / prev * 100):+.1f}%' if prev and prev > 0 else "—"
+            monthly_rows += f'<tr><td>{p.to_timestamp().strftime("%b %Y")}</td><td class="num">{fmt_full(s)}</td><td class="num">{m:,}</td><td class="num">{v:,}</td><td class="num">{fmt_full(apm)}</td><td class="num">{fmt_full(apv)}</td><td class="num">{mom}</td></tr>'
+            prev = s
+
+    # ── 2. Service Type Split ──
+    svc_rows = ""
+    if "Service_Type" in df.columns:
+        for st, grp in df.groupby("Service_Type"):
+            s = float(grp["Spend"].sum())
+            v = int(grp["Claim_No"].nunique()) if "Claim_No" in grp.columns else len(grp)
+            svc_rows += f'<tr><td>{st}</td><td class="num">{fmt_full(s)}</td><td class="num">{pct(s / max(total_spend, 1) * 100)}</td><td class="num">{v:,}</td></tr>'
+
+    # ── 3. Top Providers ──
+    prov_rows = ""
+    if "Provider" in df.columns:
+        g = df.groupby("Provider").agg(spend=("Spend", "sum"),
+            members=("Enrolee_ID", "nunique") if "Enrolee_ID" in df.columns else ("Spend", "count"),
+            visits=("Claim_No", "nunique") if "Claim_No" in df.columns else ("Spend", "count")).sort_values("spend", ascending=False)
+        for i, (name, r) in enumerate(g.head(20).iterrows(), 1):
+            s = float(r["spend"])
+            prov_rows += f'<tr><td>{i}</td><td>{name}</td><td class="num">{fmt_full(s)}</td><td class="num">{pct(s / max(total_spend, 1) * 100)}</td><td class="num">{int(r["members"]):,}</td><td class="num">{int(r["visits"]):,}</td><td class="num">{fmt_full(round(s / max(int(r["members"]), 1)))}</td></tr>'
+
+    # ── 4. Groups ──
+    group_rows = ""
+    if "Group_Name" in df.columns:
+        g = df.groupby("Group_Name").agg(spend=("Spend", "sum"),
+            members=("Enrolee_ID", "nunique") if "Enrolee_ID" in df.columns else ("Spend", "count"),
+            visits=("Claim_No", "nunique") if "Claim_No" in df.columns else ("Spend", "count")).sort_values("spend", ascending=False)
+        for name, r in g.iterrows():
+            s = float(r["spend"])
+            group_rows += f'<tr><td>{name}</td><td class="num">{fmt_full(s)}</td><td class="num">{pct(s / max(total_spend, 1) * 100)}</td><td class="num">{int(r["members"]):,}</td><td class="num">{int(r["visits"]):,}</td><td class="num">{fmt_full(round(s / max(int(r["members"]), 1)))}</td></tr>'
+
+    # ── 5. Top 30 Tariff Lines ──
+    tariff_rows = ""
+    if "Tariff_Descr" in df.columns:
+        g = df.groupby("Tariff_Descr").agg(spend=("Spend", "sum"),
+            members=("Enrolee_ID", "nunique") if "Enrolee_ID" in df.columns else ("Spend", "count"),
+            utilized=("Claim_No", "nunique") if "Claim_No" in df.columns else ("Spend", "count")).sort_values("spend", ascending=False).head(30)
+        cum = 0
+        for i, (name, r) in enumerate(g.iterrows(), 1):
+            s = float(r["spend"])
+            p = s / max(total_spend, 1) * 100
+            cum += p
+            avg = round(s / max(int(r["utilized"]), 1))
+            tariff_rows += f'<tr><td>{i}</td><td>{name}</td><td class="num">{fmt_full(s)}</td><td class="num">{pct(p)}</td><td class="num">{pct(cum)}</td><td class="num">{int(r["utilized"]):,}</td><td class="num">{fmt_full(avg)}</td></tr>'
+
+    # ── 6. Chronic Medication ──
+    chronic_rows = ""
+    chronic_spend = 0
+    chronic_members = 0
+    if "Benefit" in df.columns:
+        ch = df[df["Benefit"].str.contains("chronic", case=False, na=False)]
+        chronic_spend = float(ch["Spend"].sum())
+        chronic_members = int(ch["Enrolee_ID"].nunique()) if "Enrolee_ID" in ch.columns else 0
+        drug_col = "Tariff_Descr" if "Tariff_Descr" in ch.columns else None
+        if drug_col and not ch.empty:
+            g = ch.groupby(drug_col).agg(spend=("Spend", "sum"),
+                members=("Enrolee_ID", "nunique") if "Enrolee_ID" in ch.columns else ("Spend", "count"),
+                dispensed=("Claim_No", "nunique") if "Claim_No" in ch.columns else ("Spend", "count")).sort_values("spend", ascending=False)
+            for name, r in g.iterrows():
+                s = float(r["spend"])
+                chronic_rows += f'<tr><td>{name}</td><td class="num">{fmt_full(s)}</td><td class="num">{int(r["members"]):,}</td><td class="num">{int(r["dispensed"]):,}</td><td class="num">{fmt_full(round(s / max(int(r["dispensed"]), 1)))}</td></tr>'
+
+    # ── 7. Diagnosis Patterns ──
+    diag_rows = ""
+    vague_keywords = ["unspecified", "nos", "other", "unknown"]
+    diag_col = "Diag_Descr" if "Diag_Descr" in df.columns else ("Diagnosis" if "Diagnosis" in df.columns else None)
+    total_vague = 0
+    if diag_col:
+        g = df.groupby(diag_col).agg(spend=("Spend", "sum"),
+            members=("Enrolee_ID", "nunique") if "Enrolee_ID" in df.columns else ("Spend", "count"),
+            visits=("Claim_No", "nunique") if "Claim_No" in df.columns else ("Spend", "count")).sort_values("spend", ascending=False)
+        for name, r in g.head(20).iterrows():
+            s = float(r["spend"])
+            is_vague = any(kw in str(name).lower() for kw in vague_keywords)
+            if is_vague: total_vague += s
+            vague_cls = ' class="warning"' if is_vague else ""
+            diag_rows += f'<tr><td{vague_cls}>{name}{"  ⚠" if is_vague else ""}</td><td class="num">{fmt_full(s)}</td><td class="num">{pct(s / max(total_spend, 1) * 100)}</td><td class="num">{int(r["members"]):,}</td><td class="num">{int(r["visits"]):,}</td></tr>'
+
+    # ── 8. Top Enrollees ──
+    enrollee_rows = ""
+    if "Enrolee_ID" in df.columns:
+        agg = {"spend": ("Spend", "sum")}
+        if "Claim_No" in df.columns: agg["visits"] = ("Claim_No", "nunique")
+        if "Provider" in df.columns: agg["hospitals"] = ("Provider", "nunique")
+        g = df.groupby("Enrolee_ID").agg(**agg).sort_values("spend", ascending=False)
+        for i, (eid, r) in enumerate(g.head(20).iterrows(), 1):
+            s = float(r["spend"])
+            v = int(r.get("visits", 0))
+            h = int(r.get("hospitals", 0))
+            flag = " ⚠" if h > 5 else ""
+            top = " 🔝" if i <= 10 else ""
+            enrollee_rows += f'<tr><td>{eid}{top}</td><td>{str(eid)[:8]}</td><td class="num">{fmt_full(s)}</td><td class="num">{v:,}</td><td class="num">{h}{flag}</td></tr>'
+
+    # ── Build HTML ──
+    date_range = ""
+    if "Treatment_Date" in df.columns:
+        valid = df["Treatment_Date"].dropna()
+        if len(valid) > 0:
+            date_range = f'{valid.min().strftime("%b %Y")} — {valid.max().strftime("%b %Y")}'
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Provider Analytics — {provider_label}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+  :root {{ --navy: #1B1464; --red: #C61531; --orange: #F15A24; --dark: #262626; --cream: #FAF7F2; --light: #F4F4F6; --grey: #E6E6E6; --white: #FFFFFF; --muted: #6B7280; --green: #16a34a; }}
+  * {{ margin:0; padding:0; box-sizing:border-box; }}
+  body {{ font-family:'Inter',sans-serif; background:var(--cream); color:var(--dark); line-height:1.6; font-size:13px; }}
+  .container {{ max-width:1140px; margin:0 auto; padding:40px 20px; }}
+  .header {{ background:var(--navy); color:white; padding:36px; border-radius:16px; margin-bottom:28px; display:flex; align-items:center; gap:24px; }}
+  .header img {{ height:56px; }}
+  .header h1 {{ font-weight:800; font-size:26px; }}
+  .header .sub {{ font-size:13px; opacity:0.6; margin-top:4px; }}
+  .kpi-grid {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:24px; }}
+  .kpi {{ background:white; border-radius:12px; padding:20px 16px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.04); }}
+  .kpi .label {{ font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:var(--muted); margin-bottom:6px; }}
+  .kpi .value {{ font-weight:800; font-size:20px; color:var(--dark); }}
+  .kpi.highlight {{ border:2px solid var(--red); }}
+  .kpi.highlight .value {{ color:var(--red); }}
+  .section {{ background:white; border-radius:14px; padding:28px; margin-bottom:22px; box-shadow:0 1px 3px rgba(0,0,0,0.04); }}
+  .section h2 {{ font-weight:700; font-size:18px; color:var(--dark); margin-bottom:16px; padding-bottom:8px; border-bottom:2px solid var(--grey); }}
+  .section h2 span {{ color:var(--navy); }}
+  .data-table {{ width:100%; border-collapse:collapse; font-size:12px; }}
+  .data-table thead th {{ background:var(--dark); color:white; padding:10px 8px; text-align:left; font-weight:600; font-size:10px; text-transform:uppercase; }}
+  .data-table thead th.num {{ text-align:right; }}
+  .data-table tbody td {{ padding:8px; border-bottom:1px solid var(--light); }}
+  .data-table tbody td.num {{ text-align:right; font-weight:500; }}
+  .data-table tbody td.warning {{ color:var(--orange); font-weight:600; }}
+  .data-table tbody tr:hover {{ background:var(--light); }}
+  .data-table tbody tr:nth-child(even) {{ background:#FAFAFA; }}
+  .alert {{ border-radius:10px; padding:16px 20px; margin-bottom:16px; font-size:13px; }}
+  .alert.warn {{ background:#FFF7ED; border:2px solid var(--orange); color:var(--orange); }}
+  .footer {{ text-align:center; color:var(--muted); font-size:10px; margin-top:20px; padding:16px; }}
+  .dl-btn {{ display:inline-flex; align-items:center; gap:6px; padding:10px 20px; background:var(--navy); color:white; border:none; border-radius:8px; font-family:inherit; font-size:12px; font-weight:700; text-decoration:none; cursor:pointer; margin-left:auto; }}
+  .dl-btn:hover {{ background:var(--dark); }}
+  @media print {{ .dl-btn {{ display:none; }} }}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    {'<img src="data:image/jpeg;base64,' + logo + '" alt="Leadway Health">' if logo else ''}
+    <div>
+      <h1>Provider Analytics</h1>
+      <div class="sub">{provider_label} &nbsp;|&nbsp; {date_range} &nbsp;|&nbsp; {pd.Timestamp.now().strftime('%d %B %Y')}</div>
+    </div>
+    <button class="dl-btn" onclick="(function(){{var a=document.createElement('a');a.href='data:text/html;charset=utf-8,'+encodeURIComponent(document.documentElement.outerHTML);a.download='ProviderAnalytics_{session_id}.html';a.click();}})()">&#11015; Download</button>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi highlight"><div class="label">Total Spend</div><div class="value">{fmt(total_spend)}</div></div>
+    <div class="kpi"><div class="label">Unique Members</div><div class="value">{total_members:,}</div></div>
+    <div class="kpi"><div class="label">Unique Claims</div><div class="value">{total_claims:,}</div></div>
+    <div class="kpi"><div class="label">Avg / Visit</div><div class="value">{fmt(round(total_spend / max(total_claims, 1)))}</div></div>
+    <div class="kpi"><div class="label">Avg / Member</div><div class="value">{fmt(round(total_spend / max(total_members, 1)))}</div></div>
+    <div class="kpi"><div class="label">Providers</div><div class="value">{len(providers_list)}</div></div>
+  </div>
+
+  {"" if not svc_rows else '<div class="section"><h2>Service Type <span>Split</span></h2><table class="data-table"><thead><tr><th>Service Type</th><th class="num">Amount Paid</th><th class="num">% of Total</th><th class="num">Visits</th></tr></thead><tbody>' + svc_rows + '</tbody></table></div>'}
+
+  {"" if not monthly_rows else '<div class="section"><h2>Monthly Claims <span>Trend</span></h2><table class="data-table"><thead><tr><th>Month</th><th class="num">Amount Paid</th><th class="num">Members</th><th class="num">Visits</th><th class="num">Avg/Member</th><th class="num">Avg/Visit</th><th class="num">MoM</th></tr></thead><tbody>' + monthly_rows + '</tbody></table></div>'}
+
+  {"" if not prov_rows else '<div class="section"><h2>Provider <span>Summary</span></h2><table class="data-table"><thead><tr><th>#</th><th>Provider</th><th class="num">Amount Paid</th><th class="num">% Total</th><th class="num">Members</th><th class="num">Visits</th><th class="num">Per Member</th></tr></thead><tbody>' + prov_rows + '</tbody></table></div>'}
+
+  {"" if not group_rows else '<div class="section"><h2>Group <span>Breakdown</span></h2><table class="data-table"><thead><tr><th>Group</th><th class="num">Amount Paid</th><th class="num">% Total</th><th class="num">Members</th><th class="num">Visits</th><th class="num">Per Member</th></tr></thead><tbody>' + group_rows + '</tbody></table></div>'}
+
+  {"" if not tariff_rows else '<div class="section"><h2>Top 30 Tariff <span>Lines</span></h2><table class="data-table"><thead><tr><th>#</th><th>Service</th><th class="num">Amount Paid</th><th class="num">% Total</th><th class="num">Cum %</th><th class="num">Utilized</th><th class="num">Avg/Line</th></tr></thead><tbody>' + tariff_rows + '</tbody></table></div>'}
+
+  {"" if chronic_spend == 0 else '<div class="section"><h2>Chronic <span>Medication</span></h2><div class="kpi-grid" style="margin-bottom:16px"><div class="kpi"><div class="label">Chronic Spend</div><div class="value">' + fmt(chronic_spend) + '</div></div><div class="kpi"><div class="label">Members on Chronic</div><div class="value">' + str(chronic_members) + '</div></div><div class="kpi"><div class="label">% of Total</div><div class="value">' + pct(chronic_spend / max(total_spend, 1) * 100) + '</div></div></div><table class="data-table"><thead><tr><th>Drug</th><th class="num">Total Spend</th><th class="num">Members</th><th class="num">Dispensed</th><th class="num">Avg/Dispense</th></tr></thead><tbody>' + chronic_rows + '</tbody></table></div>'}
+
+  {"" if not diag_rows else ('<div class="alert warn">⚠ ' + pct(total_vague / max(total_spend, 1) * 100) + ' of spend is on vague/unspecified diagnoses — review for upcoding risk.</div>' if total_vague > total_spend * 0.15 else '') + '<div class="section"><h2>Diagnosis <span>Patterns</span></h2><table class="data-table"><thead><tr><th>Diagnosis</th><th class="num">Amount Paid</th><th class="num">% Total</th><th class="num">Members</th><th class="num">Visits</th></tr></thead><tbody>' + diag_rows + '</tbody></table></div>'}
+
+  {"" if not enrollee_rows else '<div class="section"><h2>Top <span>Enrollees</span></h2><table class="data-table"><thead><tr><th>Enrolee ID</th><th>Family ID</th><th class="num">Total Paid</th><th class="num">Visits</th><th class="num">Hospitals</th></tr></thead><tbody>' + enrollee_rows + '</tbody></table></div>'}
+
+  <div class="footer">Generated by Leadway Health Analytics — Provider Intelligence &nbsp;|&nbsp; {pd.Timestamp.now().strftime('%d %B %Y')}</div>
+</div>
+</body></html>"""
+
+    report_path = REPORTS_DIR / f"ProviderAnalytics_{session_id}.html"
+    report_path.write_text(html)
+    return report_path
 
 
 # ═══════════════════════════════════════════════
