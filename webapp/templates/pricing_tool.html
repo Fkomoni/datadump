@@ -6,106 +6,503 @@
 <title>Pricing Tool — Leadway Health</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-  :root { --navy: #1A1A2E; --crimson: #C8102E; --coral: #E87722; --cream: #FAF7F2; --light-grey: #F4F4F6; --medium-grey: #E8E8EC; --white: #FFFFFF; --text-muted: #6B7280; --blue: #2563EB; }
+  :root {
+    --lh-red: #C61531; --lh-orange: #F15A24; --lh-dark: #262626; --lh-navy: #1B1464;
+    --cream: #FAF7F2; --light-grey: #F4F4F6; --medium-grey: #E6E6E6; --white: #FFFFFF;
+    --text-muted: #6B7280; --green: #16a34a; --blue: #2563EB;
+  }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Inter', sans-serif; background: var(--cream); color: var(--navy); min-height: 100vh; }
-  .container { max-width: 800px; margin: 0 auto; padding: 40px 20px; }
-  .back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); text-decoration: none; font-size: 13px; font-weight: 600; margin-bottom: 20px; }
-  .back-link:hover { color: var(--blue); }
-  .header { background: var(--navy); padding: 40px; border-radius: 16px; margin-bottom: 40px; display: flex; align-items: center; gap: 24px; }
-  .header img { height: 60px; }
-  .header h1 { color: white; font-weight: 800; font-size: 28px; }
-  .header p { color: rgba(255,255,255,0.7); font-size: 14px; }
-  .card { background: var(--white); border-radius: 14px; padding: 32px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
-  .card h2 { font-size: 20px; font-weight: 700; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--medium-grey); }
-  .card h2 span { color: var(--blue); }
-  label { display: block; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 8px; margin-top: 20px; }
-  label:first-child { margin-top: 0; }
-  input[type="file"] { width: 100%; padding: 16px; border: 2px dashed var(--medium-grey); border-radius: 10px; background: var(--light-grey); font-family: inherit; cursor: pointer; }
-  input[type="file"]:hover { border-color: var(--blue); }
-  input[type="number"], select { padding: 10px 14px; border: 1px solid var(--medium-grey); border-radius: 8px; font-family: inherit; font-size: 14px; background: white; width: 100%; }
-  .param-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
-  .param-grid label { margin-top: 0; }
-  .submit-btn { display: block; width: 100%; padding: 16px; background: var(--blue); color: white; border: none; border-radius: 10px; font-family: inherit; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 30px; transition: background 0.2s; }
-  .submit-btn:hover { background: #1d4ed8; }
-  .note { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
-  .reports-list { list-style: none; }
-  .reports-list li { padding: 12px 16px; border-bottom: 1px solid var(--light-grey); display: flex; align-items: center; justify-content: space-between; }
-  .reports-list li:hover { background: #EFF6FF; }
-  .reports-list a { text-decoration: none; color: var(--navy); font-weight: 500; }
-  .dl-btn { display: inline-flex; align-items: center; gap: 4px; padding: 6px 14px; background: var(--blue); color: white; border: none; border-radius: 6px; font-family: inherit; font-size: 12px; font-weight: 600; text-decoration: none; cursor: pointer; transition: background 0.2s; white-space: nowrap; }
-  .dl-btn:hover { background: #1d4ed8; }
-  .dl-btn svg { width: 14px; height: 14px; }
+  body { font-family: 'Inter', sans-serif; background: var(--cream); color: var(--lh-dark); min-height: 100vh; font-size: 14px; }
+
+  /* TOP BAR */
+  .top-bar { background: var(--lh-dark); padding: 12px 32px; display: flex; align-items: center; justify-content: space-between; }
+  .top-bar .logo-area { display: flex; align-items: center; gap: 12px; }
+  .top-bar .logo-area img { height: 36px; }
+  .top-bar .logo-area span { color: white; font-weight: 700; font-size: 15px; }
+  .top-bar nav { display: flex; gap: 4px; }
+  .top-bar nav a { color: rgba(255,255,255,0.6); text-decoration: none; font-size: 12px; font-weight: 600; padding: 8px 16px; border-radius: 6px; transition: all 0.2s; }
+  .top-bar nav a:hover, .top-bar nav a.active { color: white; background: rgba(255,255,255,0.1); }
+  .top-bar .user-area { color: rgba(255,255,255,0.6); font-size: 12px; }
+  .top-bar .user-area a { color: var(--lh-red); text-decoration: none; font-weight: 600; margin-left: 12px; }
+
+  /* SPLIT LAYOUT */
+  .split-layout { display: grid; grid-template-columns: 420px 1fr; min-height: calc(100vh - 56px); }
+
+  /* LEFT PANEL */
+  .left-panel { background: var(--white); border-right: 1px solid var(--medium-grey); overflow-y: auto; max-height: calc(100vh - 56px); padding: 28px 24px; }
+  .left-panel h2 { font-size: 18px; font-weight: 800; color: var(--lh-dark); margin-bottom: 4px; }
+  .left-panel .subtitle { font-size: 12px; color: var(--text-muted); margin-bottom: 24px; }
+  .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--lh-red); margin: 24px 0 12px; padding-bottom: 8px; border-bottom: 2px solid var(--medium-grey); }
+  .section-title:first-of-type { margin-top: 0; }
+
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
+  .form-group input, .form-group select, .form-group textarea {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--medium-grey); border-radius: 8px;
+    font-family: inherit; font-size: 13px; background: var(--light-grey); transition: border-color 0.2s;
+  }
+  .form-group input:focus, .form-group select:focus { border-color: var(--lh-red); outline: none; background: white; }
+  .form-group textarea { min-height: 60px; resize: vertical; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* PLAN CARDS */
+  .plan-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+  .plan-card { border: 2px solid var(--medium-grey); border-radius: 10px; padding: 12px 8px; text-align: center; cursor: pointer; transition: all 0.2s; background: white; }
+  .plan-card:hover { border-color: var(--lh-orange); }
+  .plan-card.selected { border-color: var(--lh-red); background: #FEF2F2; }
+  .plan-card .plan-name { font-weight: 800; font-size: 12px; color: var(--lh-dark); }
+  .plan-card .plan-price { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .plan-card .plan-tier { font-size: 10px; color: var(--lh-red); font-weight: 600; margin-top: 4px; }
+
+  /* BENEFIT TOGGLES */
+  .benefit-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--light-grey); }
+  .benefit-row:last-child { border: none; }
+  .benefit-left { display: flex; align-items: center; gap: 10px; }
+  .benefit-icon { font-size: 18px; width: 32px; text-align: center; }
+  .benefit-name { font-size: 13px; font-weight: 600; color: var(--lh-dark); }
+  .benefit-base { font-size: 11px; color: var(--text-muted); }
+  .benefit-right { display: flex; align-items: center; gap: 8px; }
+  .benefit-slider { width: 100px; accent-color: var(--lh-red); }
+  .benefit-value { font-size: 12px; font-weight: 700; color: var(--lh-dark); min-width: 70px; text-align: right; }
+  .badge { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; }
+  .badge.warning { background: #FFF7ED; color: var(--lh-orange); }
+  .badge.danger { background: #FEF2F2; color: var(--lh-red); }
+
+  /* TOGGLE SWITCH */
+  .toggle { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle .slider { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: var(--medium-grey); border-radius: 20px; cursor: pointer; transition: 0.2s; }
+  .toggle .slider:before { content: ""; position: absolute; height: 16px; width: 16px; left: 2px; bottom: 2px; background: white; border-radius: 50%; transition: 0.2s; }
+  .toggle input:checked + .slider { background: var(--lh-red); }
+  .toggle input:checked + .slider:before { transform: translateX(16px); }
+
+  /* RIGHT PANEL */
+  .right-panel { background: var(--cream); overflow-y: auto; max-height: calc(100vh - 56px); padding: 28px 32px; }
+
+  .output-card { background: var(--white); border-radius: 14px; padding: 24px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .output-card h3 { font-size: 14px; font-weight: 700; color: var(--lh-dark); margin-bottom: 14px; padding-bottom: 8px; border-bottom: 2px solid var(--medium-grey); }
+  .output-card h3 span { color: var(--lh-red); }
+
+  /* PLAN SUMMARY */
+  .plan-summary { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .plan-stat { text-align: center; padding: 14px; background: var(--light-grey); border-radius: 10px; }
+  .plan-stat .stat-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+  .plan-stat .stat-value { font-size: 16px; font-weight: 800; color: var(--lh-dark); margin-top: 4px; }
+
+  /* COMPARISON TABLE */
+  .compare-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .compare-table thead th { background: var(--lh-dark); color: white; padding: 10px 8px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+  .compare-table thead th.num { text-align: right; }
+  .compare-table tbody td { padding: 8px; border-bottom: 1px solid var(--light-grey); }
+  .compare-table tbody td.num { text-align: right; font-weight: 600; }
+  .compare-table tbody td.positive { color: var(--lh-red); }
+  .compare-table tbody td.neutral { color: var(--text-muted); }
+  .compare-table tbody tr:hover { background: var(--light-grey); }
+
+  /* PRICING BREAKDOWN */
+  .price-breakdown { background: var(--lh-dark); border-radius: 14px; padding: 24px; margin-bottom: 20px; color: white; }
+  .price-breakdown h3 { color: white; border-bottom-color: rgba(255,255,255,0.1); font-size: 14px; font-weight: 700; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 2px solid rgba(255,255,255,0.1); }
+  .price-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 13px; }
+  .price-row.total { border-top: 2px solid var(--lh-red); border-bottom: none; padding-top: 14px; margin-top: 8px; }
+  .price-row.total .price-label { font-weight: 800; font-size: 16px; }
+  .price-row.total .price-amount { font-weight: 800; font-size: 20px; color: var(--lh-orange); }
+  .price-row .price-label { color: rgba(255,255,255,0.7); }
+  .price-row .price-amount { font-weight: 600; }
+  .price-row.discount .price-amount { color: var(--green); }
+
+  /* RISK BADGE */
+  .risk-indicator { display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: 10px; margin-bottom: 16px; }
+  .risk-indicator.low { background: #F0FDF4; border: 2px solid var(--green); }
+  .risk-indicator.moderate { background: #FFF7ED; border: 2px solid var(--lh-orange); }
+  .risk-indicator.high { background: #FEF2F2; border: 2px solid var(--lh-red); }
+  .risk-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+  .risk-indicator.low .risk-dot { background: var(--green); }
+  .risk-indicator.moderate .risk-dot { background: var(--lh-orange); }
+  .risk-indicator.high .risk-dot { background: var(--lh-red); }
+  .risk-text { font-size: 13px; font-weight: 700; }
+  .risk-indicator.low .risk-text { color: var(--green); }
+  .risk-indicator.moderate .risk-text { color: var(--lh-orange); }
+  .risk-indicator.high .risk-text { color: var(--lh-red); }
+
+  /* UNDERWRITER NOTES */
+  .uw-notes { background: var(--light-grey); border-radius: 10px; padding: 16px; font-size: 13px; line-height: 1.7; color: var(--text-muted); }
+  .uw-notes strong { color: var(--lh-dark); }
+
+  /* DECISION BADGE */
+  .decision-badge { display: inline-block; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
+  .decision-badge.approve { background: #F0FDF4; color: var(--green); border: 2px solid var(--green); }
+  .decision-badge.review { background: #FFF7ED; color: var(--lh-orange); border: 2px solid var(--lh-orange); }
+  .decision-badge.escalate { background: #FEF2F2; color: var(--lh-red); border: 2px solid var(--lh-red); }
+
+  /* BUTTONS */
+  .btn-generate { width: 100%; padding: 14px; background: var(--lh-red); color: white; border: none; border-radius: 10px; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 20px; transition: background 0.2s; }
+  .btn-generate:hover { background: #a00d24; }
+  .btn-secondary { padding: 10px 20px; background: var(--lh-dark); color: white; border: none; border-radius: 8px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; transition: background 0.2s; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+  .btn-secondary:hover { background: #444; }
+  .output-actions { display: flex; gap: 10px; margin-top: 16px; }
+
+  .back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); text-decoration: none; font-size: 12px; font-weight: 600; margin-bottom: 16px; }
+  .back-link:hover { color: var(--lh-red); }
+
+  /* FILE UPLOAD */
+  .upload-section { margin-top: 16px; padding: 16px; background: var(--light-grey); border-radius: 10px; }
+  .upload-section label { font-size: 11px; }
+  .upload-section input[type="file"] { font-size: 12px; padding: 8px; border: 1px dashed var(--medium-grey); border-radius: 6px; background: white; width: 100%; cursor: pointer; margin-top: 4px; }
+
+  /* RESPONSIVE */
+  @media (max-width: 900px) { .split-layout { grid-template-columns: 1fr; } .left-panel, .right-panel { max-height: none; } }
+  @media print { .left-panel, .top-bar { display: none; } .split-layout { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
-<div class="container">
-  <a href="/" class="back-link">&larr; Back to Dashboard</a>
 
-  <div class="header">
+<div class="top-bar">
+  <div class="logo-area">
     {% if logo %}<img src="data:image/jpeg;base64,{{ logo }}" alt="Leadway Health">{% endif %}
-    <div>
-      <h1>Pricing Tool</h1>
-      <p>Premium adequacy, renewal pricing, experience rating, and what-if scenarios</p>
-    </div>
+    <span>Pricing Tool</span>
   </div>
-
-  {% with messages = get_flashed_messages() %}{% if messages %}<div style="background:#EFF6FF;border:2px solid var(--blue);border-radius:10px;padding:16px 20px;margin-bottom:20px;font-weight:600;font-size:14px;color:var(--blue);">{{ messages[0] }}</div>{% endif %}{% endwith %}
-
-  <form class="card" action="/pricing-tool/upload" method="post" enctype="multipart/form-data">
-    <h2>Upload <span>Data</span></h2>
-
-    <label>Claims File</label>
-    <input type="file" name="claims_file" accept=".xlsx,.xls,.csv">
-    <p class="note">Historical claims data for experience rating.</p>
-
-    <label>Production / Premium File</label>
-    <input type="file" name="production_file" accept=".xlsx,.xls,.csv">
-    <p class="note">Current premium and enrolment data.</p>
-
-    <h2 style="margin-top:28px;">Pricing <span>Parameters</span></h2>
-
-    <div class="param-grid">
-      <div>
-        <label>Target MLR (%)</label>
-        <input type="number" name="target_mlr" value="85" min="50" max="100" step="1">
-      </div>
-      <div>
-        <label>Admin Fee (%)</label>
-        <input type="number" name="admin_pct" value="15" min="0" max="30" step="0.5">
-      </div>
-      <div>
-        <label>NHIA Fee (%)</label>
-        <input type="number" name="nhia_pct" value="2" min="0" max="10" step="0.5">
-      </div>
-      <div>
-        <label>Inflation Rate (%)</label>
-        <input type="number" name="inflation" value="15" min="0" max="50" step="1">
-      </div>
-      <div>
-        <label>Trend Factor (%)</label>
-        <input type="number" name="trend_factor" value="10" min="0" max="50" step="1">
-        <p class="note">Expected claims growth rate</p>
-      </div>
-      <div>
-        <label>Profit Margin (%)</label>
-        <input type="number" name="profit_margin" value="5" min="0" max="20" step="0.5">
-      </div>
-    </div>
-
-    <button type="submit" class="submit-btn">Calculate Pricing</button>
-  </form>
-
-  {% if reports %}
-  <div class="card">
-    <h2>Previous <span>Pricing Reports</span></h2>
-    <ul class="reports-list">
-      {% for r in reports %}
-      <li><a href="/report/{{ r.file }}">{{ r.name }}</a><a class="dl-btn" href="/download/{{ r.file }}"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V3"/></svg>Download</a></li>
-      {% endfor %}
-    </ul>
+  <nav>
+    <a href="/" class="active">New Quote</a>
+  </nav>
+  <div class="user-area">
+    <a href="/">Dashboard</a>
+    <a href="/logout">Sign Out</a>
   </div>
-  {% endif %}
 </div>
+
+<form id="pricingForm" class="split-layout" action="/pricing-tool/calculate" method="post" enctype="multipart/form-data">
+
+  <!-- LEFT PANEL -->
+  <div class="left-panel">
+    <a href="/" class="back-link">&larr; Dashboard</a>
+    <h2>Corporate Quote</h2>
+    <p class="subtitle">Configure plan, customise benefits, get instant pricing</p>
+
+    <!-- SECTION 1: COMPANY -->
+    <div class="section-title">Company Details</div>
+    <div class="form-group">
+      <label>Company Name</label>
+      <input type="text" name="company_name" placeholder="e.g. Dangote Industries" required>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Industry</label>
+        <select name="industry">
+          <option value="banking">Banking & Finance</option>
+          <option value="oil_gas">Oil & Gas</option>
+          <option value="tech">Technology</option>
+          <option value="fmcg">FMCG</option>
+          <option value="manufacturing">Manufacturing</option>
+          <option value="telecom">Telecommunications</option>
+          <option value="consulting">Consulting</option>
+          <option value="ngo">NGO / Development</option>
+          <option value="government">Government / Parastatal</option>
+          <option value="education">Education</option>
+          <option value="other" selected>Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Location</label>
+        <select name="location">
+          <option value="lagos" selected>Lagos</option>
+          <option value="abuja">Abuja</option>
+          <option value="ph">Port Harcourt</option>
+          <option value="other_urban">Other Urban</option>
+          <option value="nationwide">Nationwide</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Total Principals</label>
+        <input type="number" name="total_principals" value="50" min="10" required>
+      </div>
+      <div class="form-group">
+        <label>Total Dependants</label>
+        <input type="number" name="total_dependants" value="0" min="0">
+      </div>
+    </div>
+
+    <!-- SECTION 2: PLAN -->
+    <div class="section-title">Select Base Plan</div>
+    <div class="plan-grid">
+      <label class="plan-card">
+        <input type="radio" name="plan" value="PLUS" style="display:none;">
+        <div class="plan-name">PLUS</div>
+        <div class="plan-price">&#8358;121,268</div>
+        <div class="plan-tier">Tier D</div>
+      </label>
+      <label class="plan-card selected">
+        <input type="radio" name="plan" value="PRO" checked style="display:none;">
+        <div class="plan-name">PRO</div>
+        <div class="plan-price">&#8358;164,200</div>
+        <div class="plan-tier">Tier C+D</div>
+      </label>
+      <label class="plan-card">
+        <input type="radio" name="plan" value="MAX" style="display:none;">
+        <div class="plan-name">MAX</div>
+        <div class="plan-price">&#8358;262,275</div>
+        <div class="plan-tier">Tier B+C+D</div>
+      </label>
+      <label class="plan-card">
+        <input type="radio" name="plan" value="PROMAX" style="display:none;">
+        <div class="plan-name">PROMAX</div>
+        <div class="plan-price">&#8358;382,582</div>
+        <div class="plan-tier">Tier A+B+C+D</div>
+      </label>
+      <label class="plan-card">
+        <input type="radio" name="plan" value="MAGNUM" style="display:none;">
+        <div class="plan-name">MAGNUM</div>
+        <div class="plan-price">&#8358;734,250</div>
+        <div class="plan-tier">Tier A+B+C+D</div>
+      </label>
+      <label class="plan-card">
+        <input type="radio" name="plan" value="MAGNUM PLUS" style="display:none;">
+        <div class="plan-name">MAGNUM+</div>
+        <div class="plan-price">&#8358;1,737,750</div>
+        <div class="plan-tier">Tier A*+A+B+C+D</div>
+      </label>
+    </div>
+
+    <!-- SECTION 3: BENEFIT CUSTOMIZATION -->
+    <div class="section-title">Benefit Customization</div>
+
+    <div class="benefit-row">
+      <div class="benefit-left">
+        <span class="benefit-icon">&#129463;</span>
+        <div><div class="benefit-name">Dental</div><div class="benefit-base">Base: &#8358;50,000</div></div>
+      </div>
+      <div class="benefit-right">
+        <label class="toggle"><input type="checkbox" name="dental_toggle"><span class="slider"></span></label>
+        <input type="range" class="benefit-slider" name="dental_limit" min="50000" max="200000" step="10000" value="50000">
+        <span class="benefit-value" id="dental_val">&#8358;50K</span>
+      </div>
+    </div>
+
+    <div class="benefit-row">
+      <div class="benefit-left">
+        <span class="benefit-icon">&#128083;</span>
+        <div><div class="benefit-name">Optical</div><div class="benefit-base">Base: &#8358;30,000</div></div>
+      </div>
+      <div class="benefit-right">
+        <label class="toggle"><input type="checkbox" name="optical_toggle"><span class="slider"></span></label>
+        <input type="range" class="benefit-slider" name="optical_limit" min="30000" max="150000" step="10000" value="30000">
+        <span class="benefit-value" id="optical_val">&#8358;30K</span>
+      </div>
+    </div>
+
+    <div class="benefit-row">
+      <div class="benefit-left">
+        <span class="benefit-icon">&#127973;</span>
+        <div><div class="benefit-name">Surgery</div><div class="benefit-base">Base: &#8358;250,000</div></div>
+      </div>
+      <div class="benefit-right">
+        <span class="badge warning">High cost</span>
+        <label class="toggle"><input type="checkbox" name="surgery_toggle"><span class="slider"></span></label>
+        <input type="range" class="benefit-slider" name="surgery_limit" min="250000" max="3000000" step="50000" value="250000">
+        <span class="benefit-value" id="surgery_val">&#8358;250K</span>
+      </div>
+    </div>
+
+    <div class="benefit-row">
+      <div class="benefit-left">
+        <span class="benefit-icon">&#127961;</span>
+        <div><div class="benefit-name">ICU Days</div><div class="benefit-base">Base: 3 days</div></div>
+      </div>
+      <div class="benefit-right">
+        <label class="toggle"><input type="checkbox" name="icu_toggle"><span class="slider"></span></label>
+        <input type="range" class="benefit-slider" name="icu_days" min="3" max="10" step="1" value="3">
+        <span class="benefit-value" id="icu_val">3 days</span>
+      </div>
+    </div>
+
+    <div class="benefit-row">
+      <div class="benefit-left">
+        <span class="benefit-icon">&#128118;</span>
+        <div><div class="benefit-name">NICU</div><div class="benefit-base">Add neonatal ICU</div></div>
+      </div>
+      <div class="benefit-right">
+        <span class="badge danger">High risk</span>
+        <label class="toggle"><input type="checkbox" name="nicu_toggle"><span class="slider"></span></label>
+      </div>
+    </div>
+
+    <div class="benefit-row">
+      <div class="benefit-left">
+        <span class="benefit-icon">&#129516;</span>
+        <div><div class="benefit-name">Major Disease</div><div class="benefit-base">Base: &#8358;500,000</div></div>
+      </div>
+      <div class="benefit-right">
+        <label class="toggle"><input type="checkbox" name="major_disease_toggle"><span class="slider"></span></label>
+        <input type="range" class="benefit-slider" name="major_disease_limit" min="500000" max="5000000" step="100000" value="500000">
+        <span class="benefit-value" id="major_disease_val">&#8358;500K</span>
+      </div>
+    </div>
+
+    <div class="benefit-row">
+      <div class="benefit-left">
+        <span class="benefit-icon">&#128170;</span>
+        <div><div class="benefit-name">Gym / Wellness</div><div class="benefit-base">Network gym access</div></div>
+      </div>
+      <div class="benefit-right">
+        <label class="toggle"><input type="checkbox" name="gym_toggle"><span class="slider"></span></label>
+      </div>
+    </div>
+
+    <div class="benefit-row">
+      <div class="benefit-left">
+        <span class="benefit-icon">&#128137;</span>
+        <div><div class="benefit-name">Immunization</div><div class="benefit-base">Adult vaccinations</div></div>
+      </div>
+      <div class="benefit-right">
+        <label class="toggle"><input type="checkbox" name="immunization_toggle"><span class="slider"></span></label>
+      </div>
+    </div>
+
+    <!-- SECTION 4: CUSTOM REQUEST -->
+    <div class="section-title">Special Requests</div>
+    <div class="form-group">
+      <textarea name="custom_request" placeholder="e.g. Add maternity for all female staff, include international evacuation, etc."></textarea>
+    </div>
+
+    <!-- OPTIONAL FILE UPLOAD -->
+    <div class="upload-section">
+      <label>Upload claims data for experience-rated pricing (optional)</label>
+      <input type="file" name="claims_file" accept=".xlsx,.xls,.csv">
+    </div>
+
+    <button type="submit" class="btn-generate">Calculate Price</button>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+
+    {% if result %}
+    <!-- PLAN SUMMARY -->
+    <div class="output-card">
+      <h3>Plan <span>Summary</span></h3>
+      <div class="plan-summary">
+        <div class="plan-stat">
+          <div class="stat-label">Plan</div>
+          <div class="stat-value">{{ result.plan_name }}</div>
+        </div>
+        <div class="plan-stat">
+          <div class="stat-label">Lives</div>
+          <div class="stat-value">{{ result.total_lives }}</div>
+        </div>
+        <div class="plan-stat">
+          <div class="stat-label">Provider Tier</div>
+          <div class="stat-value">{{ result.provider_tier }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RISK INDICATOR -->
+    <div class="risk-indicator {{ result.risk_level }}">
+      <div class="risk-dot"></div>
+      <div class="risk-text">{{ result.risk_label }}</div>
+    </div>
+
+    <!-- COMPARISON TABLE -->
+    <div class="output-card">
+      <h3>Benefit <span>Comparison</span></h3>
+      <table class="compare-table">
+        <thead><tr><th>Benefit</th><th class="num">Base Plan</th><th class="num">Customised</th><th class="num">Impact / Member</th></tr></thead>
+        <tbody>
+          {% for b in result.comparison %}
+          <tr>
+            <td>{{ b.name }}</td>
+            <td class="num">{{ b.base }}</td>
+            <td class="num">{{ b.custom }}</td>
+            <td class="num {{ 'positive' if b.impact != '—' and b.impact != '₦0' else 'neutral' }}">{{ b.impact }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- PRICING BREAKDOWN -->
+    <div class="price-breakdown">
+      <h3>Pricing Breakdown (Per Member)</h3>
+      <div class="price-row"><span class="price-label">Base Premium</span><span class="price-amount">{{ result.base_price_fmt }}</span></div>
+      <div class="price-row"><span class="price-label">Benefit Upgrades</span><span class="price-amount">{{ result.upgrades_fmt }}</span></div>
+      <div class="price-row"><span class="price-label">Industry Loading ({{ result.industry_loading_pct }})</span><span class="price-amount">{{ result.industry_loading_fmt }}</span></div>
+      <div class="price-row"><span class="price-label">Small Group Loading</span><span class="price-amount">{{ result.small_group_fmt }}</span></div>
+      {% if result.discount > 0 %}
+      <div class="price-row discount"><span class="price-label">Volume Discount</span><span class="price-amount">-{{ result.discount_fmt }}</span></div>
+      {% endif %}
+      <div class="price-row total"><span class="price-label">Final Premium / Member</span><span class="price-amount">{{ result.final_price_fmt }}</span></div>
+    </div>
+
+    <!-- ANNUAL TOTAL -->
+    <div class="output-card">
+      <h3>Annual <span>Total</span></h3>
+      <div class="plan-summary">
+        <div class="plan-stat">
+          <div class="stat-label">Per Member</div>
+          <div class="stat-value">{{ result.final_price_fmt }}</div>
+        </div>
+        <div class="plan-stat">
+          <div class="stat-label">Total ({{ result.total_lives }} lives)</div>
+          <div class="stat-value" style="color:var(--lh-red);">{{ result.annual_total_fmt }}</div>
+        </div>
+        <div class="plan-stat">
+          <div class="stat-label">Family Rate</div>
+          <div class="stat-value">{{ result.family_price_fmt }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- UNDERWRITING DECISION -->
+    <div class="output-card">
+      <h3>Underwriting <span>Decision</span></h3>
+      <div style="margin-bottom:14px;">
+        <span class="decision-badge {{ result.decision_class }}">{{ result.decision }}</span>
+      </div>
+      <div class="uw-notes">{{ result.uw_notes }}</div>
+    </div>
+
+    <div class="output-actions">
+      <button type="button" class="btn-secondary" onclick="window.print();">&#128424; Print Quote</button>
+    </div>
+
+    {% else %}
+    <!-- EMPTY STATE -->
+    <div style="display:flex;align-items:center;justify-content:center;height:60vh;text-align:center;">
+      <div>
+        <div style="font-size:48px;margin-bottom:16px;">&#128200;</div>
+        <h3 style="font-size:20px;font-weight:800;color:var(--lh-dark);margin-bottom:8px;">Configure & Price</h3>
+        <p style="color:var(--text-muted);font-size:13px;max-width:300px;">Select a plan, customise benefits, and click <strong>Calculate Price</strong> to see the live pricing output here.</p>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</form>
+
+<script>
+// Plan card selection
+document.querySelectorAll('.plan-card').forEach(card => {
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.plan-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+  });
+});
+
+// Slider value display
+function fmtN(v) {
+  if (v >= 1000000) return '\u20A6' + (v/1000000).toFixed(1) + 'M';
+  if (v >= 1000) return '\u20A6' + (v/1000).toFixed(0) + 'K';
+  return '\u20A6' + v;
+}
+document.querySelectorAll('.benefit-slider').forEach(slider => {
+  const id = slider.name.replace('_limit','_val').replace('_days','_val');
+  const display = document.getElementById(id);
+  if (!display) return;
+  slider.addEventListener('input', () => {
+    if (slider.name === 'icu_days') { display.textContent = slider.value + ' days'; }
+    else { display.textContent = fmtN(parseInt(slider.value)); }
+  });
+});
+</script>
 </body>
 </html>
