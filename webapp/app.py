@@ -771,22 +771,43 @@ function downloadReport() {{
 
 
 # ═══════════════════════════════════════════════
-# MODULE 2 — Provider Analysis
+# PROVIDER INTELLIGENCE — Submodules
 # ═══════════════════════════════════════════════
 
-@app.route("/provider-analysis")
+PROVIDER_MODULES = {
+    "tariff-intelligence": {"title": "Tariff Intelligence", "desc": "Analyse provider charges against master tariff, identify outliers and overcharges.", "icon": "&#128200;", "color": "#1B1464"},
+    "fwa-insights": {"title": "FWA Insights", "desc": "Fraud, waste & abuse detection — flag suspicious patterns, duplicate claims, upcoding.", "icon": "&#128270;", "color": "#1B1464"},
+    "tariff-mapper": {"title": "Tariff Mapper", "desc": "Map provider codes to master tariff, reconcile naming differences, standardise billing.", "icon": "&#128268;", "color": "#1B1464"},
+    "provider-analytics": {"title": "Provider Analytics", "desc": "Provider performance scoring, cost benchmarking, network utilisation, referral patterns.", "icon": "&#127973;", "color": "#1B1464"},
+    "plan-access": {"title": "Plan Access Argument Generator", "desc": "Generate data-backed arguments for provider tier upgrades or plan access negotiations.", "icon": "&#128220;", "color": "#1B1464"},
+}
+
+
+@app.route("/tariff-intelligence")
+@app.route("/fwa-insights")
+@app.route("/tariff-mapper")
+@app.route("/provider-analytics")
+@app.route("/plan-access")
 @login_required
-def provider_analysis():
+def provider_submodule():
+    slug = request.path.strip("/")
+    mod = PROVIDER_MODULES.get(slug)
+    if not mod:
+        return redirect(url_for("index"))
     logo = get_logo_b64()
-    report_list = list_reports("Provider_")
-    return render_template("provider_analysis.html", logo=logo, reports=report_list)
+    return render_template("provider_module.html", logo=logo, module=mod, slug=slug)
 
 
-@app.route("/provider-analysis/upload", methods=["POST"])
+@app.route("/tariff-intelligence/upload", methods=["POST"])
+@app.route("/fwa-insights/upload", methods=["POST"])
+@app.route("/tariff-mapper/upload", methods=["POST"])
+@app.route("/provider-analytics/upload", methods=["POST"])
+@app.route("/plan-access/upload", methods=["POST"])
 @login_required
-def provider_analysis_upload():
-    flash("Provider Analysis module coming soon.")
-    return redirect(url_for("provider_analysis"))
+def provider_submodule_upload():
+    slug = request.path.replace("/upload", "").strip("/")
+    flash(f"{PROVIDER_MODULES.get(slug, {}).get('title', 'Module')} — coming soon.")
+    return redirect(f"/{slug}")
 
 
 # ═══════════════════════════════════════════════

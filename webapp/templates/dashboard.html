@@ -6,43 +6,56 @@
 <title>Leadway Health Analytics</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-  :root { --navy: #1A1A2E; --crimson: #C8102E; --coral: #E87722; --cream: #FAF7F2; --light-grey: #F4F4F6; --medium-grey: #E8E8EC; --white: #FFFFFF; --text-muted: #6B7280; --green: #16a34a; --blue: #2563EB; }
+  :root { --lh-red: #C61531; --lh-orange: #F15A24; --lh-dark: #262626; --lh-navy: #1B1464; --cream: #FAF7F2; --light-grey: #F4F4F6; --medium-grey: #E6E6E6; --white: #FFFFFF; --text-muted: #6B7280; --green: #16a34a; --blue: #2563EB; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Inter', sans-serif; background: var(--cream); color: var(--navy); min-height: 100vh; }
+  body { font-family: 'Inter', sans-serif; background: var(--cream); color: var(--lh-dark); min-height: 100vh; }
   .container { max-width: 1100px; margin: 0 auto; padding: 40px 20px; }
   .user-bar { display: flex; justify-content: flex-end; align-items: center; gap: 16px; margin-bottom: 16px; font-size: 13px; }
   .user-bar span { color: var(--text-muted); }
-  .user-bar a { color: var(--crimson); text-decoration: none; font-weight: 600; }
+  .user-bar a { color: var(--lh-red); text-decoration: none; font-weight: 600; }
   .user-bar a:hover { text-decoration: underline; }
-  .header { background: var(--navy); padding: 40px; border-radius: 16px; margin-bottom: 40px; display: flex; align-items: center; gap: 24px; }
+
+  .header { background: var(--lh-dark); padding: 40px; border-radius: 16px; margin-bottom: 40px; display: flex; align-items: center; gap: 24px; }
   .header img { height: 60px; }
   .header h1 { color: white; font-weight: 800; font-size: 28px; }
-  .header p { color: rgba(255,255,255,0.7); font-size: 14px; margin-top: 4px; }
-  .modules-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 24px; margin-bottom: 40px; }
-  .module-card { background: var(--white); border-radius: 14px; padding: 28px 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); border: 2px solid transparent; transition: all 0.25s; cursor: pointer; text-decoration: none; color: inherit; display: block; position: relative; overflow: hidden; }
-  .module-card:hover { border-color: var(--crimson); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
-  .module-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; font-size: 22px; }
-  .module-icon.red { background: #FEE2E2; color: var(--crimson); }
-  .module-icon.orange { background: #FFF7ED; color: var(--coral); }
-  .module-icon.green { background: #F0FDF4; color: var(--green); }
-  .module-icon.blue { background: #EFF6FF; color: var(--blue); }
-  .module-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
-  .module-card p { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
-  .module-tag { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; padding: 3px 8px; border-radius: 4px; margin-top: 14px; }
-  .module-tag.analysis { background: #EFF6FF; color: var(--blue); }
-  .module-tag.financial { background: #FFF7ED; color: var(--coral); }
-  .module-tag.operations { background: #F0FDF4; color: var(--green); }
+  .header p { color: rgba(255,255,255,0.6); font-size: 14px; margin-top: 4px; }
 
+  /* MODULE SECTIONS */
+  .module-section { margin-bottom: 40px; }
+  .module-header { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+  .module-number { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; color: white; flex-shrink: 0; }
+  .module-number.red { background: var(--lh-red); }
+  .module-number.navy { background: var(--lh-navy); }
+  .module-title { font-size: 20px; font-weight: 800; color: var(--lh-dark); }
+  .module-desc { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+
+  /* SUB-MODULE CARDS */
+  .sub-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 16px; }
+  .sub-card { background: var(--white); border-radius: 12px; padding: 22px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); border: 2px solid transparent; transition: all 0.2s; cursor: pointer; text-decoration: none; color: inherit; display: block; }
+  .sub-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.08); }
+  .sub-card.red:hover { border-color: var(--lh-red); }
+  .sub-card.navy:hover { border-color: var(--lh-navy); }
+  .sub-icon { font-size: 24px; margin-bottom: 12px; }
+  .sub-card h3 { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+  .sub-card p { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+  .sub-tag { display: inline-block; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; padding: 2px 7px; border-radius: 3px; margin-top: 10px; }
+  .sub-tag.live { background: #F0FDF4; color: var(--green); }
+  .sub-tag.soon { background: var(--light-grey); color: var(--text-muted); }
+
+  /* DIVIDER */
+  .divider { height: 1px; background: var(--medium-grey); margin: 8px 0 40px; }
+
+  /* RECENT REPORTS */
   .recent-section { background: var(--white); border-radius: 14px; padding: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
-  .recent-section h2 { font-size: 20px; font-weight: 700; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--medium-grey); }
-  .recent-section h2 span { color: var(--crimson); }
+  .recent-section h2 { font-size: 18px; font-weight: 700; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--medium-grey); }
+  .recent-section h2 span { color: var(--lh-red); }
   .reports-list { list-style: none; }
-  .reports-list li { padding: 12px 16px; border-bottom: 1px solid var(--light-grey); display: flex; align-items: center; justify-content: space-between; }
-  .reports-list li:hover { background: #E8F4FD; }
-  .reports-list a { text-decoration: none; color: var(--navy); font-weight: 500; }
-  .dl-btn { display: inline-flex; align-items: center; gap: 4px; padding: 6px 14px; background: var(--crimson); color: white; border: none; border-radius: 6px; font-family: inherit; font-size: 12px; font-weight: 600; text-decoration: none; cursor: pointer; transition: background 0.2s; white-space: nowrap; }
+  .reports-list li { padding: 10px 14px; border-bottom: 1px solid var(--light-grey); display: flex; align-items: center; justify-content: space-between; }
+  .reports-list li:hover { background: var(--light-grey); }
+  .reports-list a { text-decoration: none; color: var(--lh-dark); font-weight: 500; font-size: 13px; }
+  .dl-btn { display: inline-flex; align-items: center; gap: 4px; padding: 5px 12px; background: var(--lh-red); color: white; border: none; border-radius: 6px; font-family: inherit; font-size: 11px; font-weight: 600; text-decoration: none; cursor: pointer; transition: background 0.2s; white-space: nowrap; }
   .dl-btn:hover { background: #a00d24; }
-  .dl-btn svg { width: 14px; height: 14px; }
+  .dl-btn svg { width: 13px; height: 13px; }
 </style>
 </head>
 <body>
@@ -57,41 +70,88 @@
     {% if logo %}<img src="data:image/jpeg;base64,{{ logo }}" alt="Leadway Health">{% endif %}
     <div>
       <h1>Analytics Platform</h1>
-      <p>Health insurance analytics, reporting, and decision-support tools</p>
+      <p>Underwriting, pricing, and provider intelligence tools</p>
     </div>
   </div>
 
-  <div class="modules-grid">
-    <a href="/utilization" class="module-card">
-      <div class="module-icon red">&#128202;</div>
-      <h3>Utilization Report</h3>
-      <p>Claims analysis, MLR, disease categories, early high claimers, and key recommendations.</p>
-      <span class="module-tag analysis">Analysis</span>
-    </a>
+  <!-- MODULE 1: UNDERWRITING & PRICING -->
+  <div class="module-section">
+    <div class="module-header">
+      <div class="module-number red">1</div>
+      <div>
+        <div class="module-title">Underwriting & Pricing</div>
+        <div class="module-desc">Claims analytics, plan pricing, benefit design, and underwriting decisions</div>
+      </div>
+    </div>
+    <div class="sub-grid">
+      <a href="/utilization" class="sub-card red">
+        <div class="sub-icon">&#128202;</div>
+        <h3>Utilization Report</h3>
+        <p>Claims analysis, MLR, disease categories, early high claimers, recommendations.</p>
+        <span class="sub-tag live">Live</span>
+      </a>
+      <a href="/benefit-benchmarking" class="sub-card red">
+        <div class="sub-icon">&#128203;</div>
+        <h3>Benefit Benchmarking</h3>
+        <p>Plan comparison, benefit utilisation by category, sub-limit tracking, gap analysis.</p>
+        <span class="sub-tag soon">Coming soon</span>
+      </a>
+      <a href="/pricing-tool" class="sub-card red">
+        <div class="sub-icon">&#128176;</div>
+        <h3>Pricing Tool</h3>
+        <p>Corporate quoting, benefit customisation, experience rating, underwriting decisions.</p>
+        <span class="sub-tag live">Live</span>
+      </a>
+    </div>
+  </div>
 
-    <a href="/provider-analysis" class="module-card">
-      <div class="module-icon orange">&#127973;</div>
-      <h3>Provider Analysis</h3>
-      <p>Provider performance, cost benchmarking, network utilisation, and tariff analysis.</p>
-      <span class="module-tag operations">Operations</span>
-    </a>
+  <div class="divider"></div>
 
-    <a href="/benefit-benchmarking" class="module-card">
-      <div class="module-icon green">&#128203;</div>
-      <h3>Benefit Benchmarking</h3>
-      <p>Plan design comparison, benefit utilisation by category, sub-limit tracking, and gap analysis.</p>
-      <span class="module-tag analysis">Analysis</span>
-    </a>
-
-    <a href="/pricing-tool" class="module-card">
-      <div class="module-icon blue">&#128176;</div>
-      <h3>Pricing Tool</h3>
-      <p>Premium adequacy, renewal pricing, experience rating, and what-if scenario modelling.</p>
-      <span class="module-tag financial">Financial</span>
-    </a>
+  <!-- MODULE 2: PROVIDER INTELLIGENCE -->
+  <div class="module-section">
+    <div class="module-header">
+      <div class="module-number navy">2</div>
+      <div>
+        <div class="module-title">Provider Intelligence</div>
+        <div class="module-desc">Provider analytics, tariff management, fraud detection, and network optimisation</div>
+      </div>
+    </div>
+    <div class="sub-grid">
+      <a href="/tariff-intelligence" class="sub-card navy">
+        <div class="sub-icon">&#128200;</div>
+        <h3>Tariff Intelligence</h3>
+        <p>Analyse provider charges against master tariff, identify outliers and overcharges.</p>
+        <span class="sub-tag soon">Coming soon</span>
+      </a>
+      <a href="/fwa-insights" class="sub-card navy">
+        <div class="sub-icon">&#128270;</div>
+        <h3>FWA Insights</h3>
+        <p>Fraud, waste & abuse detection — flag suspicious patterns, duplicate claims, upcoding.</p>
+        <span class="sub-tag soon">Coming soon</span>
+      </a>
+      <a href="/tariff-mapper" class="sub-card navy">
+        <div class="sub-icon">&#128268;</div>
+        <h3>Tariff Mapper</h3>
+        <p>Map provider codes to master tariff, reconcile naming differences, standardise billing.</p>
+        <span class="sub-tag soon">Coming soon</span>
+      </a>
+      <a href="/provider-analytics" class="sub-card navy">
+        <div class="sub-icon">&#127973;</div>
+        <h3>Provider Analytics</h3>
+        <p>Provider performance scoring, cost benchmarking, network utilisation, referral patterns.</p>
+        <span class="sub-tag soon">Coming soon</span>
+      </a>
+      <a href="/plan-access" class="sub-card navy">
+        <div class="sub-icon">&#128220;</div>
+        <h3>Plan Access Argument Generator</h3>
+        <p>Generate data-backed arguments for provider tier upgrades or plan access negotiations.</p>
+        <span class="sub-tag soon">Coming soon</span>
+      </a>
+    </div>
   </div>
 
   {% if reports %}
+  <div class="divider"></div>
   <div class="recent-section">
     <h2>Recent <span>Reports</span></h2>
     <ul class="reports-list">
