@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leadway Health Analytics Platform — Features Document</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+  :root { --lh-red: #C61531; --lh-orange: #F15A24; --lh-dark: #262626; --lh-navy: #1B1464; --cream: #FAF7F2; --light: #F4F4F6; --grey: #E6E6E6; --white: #FFF; --muted: #6B7280; --green: #16a34a; --blue: #2563EB; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: var(--cream); color: var(--lh-dark); line-height: 1.7; font-size: 14px; }
+
+  /* Hero */
+  .hero { background: linear-gradient(135deg, var(--lh-red) 0%, #8B0A1E 100%); color: white; padding: 80px 40px 60px; }
+  .hero .container { max-width: 1100px; margin: 0 auto; }
+  .hero h1 { font-weight: 900; font-size: 42px; margin-bottom: 8px; }
+  .hero .subtitle { font-size: 18px; opacity: 0.8; font-weight: 400; margin-bottom: 40px; }
+  .meta-bar { display: flex; gap: 40px; flex-wrap: wrap; }
+  .meta-item .meta-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; opacity: 0.5; }
+  .meta-item .meta-value { font-size: 15px; font-weight: 600; margin-top: 4px; }
+
+  /* Container */
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 20px; }
+  .content { padding: 60px 0; }
+
+  /* Section headings */
+  h2 { font-size: 28px; font-weight: 800; color: var(--lh-red); margin-bottom: 8px; margin-top: 60px; }
+  h2:first-of-type { margin-top: 0; }
+  .section-line { width: 60px; height: 3px; background: var(--lh-red); margin-bottom: 24px; }
+  h3 { font-size: 18px; font-weight: 700; color: var(--lh-dark); margin: 32px 0 12px; }
+  h4 { font-size: 14px; font-weight: 700; color: var(--lh-navy); margin: 20px 0 8px; }
+  p { color: #4B5563; margin-bottom: 16px; }
+
+  /* Stat cards */
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin: 32px 0; }
+  .stat-card { background: var(--white); border-radius: 12px; padding: 24px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .stat-card .stat-val { font-size: 32px; font-weight: 900; color: var(--lh-dark); }
+  .stat-card .stat-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin-top: 6px; }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; margin: 20px 0 32px; font-size: 13px; }
+  thead th { background: var(--lh-dark); color: white; padding: 12px 14px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  tbody td { padding: 12px 14px; border-bottom: 1px solid var(--light); }
+  tbody tr:hover { background: var(--light); }
+  tbody tr:nth-child(even) { background: #FAFAFA; }
+
+  /* Feature cards */
+  .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 24px 0; }
+  .feature-card { background: var(--white); border-radius: 14px; padding: 24px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); border-left: 4px solid var(--lh-red); }
+  .feature-card.navy { border-left-color: var(--lh-navy); }
+  .feature-card.green { border-left-color: var(--green); }
+  .feature-card.blue { border-left-color: var(--blue); }
+  .feature-card .fc-icon { font-size: 24px; margin-bottom: 10px; }
+  .feature-card h4 { margin: 0 0 8px; font-size: 15px; color: var(--lh-dark); }
+  .feature-card p { font-size: 12px; margin: 0; color: var(--muted); line-height: 1.6; }
+
+  /* Tags */
+  .tag { display: inline-block; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; padding: 3px 8px; border-radius: 4px; margin-left: 8px; vertical-align: middle; }
+  .tag.live { background: #F0FDF4; color: var(--green); }
+  .tag.soon { background: var(--light); color: var(--muted); }
+
+  /* Lists */
+  ul { padding-left: 20px; margin-bottom: 16px; }
+  li { margin-bottom: 6px; color: #4B5563; }
+  li strong { color: var(--lh-dark); }
+
+  /* Roadmap */
+  .roadmap-item { background: var(--white); border-radius: 12px; padding: 20px 24px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); display: flex; align-items: center; gap: 16px; }
+  .roadmap-icon { font-size: 24px; flex-shrink: 0; }
+  .roadmap-title { font-weight: 700; font-size: 14px; color: var(--lh-dark); }
+  .roadmap-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .roadmap-tag { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-left: auto; flex-shrink: 0; }
+  .roadmap-tag.ready { background: #F0FDF4; color: var(--green); }
+  .roadmap-tag.pending { background: #FFF7ED; color: var(--lh-orange); }
+  .roadmap-tag.planned { background: #EFF6FF; color: var(--blue); }
+
+  /* Footer */
+  .footer { background: var(--lh-dark); color: rgba(255,255,255,0.5); padding: 40px; margin-top: 60px; text-align: center; font-size: 12px; }
+  .footer strong { color: rgba(255,255,255,0.8); }
+
+  @media (max-width: 768px) { .hero h1 { font-size: 28px; } .meta-bar { gap: 20px; } .feature-grid { grid-template-columns: 1fr; } }
+  @media print { .hero { padding: 40px; } }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="container">
+    <h1>Leadway Health Analytics Platform</h1>
+    <div class="subtitle">Product Features &amp; Capabilities Document</div>
+    <div class="meta-bar">
+      <div class="meta-item"><div class="meta-label">Version</div><div class="meta-value">1.0</div></div>
+      <div class="meta-item"><div class="meta-label">Date</div><div class="meta-value">April 2026</div></div>
+      <div class="meta-item"><div class="meta-label">Platform</div><div class="meta-value">Flask Web Application</div></div>
+      <div class="meta-item"><div class="meta-label">Data Engine</div><div class="meta-value">Python + Pandas</div></div>
+      <div class="meta-item"><div class="meta-label">Deployment</div><div class="meta-value">Render</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="container content">
+
+<!-- 1. OVERVIEW -->
+<h2>1. Overview</h2>
+<div class="section-line"></div>
+<p>The Leadway Health Analytics Platform is an internal decision-support tool for the underwriting, pricing, and provider management teams. It automates utilization reporting, benefit benchmarking, corporate plan pricing, and provider analytics — replacing manual Excel-based workflows with instant, branded HTML reports.</p>
+
+<div class="stat-grid">
+  <div class="stat-card"><div class="stat-val">4</div><div class="stat-label">Live Modules</div></div>
+  <div class="stat-card"><div class="stat-val">6</div><div class="stat-label">Plan Tiers</div></div>
+  <div class="stat-card"><div class="stat-val">23</div><div class="stat-label">Benefit Categories</div></div>
+  <div class="stat-card"><div class="stat-val">9</div><div class="stat-label">Report Sections</div></div>
+  <div class="stat-card"><div class="stat-val">2,700+</div><div class="stat-label">Providers in Network</div></div>
+</div>
+
+<!-- 2. MODULES -->
+<h2>2. Module 1 — Underwriting &amp; Pricing</h2>
+<div class="section-line"></div>
+
+<h3>2.1 Utilization Report <span class="tag live">Live</span></h3>
+<p>Upload claims and production/premium files to generate a comprehensive HTML analytics report for any corporate client.</p>
+
+<table>
+  <thead><tr><th>#</th><th>Report Section</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>Executive Overview KPIs</td><td>Total Incurred, Paid Claims, Pipeline, Earned Premium, Written Premium, MLR, COR, Members, Avg/Member</td></tr>
+    <tr><td>2</td><td>MLR &amp; COR Breakdown</td><td>Paid + Pipeline + IBNR = Total Incurred. Admin fee, NHIA fee, broker fee applied to compute COR</td></tr>
+    <tr><td>3</td><td>Monthly Claims Trend</td><td>Month-by-month: Unique Claims, Members, Total Paid, Avg/Member, Visits/Member</td></tr>
+    <tr><td>4</td><td>Top 10 Providers</td><td>Ranked by total paid with % of total and claim count</td></tr>
+    <tr><td>5</td><td>Department Breakdown</td><td>Top 15 departments by spend</td></tr>
+    <tr><td>6</td><td>Top 10 Disease Categories</td><td>Diagnoses grouped into 16 broad bands (Malaria, Respiratory, Cardiovascular, Diabetes, GI, etc.)</td></tr>
+    <tr><td>7</td><td>MLR by Age Group</td><td>Age bands (0-5 through 71+) with color-coded MLR, earned premium per group, avg/member</td></tr>
+    <tr><td>8</td><td>Early High Claimers</td><td>Members spending &gt;&#8358;200K within 30 days of enrolment. Shows Member ID + initials, join date, spend/premium ratio</td></tr>
+    <tr><td>9</td><td>What Went Wrong</td><td>Auto-generated when MLR &gt;90%. Identifies cost drivers, provider concentration, utilisation rates, pipeline/IBNR exposure</td></tr>
+    <tr><td>10</td><td>Is the Plan Adequately Priced?</td><td>Auto-generated when MLR &gt;100%. Shows shortfall, required premium for 85% MLR target, per-member deficit</td></tr>
+    <tr><td>11</td><td>Key Recommendations</td><td>Contextual, data-driven advice: premium review, provider negotiation, wellness programmes, benefit redesign</td></tr>
+  </tbody>
+</table>
+
+<h4>Data Handling</h4>
+<ul>
+  <li><strong>Date parsing:</strong> Handles dd/mm/yyyy HH:MM:SS, Excel serial numbers, and corrupted #### values</li>
+  <li><strong>Effective spend:</strong> Uses Amt Paid for paid claims, falls back to Amt Claimed for pipeline (excludes abandoned)</li>
+  <li><strong>Service type normalisation:</strong> MTN PHA &rarr; Outpatient</li>
+  <li><strong>Disease classification:</strong> 16 keyword-based categories covering 100+ diagnosis patterns</li>
+  <li><strong>IBNR estimation:</strong> Chain-ladder methodology based on treatment-to-received date lag</li>
+</ul>
+
+<h3>2.2 Pricing Tool <span class="tag live">Live</span></h3>
+<p>Split-panel corporate underwriting tool for instant plan quoting with actuarial pricing logic.</p>
+
+<div class="feature-grid">
+  <div class="feature-card">
+    <div class="fc-icon">&#128196;</div>
+    <h4>Company Risk Intake</h4>
+    <p>Company name, industry (11 sectors), location, total principals + dependants. Industry risk loadings: Oil &amp; Gas +20%, Manufacturing +15%, Banking +5%.</p>
+  </div>
+  <div class="feature-card">
+    <div class="fc-icon">&#128176;</div>
+    <h4>Plan Selection</h4>
+    <p>6 plan cards with real 2026 premiums: PLUS (&#8358;121K), PRO (&#8358;164K), MAX (&#8358;262K), PROMAX (&#8358;383K), MAGNUM (&#8358;734K), MAGNUM+ (&#8358;1.74M).</p>
+  </div>
+  <div class="feature-card">
+    <div class="fc-icon">&#9881;</div>
+    <h4>Benefit Customisation</h4>
+    <p>Toggle + slider UI for 8 benefits: Dental, Optical, Surgery, ICU Days, NICU, Major Disease, Gym, Immunization. Real-time cost impact.</p>
+  </div>
+  <div class="feature-card">
+    <div class="fc-icon">&#128200;</div>
+    <h4>Pricing Engine</h4>
+    <p>Base premium + upgrade costs (utilisation &times; avg cost &times; factor) + industry loading + small group loading (&lt;50 lives) + multi-upgrade loading - volume discount (100+ lives).</p>
+  </div>
+  <div class="feature-card">
+    <div class="fc-icon">&#128680;</div>
+    <h4>Risk Assessment</h4>
+    <p>Auto risk badge: Low (green) / Moderate (orange) / High (red). High risk = NICU added or Surgery + ICU on premium tier.</p>
+  </div>
+  <div class="feature-card">
+    <div class="fc-icon">&#128221;</div>
+    <h4>Underwriting Decision</h4>
+    <p>Auto-generated: APPROVED / REVIEW REQUIRED / ESCALATE. With detailed underwriter notes citing specific risk factors.</p>
+  </div>
+</div>
+
+<h3>2.3 Benefit Benchmarking <span class="tag live">Live</span></h3>
+<p>Three-mode benefit comparison tool for sales, underwriting, and client proposals.</p>
+
+<table>
+  <thead><tr><th>Mode</th><th>Input</th><th>Output</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Compare 2 Plans</strong></td><td>Select any two Leadway plans</td><td>Side-by-side table of 23 benefits. Green = better coverage, amber = lower. Download as HTML.</td></tr>
+    <tr><td><strong>Multi-Plan View</strong></td><td>Checkbox 3-6 plans</td><td>Wide comparison table with all plans as columns. Best value per row highlighted. Sticky headers.</td></tr>
+    <tr><td><strong>Client vs Leadway</strong></td><td>Upload client benefit file + select Leadway plan</td><td>Comparison table + scorecard (Leadway wins vs Client wins) + selling point banner + <strong>auto-generated proposal</strong> with plan recommendation, coverage gaps, and suggested premium.</td></tr>
+  </tbody>
+</table>
+
+<h4>Auto-Generated Proposal (Client vs Leadway)</h4>
+<ul>
+  <li><strong>Key Selling Points:</strong> Top 5 benefits where Leadway exceeds the client's current plan</li>
+  <li><strong>Coverage Gaps:</strong> Where the client has better coverage — with upgrade suggestions</li>
+  <li><strong>Plan Recommendation:</strong> Automatically checks if upgrading one tier fixes &gt;50% of gaps and recommends accordingly</li>
+  <li><strong>Recommended Premium:</strong> Shows the per-member annual premium for the suggested plan</li>
+</ul>
+
+<!-- 3. PROVIDER INTELLIGENCE -->
+<h2>3. Module 2 — Provider Intelligence</h2>
+<div class="section-line"></div>
+
+<h3>3.1 Provider Analytics <span class="tag live">Live</span></h3>
+<p>Upload a claims file to generate a comprehensive provider analytics report with 9 sections.</p>
+
+<table>
+  <thead><tr><th>#</th><th>Section</th><th>Details</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>KPIs</td><td>Total spend, members, claims, avg/visit, avg/member, provider count</td></tr>
+    <tr><td>2</td><td>Service Type Split</td><td>OPD / IPD / Maternity with % of total spend and visit count</td></tr>
+    <tr><td>3</td><td>Monthly Claims Trend</td><td>Month-on-month % change, avg/member, avg/visit per month</td></tr>
+    <tr><td>4</td><td>Provider Summary</td><td>Top 20 providers by spend with per-member cost</td></tr>
+    <tr><td>5</td><td>Group Breakdown</td><td>By employer group with % of total and per-member cost</td></tr>
+    <tr><td>6</td><td>Top 30 Tariff Lines</td><td>By spend with % of total + cumulative % (concentration analysis)</td></tr>
+    <tr><td>7</td><td>Chronic Medication</td><td>Drug-level breakdown with avg per dispense, % of total spend</td></tr>
+    <tr><td>8</td><td>Diagnosis Patterns</td><td>Top 20 diagnoses with vague diagnosis detection (upcoding risk flags)</td></tr>
+    <tr><td>9</td><td>Top Enrollees</td><td>With family ID grouping, multi-provider flags (&gt;5 hospitals), top spender flags</td></tr>
+  </tbody>
+</table>
+
+<h3>3.2 Tariff Intelligence <span class="tag soon">Coming Soon</span></h3>
+<p>Analyse provider charges against the master tariff to identify outliers, overcharges, and billing anomalies.</p>
+
+<h3>3.3 FWA Insights <span class="tag soon">Coming Soon</span></h3>
+<p>Fraud, waste &amp; abuse detection — flag suspicious patterns, duplicate claims, upcoding, and phantom billing.</p>
+
+<h3>3.4 Tariff Mapper <span class="tag soon">Coming Soon</span></h3>
+<p>Map provider-specific codes to the Leadway master tariff. Reconcile naming differences and standardise billing across the network.</p>
+
+<h3>3.5 Plan Access Argument Generator <span class="tag soon">Coming Soon</span></h3>
+<p>Generate data-backed arguments for provider tier upgrades or plan access negotiations.</p>
+
+<!-- 4. PLATFORM FEATURES -->
+<h2>4. Platform Features</h2>
+<div class="section-line"></div>
+
+<div class="feature-grid">
+  <div class="feature-card navy">
+    <div class="fc-icon">&#128274;</div>
+    <h4>Authentication &amp; Access Control</h4>
+    <p>Login system with email/password. Admin and User roles. Admins can add/remove users and manage access.</p>
+  </div>
+  <div class="feature-card navy">
+    <div class="fc-icon">&#128196;</div>
+    <h4>Report Management</h4>
+    <p>All generated reports saved with timestamps. Previous reports listed with view and download buttons. HTML reports with embedded styling.</p>
+  </div>
+  <div class="feature-card navy">
+    <div class="fc-icon">&#127912;</div>
+    <h4>Leadway Branding</h4>
+    <p>Brand colours from style guide: #C61531 (crimson), #1B1464 (navy), #F15A24 (orange), #262626 (dark). Leadway Health logo on all reports.</p>
+  </div>
+  <div class="feature-card navy">
+    <div class="fc-icon">&#128229;</div>
+    <h4>Download &amp; Export</h4>
+    <p>Download any report as standalone HTML. Download buttons on individual reports and the previous reports list.</p>
+  </div>
+  <div class="feature-card navy">
+    <div class="fc-icon">&#128295;</div>
+    <h4>Auto Column Detection</h4>
+    <p>Smart column mapper handles Leadway export formats: Treatment Date, MemberShipNo, Amt Paid, SERVICE Type (with newlines), and 30+ column aliases.</p>
+  </div>
+  <div class="feature-card navy">
+    <div class="fc-icon">&#128197;</div>
+    <h4>Robust Date Handling</h4>
+    <p>Parses dd/mm/yyyy HH:MM:SS, Excel serial numbers (30000-60000), and corrupted #### values. Auto-detects format.</p>
+  </div>
+</div>
+
+<!-- 5. DATA ARCHITECTURE -->
+<h2>5. Technical Architecture</h2>
+<div class="section-line"></div>
+
+<table>
+  <thead><tr><th>Component</th><th>Details</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Framework</strong></td><td>Flask (Python 3.14)</td></tr>
+    <tr><td><strong>Data Processing</strong></td><td>Pandas, NumPy, openpyxl</td></tr>
+    <tr><td><strong>Deployment</strong></td><td>Render Web Service with Gunicorn</td></tr>
+    <tr><td><strong>Authentication</strong></td><td>Werkzeug password hashing, Flask sessions</td></tr>
+    <tr><td><strong>Storage</strong></td><td>File-based: JSON (users), HTML (reports), uploaded files</td></tr>
+    <tr><td><strong>Max Upload</strong></td><td>100MB per file</td></tr>
+    <tr><td><strong>Benefit Data</strong></td><td>2026 Corporate Standard Benefit hardcoded (6 plan tiers, 23 benefit categories)</td></tr>
+    <tr><td><strong>Provider Data</strong></td><td>2,700+ providers across 6 zones, categories D through A++</td></tr>
+  </tbody>
+</table>
+
+<!-- 6. ROADMAP -->
+<h2>6. Roadmap</h2>
+<div class="section-line"></div>
+
+<div class="roadmap-item">
+  <div class="roadmap-icon">&#128200;</div>
+  <div><div class="roadmap-title">Tariff Intelligence</div><div class="roadmap-desc">Benchmark provider charges against master tariff. Identify outliers and overcharges.</div></div>
+  <div class="roadmap-tag planned">Planned</div>
+</div>
+
+<div class="roadmap-item">
+  <div class="roadmap-icon">&#128270;</div>
+  <div><div class="roadmap-title">FWA Insights</div><div class="roadmap-desc">AI-powered fraud, waste &amp; abuse detection with Claude narrative analysis.</div></div>
+  <div class="roadmap-tag planned">Planned</div>
+</div>
+
+<div class="roadmap-item">
+  <div class="roadmap-icon">&#128268;</div>
+  <div><div class="roadmap-title">Tariff Mapper</div><div class="roadmap-desc">Provider code-to-tariff mapping with fuzzy matching and standardisation.</div></div>
+  <div class="roadmap-tag planned">Planned</div>
+</div>
+
+<div class="roadmap-item">
+  <div class="roadmap-icon">&#128220;</div>
+  <div><div class="roadmap-title">Plan Access Argument Generator</div><div class="roadmap-desc">Data-backed arguments for provider tier upgrades and access negotiations.</div></div>
+  <div class="roadmap-tag planned">Planned</div>
+</div>
+
+<div class="roadmap-item">
+  <div class="roadmap-icon">&#128640;</div>
+  <div><div class="roadmap-title">API Integration</div><div class="roadmap-desc">Direct database connectivity to replace manual file uploads. Auto-populate client list, policy periods, and claims data.</div></div>
+  <div class="roadmap-tag pending">Pending API</div>
+</div>
+
+<div class="roadmap-item">
+  <div class="roadmap-icon">&#129302;</div>
+  <div><div class="roadmap-title">AI-Powered Analysis</div><div class="roadmap-desc">Claude AI integration for high-cost case review, bundling detection, and narrative report generation.</div></div>
+  <div class="roadmap-tag ready">Ready</div>
+</div>
+
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <strong>Leadway Health HMO Limited</strong><br>
+  121/123 Funsho Williams Avenue, Surulere, Lagos &bull; 07080627051 &bull; healthcare@leadway.com<br><br>
+  Document generated April 2026. Confidential &mdash; for internal use only.
+</div>
+
+</body>
+</html>

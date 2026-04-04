@@ -1764,5 +1764,10 @@ def download_report(filename):
     return send_file(REPORTS_DIR / filename, as_attachment=True)
 
 
+@app.route("/features-doc")
+def features_doc():
+    return render_template("features_doc.html")
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
