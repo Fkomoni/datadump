@@ -79,7 +79,9 @@
   .footer strong { color: rgba(255,255,255,0.8); }
 
   @media (max-width: 768px) { .hero h1 { font-size: 28px; } .meta-bar { gap: 20px; } .feature-grid { grid-template-columns: 1fr; } }
-  @media print { .hero { padding: 40px; } }
+  .dl-float { position: fixed; bottom: 30px; right: 30px; display: inline-flex; align-items: center; gap: 8px; padding: 14px 24px; background: var(--lh-dark); color: white; border: none; border-radius: 12px; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 20px rgba(0,0,0,0.2); transition: all 0.2s; text-decoration: none; z-index: 100; }
+  .dl-float:hover { background: var(--lh-red); transform: translateY(-2px); box-shadow: 0 6px 24px rgba(0,0,0,0.3); }
+  @media print { .hero { padding: 40px; } .dl-float { display: none; } }
 </style>
 </head>
 <body>
@@ -340,6 +342,8 @@
   121/123 Funsho Williams Avenue, Surulere, Lagos &bull; 07080627051 &bull; healthcare@leadway.com<br><br>
   Document generated April 2026. Confidential &mdash; for internal use only.
 </div>
+
+<button class="dl-float" onclick="(function(){var a=document.createElement('a');a.href='data:text/html;charset=utf-8,'+encodeURIComponent(document.documentElement.outerHTML);a.download='Leadway_Analytics_Features_Doc.html';a.style.display='none';document.body.appendChild(a);a.click();document.body.removeChild(a);})()">&#11015; Download Document</button>
 
 </body>
 </html>
