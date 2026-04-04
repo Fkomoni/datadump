@@ -1136,6 +1136,55 @@ def generate_provider_report(df, session_id):
 # MODULE 3 — Benefit Benchmarking
 # ═══════════════════════════════════════════════
 
+LEADWAY_BENEFITS = [
+    {"category": "network", "row": "Provider Network", "PLUS": "Category D", "PRO": "Category C + D", "MAX": "Category B+C+D", "PROMAX": "Category A+B+C+D", "MAGNUM": "Category A+B+C+D", "MAGNUM PLUS": "Category A*+A+B+C+D"},
+    {"category": "territory", "row": "Territory", "PLUS": "Nigeria + India", "PRO": "Nigeria + India", "MAX": "Nigeria + W.Africa + India + UAE", "PROMAX": "Local + Africa + India + UAE", "MAGNUM": "Local + Africa + India + UAE", "MAGNUM PLUS": "Local + Africa + India + UAE"},
+    {"category": "admission", "row": "Admission / Ward Type", "PLUS": "General ward (Unlimited)", "PRO": "Semi Private (Unlimited)", "MAX": "Private ward (Unlimited)", "PROMAX": "Private ward (Unlimited)", "MAGNUM": "Private ward (Unlimited)", "MAGNUM PLUS": "Private ward (Unlimited)"},
+    {"category": "icu", "row": "Intensive Care", "PLUS": "500,000", "PRO": "500,000", "MAX": "750,000", "PROMAX": "1,000,000", "MAGNUM": "1,500,000", "MAGNUM PLUS": "3,000,000"},
+    {"category": "psychiatric", "row": "Psychiatric Hospitalisation", "PLUS": "2 days", "PRO": "3 days", "MAX": "5 days", "PROMAX": "7 days", "MAGNUM": "10 days", "MAGNUM PLUS": "15 days"},
+    {"category": "maternity", "row": "Maternity (In-Network)", "PLUS": "Covered", "PRO": "Covered", "MAX": "Covered", "PROMAX": "Covered", "MAGNUM": "Covered", "MAGNUM PLUS": "Covered"},
+    {"category": "neonatal", "row": "Neonatal Care (incl. incubator)", "PLUS": "500,000", "PRO": "750,000", "MAX": "3,500,000", "PROMAX": "5,000,000", "MAGNUM": "7,500,000", "MAGNUM PLUS": "10,000,000"},
+    {"category": "congenital", "row": "Congenital Anomaly Treatment", "PLUS": "250,000", "PRO": "300,000", "MAX": "500,000", "PROMAX": "750,000", "MAGNUM": "1,000,000", "MAGNUM PLUS": "2,000,000"},
+    {"category": "major disease", "row": "Major Disease (Cancer, Stroke)", "PLUS": "300,000", "PRO": "400,000", "MAX": "1,000,000", "PROMAX": "2,000,000", "MAGNUM": "5,000,000", "MAGNUM PLUS": "10,000,000"},
+    {"category": "dialysis", "row": "Renal Dialysis", "PLUS": "100,000", "PRO": "4 sessions", "MAX": "6 sessions", "PROMAX": "8 sessions", "MAGNUM": "12 sessions", "MAGNUM PLUS": "Unlimited"},
+    {"category": "surgery", "row": "Surgeries (Minor to Tertiary)", "PLUS": "400,000", "PRO": "500,000", "MAX": "Covered", "PROMAX": "Covered", "MAGNUM": "Covered", "MAGNUM PLUS": "Covered"},
+    {"category": "spine", "row": "Spine Surgery", "PLUS": "300,000", "PRO": "400,000", "MAX": "1,000,000", "PROMAX": "1,500,000", "MAGNUM": "2,000,000", "MAGNUM PLUS": "3,000,000"},
+    {"category": "optical", "row": "Lenses & Frames (Once/2 Years)", "PLUS": "20,000", "PRO": "25,000", "MAX": "45,000", "PROMAX": "60,000", "MAGNUM": "80,000", "MAGNUM PLUS": "100,000"},
+    {"category": "dental", "row": "Primary Dental", "PLUS": "30,000", "PRO": "50,000", "MAX": "120,000", "PROMAX": "150,000", "MAGNUM": "200,000", "MAGNUM PLUS": "300,000"},
+    {"category": "diagnostics", "row": "Advanced Diagnostics (MRI, CT)", "PLUS": "70,000", "PRO": "100,000", "MAX": "250,000", "PROMAX": "400,000", "MAGNUM": "Covered", "MAGNUM PLUS": "Covered"},
+    {"category": "physiotherapy", "row": "Physiotherapy", "PLUS": "50,000", "PRO": "75,000", "MAX": "100,000", "PROMAX": "150,000", "MAGNUM": "250,000", "MAGNUM PLUS": "Covered"},
+    {"category": "chronic", "row": "Chronic Disease Management", "PLUS": "400,000", "PRO": "500,000", "MAX": "750,000", "PROMAX": "1,000,000", "MAGNUM": "Unlimited", "MAGNUM PLUS": "Unlimited"},
+    {"category": "devices", "row": "Medical Devices & Appliances", "PLUS": "50,000", "PRO": "75,000", "MAX": "100,000", "PROMAX": "150,000", "MAGNUM": "200,000", "MAGNUM PLUS": "300,000"},
+    {"category": "mortuary", "row": "Mortuary Fee per Family", "PLUS": "250,000", "PRO": "300,000", "MAX": "400,000", "PROMAX": "500,000", "MAGNUM": "750,000", "MAGNUM PLUS": "1,000,000"},
+    {"category": "evacuation", "row": "International Evacuation", "PLUS": "Not Covered", "PRO": "Not Covered", "MAX": "Not Covered", "PROMAX": "Not Covered", "MAGNUM": "$50,000", "MAGNUM PLUS": "$100,000"},
+    {"category": "gym", "row": "Gym Services", "PLUS": "2 sessions/month", "PRO": "4 sessions/month", "MAX": "Twice a week", "PROMAX": "Twice a week", "MAGNUM": "Twice a week", "MAGNUM PLUS": "Incl. i-Fitness"},
+    {"category": "premium", "row": "Individual Premium", "PLUS": "121,268", "PRO": "164,200", "MAX": "262,275", "PROMAX": "382,582", "MAGNUM": "734,250", "MAGNUM PLUS": "1,737,750"},
+    {"category": "family premium", "row": "Family Premium", "PLUS": "576,023", "PRO": "779,950", "MAX": "1,245,806", "PROMAX": "1,817,265", "MAGNUM": "3,487,688", "MAGNUM PLUS": "8,254,313"},
+]
+
+
+def _compare_values(val_a, val_b):
+    """Compare two benefit values. Returns 'a-better', 'b-better', or 'same'."""
+    import re
+    a, b = str(val_a).strip(), str(val_b).strip()
+    al, bl = a.lower(), b.lower()
+    if al == bl: return "same"
+    if al in ("not covered", "—", "", "nan") and bl not in ("not covered", "—", "", "nan"): return "b-better"
+    if bl in ("not covered", "—", "", "nan") and al not in ("not covered", "—", "", "nan"): return "a-better"
+    if "unlimited" in bl and "unlimited" not in al: return "b-better"
+    if "unlimited" in al and "unlimited" not in bl: return "a-better"
+    nums_a = re.findall(r'[\d,]+', a.replace("₦", "").replace("NGN", "").replace("N", ""))
+    nums_b = re.findall(r'[\d,]+', b.replace("₦", "").replace("NGN", "").replace("N", ""))
+    if nums_a and nums_b:
+        try:
+            na = float(nums_a[0].replace(",", ""))
+            nb = float(nums_b[0].replace(",", ""))
+            if nb > na: return "b-better"
+            if na > nb: return "a-better"
+        except ValueError: pass
+    return "same"
+
+
 @app.route("/benefit-benchmarking")
 @login_required
 def benefit_benchmarking():
@@ -1144,10 +1193,156 @@ def benefit_benchmarking():
     return render_template("benefit_benchmarking.html", logo=logo, reports=report_list)
 
 
+@app.route("/benefit-benchmarking/compare", methods=["POST"])
+@login_required
+def benefit_compare():
+    import pandas as pd
+    plan_a = request.form.get("plan_a", "PRO")
+    plan_b = request.form.get("plan_b", "MAX")
+    if plan_a == plan_b:
+        flash("Please select two different plans.")
+        return redirect(url_for("benefit_benchmarking"))
+
+    logo = get_logo_b64()
+    sid = str(uuid.uuid4())[:8]
+    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+
+    rows = ""
+    for b in LEADWAY_BENEFITS:
+        va, vb = b.get(plan_a, "—"), b.get(plan_b, "—")
+        cmp = _compare_values(va, vb)
+        ca = "better" if cmp == "a-better" else ("worse" if cmp == "b-better" else "")
+        cb = "better" if cmp == "b-better" else ("worse" if cmp == "a-better" else "")
+        ind = '<span style="color:#16a34a;font-size:10px">&#9650;</span>' if cmp == "b-better" else ('<span style="color:#FBBF24;font-size:10px">&#9660;</span>' if cmp == "a-better" else "")
+        rows += f'<tr><td style="font-weight:600">{b["row"]}</td><td class="{ca}">{va}</td><td class="{cb}">{vb}</td><td style="text-align:center">{ind}</td></tr>'
+
+    html = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{plan_a} vs {plan_b}</title><style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+*{{margin:0;padding:0;box-sizing:border-box}}body{{font-family:'Inter',sans-serif;background:#FAF7F2;color:#262626;font-size:13px;line-height:1.6}}
+.c{{max-width:1000px;margin:0 auto;padding:40px 20px}}
+.hd{{background:#262626;color:#fff;padding:32px;border-radius:16px;margin-bottom:24px;display:flex;align-items:center;gap:20px}}
+.hd img{{height:50px}}.hd h1{{font-weight:800;font-size:24px}}.hd .s{{font-size:12px;opacity:.6;margin-top:4px}}
+.sec{{background:#fff;border-radius:14px;padding:24px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,.04)}}
+table{{width:100%;border-collapse:collapse}}thead th{{background:#262626;color:#fff;padding:10px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase}}
+tbody td{{padding:10px 12px;border-bottom:1px solid #F4F4F6}}tbody tr:hover{{background:#F4F4F6}}
+.better{{color:#16a34a;font-weight:700}}.worse{{color:#6B7280}}
+.dl{{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;background:#16a34a;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;margin-left:auto;text-decoration:none}}
+.ft{{text-align:center;color:#6B7280;font-size:10px;margin-top:20px;padding:16px}}
+@media print{{.dl{{display:none}}}}
+</style></head><body><div class="c">
+<div class="hd">{'<img src="data:image/jpeg;base64,'+logo+'">' if logo else ''}
+<div><h1>{plan_a} vs {plan_b}</h1><div class="s">Leadway Health 2026 Benefit Comparison | {pd.Timestamp.now().strftime('%d %B %Y')}</div></div>
+<button class="dl" onclick="(function(){{var a=document.createElement('a');a.href='data:text/html;charset=utf-8,'+encodeURIComponent(document.documentElement.outerHTML);a.download='Benefit_{plan_a}_vs_{plan_b}.html';a.click();}})()">&#11015; Download</button></div>
+<div class="sec"><table><thead><tr><th>Benefit</th><th>{plan_a}</th><th>{plan_b}</th><th></th></tr></thead><tbody>{rows}</tbody></table></div>
+<div class="ft">Leadway Health Analytics — Benefit Benchmarking</div></div></body></html>"""
+
+    rp = REPORTS_DIR / f"Benefit_{plan_a}_vs_{plan_b}_{sid}.html"
+    rp.write_text(html)
+    return redirect(url_for("view_report", filename=rp.name))
+
+
+@app.route("/benefit-benchmarking/client", methods=["POST"])
+@login_required
+def benefit_client():
+    import pandas as pd
+    import re
+
+    client_file = request.files.get("client_benefit")
+    if not client_file or client_file.filename == "":
+        flash("Please upload the client's benefit schedule.")
+        return redirect(url_for("benefit_benchmarking"))
+
+    lw_plan = request.form.get("leadway_plan", "PRO")
+    client_name = request.form.get("client_name", "Client").strip() or "Client"
+    sid = str(uuid.uuid4())[:8]
+    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+
+    upload_dir = app.config["UPLOAD_FOLDER"] / sid
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    fpath = upload_dir / client_file.filename
+    client_file.save(fpath)
+
+    cdf = pd.read_csv(fpath) if str(fpath).endswith(".csv") else pd.read_excel(fpath)
+    cdf.columns = cdf.columns.str.strip()
+
+    # Build client benefit dict
+    client_map = {}
+    c0, c1 = cdf.columns[0], cdf.columns[1] if len(cdf.columns) > 1 else cdf.columns[0]
+    for _, r in cdf.iterrows():
+        k = str(r[c0]).strip()
+        v = str(r[c1]).strip() if c1 != c0 else "Covered"
+        if k and k.lower() != "nan":
+            client_map[k.lower()] = {"name": k, "value": v}
+
+    logo = get_logo_b64()
+    rows = ""
+    lw_wins, cl_wins, same = 0, 0, 0
+
+    for b in LEADWAY_BENEFITS:
+        lw_val = b.get(lw_plan, "—")
+        cat = b["category"]
+        rname = b["row"].lower()
+
+        # Fuzzy match
+        cv = "—"
+        for ck, cd in client_map.items():
+            if cat in ck or ck in cat or any(w in ck for w in rname.split() if len(w) > 3):
+                cv = cd["value"]
+                break
+
+        cmp = _compare_values(cv, lw_val)
+        if cmp == "b-better": lw_wins += 1
+        elif cmp == "a-better": cl_wins += 1
+        else: same += 1
+
+        ccl = "better" if cmp == "a-better" else ("worse" if cmp == "b-better" else "")
+        clw = "better" if cmp == "b-better" else ("worse" if cmp == "a-better" else "")
+        badge = ""
+        if cmp == "b-better": badge = '<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:#F0FDF4;color:#16a34a">LEADWAY BETTER</span>'
+        elif cmp == "a-better": badge = '<span style="font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;background:#FFF7ED;color:#F15A24">CLIENT BETTER</span>'
+
+        rows += f'<tr><td style="font-weight:600">{b["row"]}</td><td class="{ccl}">{cv}</td><td class="{clw}">{lw_val}</td><td>{badge}</td></tr>'
+
+    selling = f'<div style="background:#F0FDF4;border:2px solid #16a34a;border-radius:12px;padding:20px;margin-bottom:20px"><div style="color:#16a34a;font-weight:800;font-size:14px;margin-bottom:6px">&#10003; Leadway Advantage</div><div style="font-size:12px;color:#6B7280;line-height:1.7">Leadway {lw_plan} offers <strong>superior coverage on {lw_wins} benefit categories</strong> vs the client\'s current plan.</div></div>' if lw_wins > 0 else ""
+
+    html = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{client_name} vs Leadway {lw_plan}</title><style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+*{{margin:0;padding:0;box-sizing:border-box}}body{{font-family:'Inter',sans-serif;background:#FAF7F2;color:#262626;font-size:13px;line-height:1.6}}
+.c{{max-width:1100px;margin:0 auto;padding:40px 20px}}
+.hd{{background:#262626;color:#fff;padding:32px;border-radius:16px;margin-bottom:24px;display:flex;align-items:center;gap:20px}}
+.hd img{{height:50px}}.hd h1{{font-weight:800;font-size:22px}}.hd .s{{font-size:12px;opacity:.6;margin-top:4px}}
+.kg{{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px}}
+.kp{{background:#fff;border-radius:12px;padding:20px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.04)}}
+.kp .lb{{font-size:10px;font-weight:700;text-transform:uppercase;color:#6B7280;margin-bottom:4px}}
+.kp .vl{{font-weight:800;font-size:24px}}
+.kp.g .vl{{color:#16a34a}}.kp.o .vl{{color:#F15A24}}
+.sec{{background:#fff;border-radius:14px;padding:24px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,.04)}}
+table{{width:100%;border-collapse:collapse}}thead th{{background:#262626;color:#fff;padding:10px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase}}
+tbody td{{padding:10px 12px;border-bottom:1px solid #F4F4F6}}tbody tr:hover{{background:#F4F4F6}}
+.better{{color:#16a34a;font-weight:700}}.worse{{color:#6B7280}}
+.dl{{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;background:#16a34a;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;margin-left:auto;text-decoration:none}}
+.ft{{text-align:center;color:#6B7280;font-size:10px;margin-top:20px;padding:16px}}
+@media print{{.dl{{display:none}}}}
+</style></head><body><div class="c">
+<div class="hd">{'<img src="data:image/jpeg;base64,'+logo+'">' if logo else ''}
+<div><h1>{client_name} vs Leadway {lw_plan}</h1><div class="s">Benefit Benchmarking | {pd.Timestamp.now().strftime('%d %B %Y')}</div></div>
+<button class="dl" onclick="(function(){{var a=document.createElement('a');a.href='data:text/html;charset=utf-8,'+encodeURIComponent(document.documentElement.outerHTML);a.download='Benefit_{client_name.replace(' ','_')}_vs_{lw_plan}.html';a.click();}})()">&#11015; Download</button></div>
+<div class="kg"><div class="kp g"><div class="lb">Leadway Offers More</div><div class="vl">{lw_wins}</div></div><div class="kp o"><div class="lb">Client Has More</div><div class="vl">{cl_wins}</div></div><div class="kp"><div class="lb">Equivalent</div><div class="vl">{same}</div></div></div>
+{selling}
+<div class="sec"><table><thead><tr><th>Benefit</th><th>{client_name} (Current)</th><th>Leadway {lw_plan}</th><th></th></tr></thead><tbody>{rows}</tbody></table></div>
+<div class="ft">Leadway Health Analytics — Benefit Benchmarking</div></div></body></html>"""
+
+    cn = client_name.replace(" ", "_")[:20]
+    rp = REPORTS_DIR / f"Benefit_{cn}_vs_{lw_plan}_{sid}.html"
+    rp.write_text(html)
+    return redirect(url_for("view_report", filename=rp.name))
+
+
 @app.route("/benefit-benchmarking/upload", methods=["POST"])
 @login_required
 def benefit_benchmarking_upload():
-    flash("Benefit Benchmarking module coming soon.")
     return redirect(url_for("benefit_benchmarking"))
 
 

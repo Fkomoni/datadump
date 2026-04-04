@@ -6,32 +6,46 @@
 <title>Benefit Benchmarking — Leadway Health</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-  :root { --navy: #1A1A2E; --crimson: #C8102E; --coral: #E87722; --cream: #FAF7F2; --light-grey: #F4F4F6; --medium-grey: #E8E8EC; --white: #FFFFFF; --text-muted: #6B7280; --green: #16a34a; }
+  :root { --lh-red: #C61531; --lh-dark: #262626; --green: #16a34a; --cream: #FAF7F2; --light-grey: #F4F4F6; --medium-grey: #E6E6E6; --white: #FFFFFF; --muted: #6B7280; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Inter', sans-serif; background: var(--cream); color: var(--navy); min-height: 100vh; }
-  .container { max-width: 800px; margin: 0 auto; padding: 40px 20px; }
-  .back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); text-decoration: none; font-size: 13px; font-weight: 600; margin-bottom: 20px; }
+  body { font-family: 'Inter', sans-serif; background: var(--cream); color: var(--lh-dark); min-height: 100vh; }
+  .container { max-width: 900px; margin: 0 auto; padding: 40px 20px; }
+  .back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 600; margin-bottom: 20px; }
   .back-link:hover { color: var(--green); }
-  .header { background: var(--navy); padding: 40px; border-radius: 16px; margin-bottom: 40px; display: flex; align-items: center; gap: 24px; }
-  .header img { height: 60px; }
-  .header h1 { color: white; font-weight: 800; font-size: 28px; }
-  .header p { color: rgba(255,255,255,0.7); font-size: 14px; }
+  .header { background: var(--lh-dark); padding: 36px; border-radius: 16px; margin-bottom: 32px; display: flex; align-items: center; gap: 24px; }
+  .header img { height: 56px; }
+  .header h1 { color: white; font-weight: 800; font-size: 26px; }
+  .header p { color: rgba(255,255,255,0.6); font-size: 13px; margin-top: 4px; }
+
+  /* Tabs */
+  .tab-bar { display: flex; gap: 4px; margin-bottom: 24px; }
+  .tab-bar button { padding: 10px 20px; border: none; border-radius: 10px; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: white; color: var(--muted); }
+  .tab-bar button.active { background: var(--green); color: white; }
+  .tab-bar button:hover:not(.active) { background: var(--light-grey); }
+
   .card { background: var(--white); border-radius: 14px; padding: 32px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
-  .card h2 { font-size: 20px; font-weight: 700; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--medium-grey); }
+  .card h2 { font-size: 18px; font-weight: 700; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid var(--medium-grey); }
   .card h2 span { color: var(--green); }
-  label { display: block; font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 8px; margin-top: 20px; }
-  input[type="file"] { width: 100%; padding: 16px; border: 2px dashed var(--medium-grey); border-radius: 10px; background: var(--light-grey); font-family: inherit; cursor: pointer; }
+  label { display: block; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 6px; margin-top: 16px; }
+  select, input[type="file"] { width: 100%; padding: 12px; border: 1px solid var(--medium-grey); border-radius: 8px; font-family: inherit; font-size: 13px; background: var(--light-grey); }
+  input[type="file"] { border: 2px dashed var(--medium-grey); cursor: pointer; }
   input[type="file"]:hover { border-color: var(--green); }
-  .submit-btn { display: block; width: 100%; padding: 16px; background: var(--green); color: white; border: none; border-radius: 10px; font-family: inherit; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 30px; transition: background 0.2s; }
+  .note { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .plan-row { display: flex; gap: 12px; }
+  .plan-row > div { flex: 1; }
+  .submit-btn { display: block; width: 100%; padding: 14px; background: var(--green); color: white; border: none; border-radius: 10px; font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 24px; transition: background 0.2s; }
   .submit-btn:hover { background: #15803d; }
-  .note { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+  .flash { background: #F0FDF4; border: 2px solid var(--green); border-radius: 10px; padding: 14px 20px; margin-bottom: 20px; font-weight: 600; font-size: 13px; color: var(--green); }
+
   .reports-list { list-style: none; }
-  .reports-list li { padding: 12px 16px; border-bottom: 1px solid var(--light-grey); display: flex; align-items: center; justify-content: space-between; }
+  .reports-list li { padding: 10px 14px; border-bottom: 1px solid var(--light-grey); display: flex; align-items: center; justify-content: space-between; }
   .reports-list li:hover { background: #F0FDF4; }
-  .reports-list a { text-decoration: none; color: var(--navy); font-weight: 500; }
-  .dl-btn { display: inline-flex; align-items: center; gap: 4px; padding: 6px 14px; background: var(--green); color: white; border: none; border-radius: 6px; font-family: inherit; font-size: 12px; font-weight: 600; text-decoration: none; cursor: pointer; transition: background 0.2s; white-space: nowrap; }
+  .reports-list a { text-decoration: none; color: var(--lh-dark); font-weight: 500; font-size: 13px; }
+  .dl-btn { display: inline-flex; align-items: center; gap: 4px; padding: 5px 12px; background: var(--green); color: white; border: none; border-radius: 6px; font-family: inherit; font-size: 11px; font-weight: 600; text-decoration: none; cursor: pointer; }
   .dl-btn:hover { background: #15803d; }
-  .dl-btn svg { width: 14px; height: 14px; }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
 </style>
 </head>
 <body>
@@ -42,29 +56,72 @@
     {% if logo %}<img src="data:image/jpeg;base64,{{ logo }}" alt="Leadway Health">{% endif %}
     <div>
       <h1>Benefit Benchmarking</h1>
-      <p>Plan design comparison, benefit utilisation by category, and gap analysis</p>
+      <p>Compare Leadway plans side by side, or benchmark a client's benefit against Leadway standard</p>
     </div>
   </div>
 
-  {% with messages = get_flashed_messages() %}{% if messages %}<div style="background:#F0FDF4;border:2px solid var(--green);border-radius:10px;padding:16px 20px;margin-bottom:20px;font-weight:600;font-size:14px;color:var(--green);">{{ messages[0] }}</div>{% endif %}{% endwith %}
+  {% with messages = get_flashed_messages() %}{% if messages %}<div class="flash">{{ messages[0] }}</div>{% endif %}{% endwith %}
 
-  <form class="card" action="/benefit-benchmarking/upload" method="post" enctype="multipart/form-data">
-    <h2>Upload <span>Data</span></h2>
+  <div class="tab-bar">
+    <button class="active" onclick="showTab('compare')">Compare Leadway Plans</button>
+    <button onclick="showTab('client')">Client vs Leadway</button>
+  </div>
 
-    <label>Claims File</label>
-    <input type="file" name="claims_file" accept=".xlsx,.xls,.csv">
-    <p class="note">Claims data with department/category, amounts, and diagnosis information.</p>
+  <!-- TAB 1: Compare two Leadway plans -->
+  <div id="tab-compare" class="tab-content active">
+    <form class="card" action="/benefit-benchmarking/compare" method="post">
+      <h2>Compare <span>Leadway Plans</span></h2>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Select two plans to see a side-by-side comparison of all benefits, limits, and coverage gaps.</p>
+      <div class="plan-row">
+        <div>
+          <label>Plan A</label>
+          <select name="plan_a">
+            <option value="PLUS">PLUS — ₦121,268</option>
+            <option value="PRO" selected>PRO — ₦164,200</option>
+            <option value="MAX">MAX — ₦262,275</option>
+            <option value="PROMAX">PROMAX — ₦382,582</option>
+            <option value="MAGNUM">MAGNUM — ₦734,250</option>
+            <option value="MAGNUM PLUS">MAGNUM PLUS — ₦1,737,750</option>
+          </select>
+        </div>
+        <div>
+          <label>Plan B</label>
+          <select name="plan_b">
+            <option value="PLUS">PLUS — ₦121,268</option>
+            <option value="PRO">PRO — ₦164,200</option>
+            <option value="MAX" selected>MAX — ₦262,275</option>
+            <option value="PROMAX">PROMAX — ₦382,582</option>
+            <option value="MAGNUM">MAGNUM — ₦734,250</option>
+            <option value="MAGNUM PLUS">MAGNUM PLUS — ₦1,737,750</option>
+          </select>
+        </div>
+      </div>
+      <button type="submit" class="submit-btn">Compare Plans</button>
+    </form>
+  </div>
 
-    <label>Benefit Schedule</label>
-    <input type="file" name="benefit_file" accept=".xlsx,.xls,.csv">
-    <p class="note">Benefit plan file with categories, sub-limits, and coverage details.</p>
-
-    <label>Production / Premium File (optional)</label>
-    <input type="file" name="production_file" accept=".xlsx,.xls,.csv">
-    <p class="note">For premium-to-benefit utilisation ratios.</p>
-
-    <button type="submit" class="submit-btn">Run Benchmarking</button>
-  </form>
+  <!-- TAB 2: Client benefit vs Leadway -->
+  <div id="tab-client" class="tab-content">
+    <form class="card" action="/benefit-benchmarking/client" method="post" enctype="multipart/form-data">
+      <h2>Client vs <span>Leadway</span></h2>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Upload a client's current benefit schedule and compare against a Leadway standard plan. Shows where Leadway offers better coverage and where gaps exist.</p>
+      <label>Client Benefit Schedule</label>
+      <input type="file" name="client_benefit" accept=".xlsx,.xls,.csv" required>
+      <p class="note">Two columns: Benefit Category | Limit/Coverage. We'll match against Leadway's standard.</p>
+      <label>Compare Against Leadway Plan</label>
+      <select name="leadway_plan">
+        <option value="PLUS">PLUS</option>
+        <option value="PRO" selected>PRO</option>
+        <option value="MAX">MAX</option>
+        <option value="PROMAX">PROMAX</option>
+        <option value="MAGNUM">MAGNUM</option>
+        <option value="MAGNUM PLUS">MAGNUM PLUS</option>
+      </select>
+      <label>Client Name</label>
+      <input type="text" name="client_name" placeholder="e.g. Dangote Industries" style="width:100%;padding:10px 12px;border:1px solid var(--medium-grey);border-radius:8px;font-size:13px;background:var(--light-grey);">
+      <button type="submit" class="submit-btn">Run Benchmark</button>
+    </form>
+  </div>
 
   {% if reports %}
   <div class="card">
@@ -77,5 +134,14 @@
   </div>
   {% endif %}
 </div>
+
+<script>
+function showTab(tab) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
 </body>
 </html>
