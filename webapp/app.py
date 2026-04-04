@@ -1242,6 +1242,79 @@ tbody td{{padding:10px 12px;border-bottom:1px solid #F4F4F6}}tbody tr:hover{{bac
     return redirect(url_for("view_report", filename=rp.name))
 
 
+@app.route("/benefit-benchmarking/multi", methods=["POST"])
+@login_required
+def benefit_multi():
+    import pandas as pd
+    plans = request.form.getlist("plans")
+    if len(plans) < 2:
+        flash("Please select at least 2 plans.")
+        return redirect(url_for("benefit_benchmarking"))
+
+    logo = get_logo_b64()
+    sid = str(uuid.uuid4())[:8]
+    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Header row
+    plan_headers = "".join(f"<th>{p}</th>" for p in plans)
+
+    # Build rows — highlight best value per row
+    rows = ""
+    for b in LEADWAY_BENEFITS:
+        vals = [b.get(p, "—") for p in plans]
+        # Find best value
+        best_idx = set()
+        for i in range(len(vals)):
+            is_best = True
+            for j in range(len(vals)):
+                if i == j: continue
+                cmp = _compare_values(vals[i], vals[j])
+                if cmp == "b-better":
+                    is_best = False
+                    break
+            if is_best:
+                # Verify it's actually better than at least one other
+                for j in range(len(vals)):
+                    if i == j: continue
+                    if _compare_values(vals[j], vals[i]) == "b-better":
+                        best_idx.add(i)
+                        break
+
+        cells = ""
+        for i, v in enumerate(vals):
+            cls = ' class="best"' if i in best_idx else ""
+            cells += f"<td{cls}>{v}</td>"
+        rows += f'<tr><td class="bn">{b["row"]}</td>{cells}</tr>'
+
+    title = " vs ".join(plans)
+    html = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{title} — Multi-Plan Comparison</title><style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+*{{margin:0;padding:0;box-sizing:border-box}}body{{font-family:'Inter',sans-serif;background:#FAF7F2;color:#262626;font-size:12px;line-height:1.6}}
+.c{{max-width:1200px;margin:0 auto;padding:40px 20px}}
+.hd{{background:#262626;color:#fff;padding:32px;border-radius:16px;margin-bottom:24px;display:flex;align-items:center;gap:20px}}
+.hd img{{height:50px}}.hd h1{{font-weight:800;font-size:22px}}.hd .s{{font-size:12px;opacity:.6;margin-top:4px}}
+.sec{{background:#fff;border-radius:14px;padding:24px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,.04);overflow-x:auto}}
+table{{width:100%;border-collapse:collapse;min-width:600px}}
+thead th{{background:#262626;color:#fff;padding:10px 12px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;position:sticky;top:0}}
+tbody td{{padding:9px 12px;border-bottom:1px solid #F4F4F6}}tbody tr:hover{{background:#F4F4F6}}
+.bn{{font-weight:600;min-width:180px;background:#FAFAFA;position:sticky;left:0}}
+.best{{color:#16a34a;font-weight:700;background:#F0FDF4}}
+.dl{{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;background:#16a34a;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;margin-left:auto;text-decoration:none}}
+.ft{{text-align:center;color:#6B7280;font-size:10px;margin-top:20px;padding:16px}}
+@media print{{.dl{{display:none}}}}
+</style></head><body><div class="c">
+<div class="hd">{'<img src="data:image/jpeg;base64,'+logo+'">' if logo else ''}
+<div><h1>{title}</h1><div class="s">Leadway Health 2026 Multi-Plan Comparison | {pd.Timestamp.now().strftime('%d %B %Y')}</div></div>
+<button class="dl" onclick="(function(){{var a=document.createElement('a');a.href='data:text/html;charset=utf-8,'+encodeURIComponent(document.documentElement.outerHTML);a.download='MultiPlan_Comparison.html';a.click();}})()">&#11015; Download</button></div>
+<div class="sec"><table><thead><tr><th>Benefit</th>{plan_headers}</tr></thead><tbody>{rows}</tbody></table></div>
+<div class="ft">Leadway Health Analytics — Benefit Benchmarking</div></div></body></html>"""
+
+    rp = REPORTS_DIR / f"Benefit_Multi_{sid}.html"
+    rp.write_text(html)
+    return redirect(url_for("view_report", filename=rp.name))
+
+
 @app.route("/benefit-benchmarking/client", methods=["POST"])
 @login_required
 def benefit_client():
@@ -1306,6 +1379,80 @@ def benefit_client():
 
     selling = f'<div style="background:#F0FDF4;border:2px solid #16a34a;border-radius:12px;padding:20px;margin-bottom:20px"><div style="color:#16a34a;font-weight:800;font-size:14px;margin-bottom:6px">&#10003; Leadway Advantage</div><div style="font-size:12px;color:#6B7280;line-height:1.7">Leadway {lw_plan} offers <strong>superior coverage on {lw_wins} benefit categories</strong> vs the client\'s current plan.</div></div>' if lw_wins > 0 else ""
 
+    # ── Auto-generate proposal ──
+    # Collect where client has better coverage (Leadway gaps to address)
+    gaps = []
+    strengths = []
+    for b in LEADWAY_BENEFITS:
+        lw_v = b.get(lw_plan, "—")
+        cat = b["category"]
+        rname = b["row"]
+        cv = "—"
+        for ck, cd in client_map.items():
+            if cat in ck or ck in cat or any(w in ck for w in rname.lower().split() if len(w) > 3):
+                cv = cd["value"]
+                break
+        cmp = _compare_values(cv, lw_v)
+        if cmp == "a-better":
+            gaps.append({"benefit": rname, "client": cv, "leadway": lw_v})
+        elif cmp == "b-better":
+            strengths.append({"benefit": rname, "client": cv, "leadway": lw_v})
+
+    # Find the next tier up that covers more gaps
+    plan_idx = ["PLUS", "PRO", "MAX", "PROMAX", "MAGNUM", "MAGNUM PLUS"]
+    current_idx = plan_idx.index(lw_plan) if lw_plan in plan_idx else 1
+    recommended_plan = lw_plan
+    recommended_upgrades = []
+
+    if gaps and current_idx < len(plan_idx) - 1:
+        # Check if upgrading to next tier covers gaps
+        next_plan = plan_idx[current_idx + 1]
+        gaps_fixed = 0
+        for g in gaps:
+            for b in LEADWAY_BENEFITS:
+                if b["row"] == g["benefit"]:
+                    next_val = b.get(next_plan, "—")
+                    cmp_next = _compare_values(g["client"], next_val)
+                    if cmp_next != "a-better":
+                        gaps_fixed += 1
+                    break
+        if gaps_fixed > len(gaps) * 0.5:
+            recommended_plan = next_plan
+        else:
+            recommended_plan = lw_plan
+
+    # Build proposal HTML
+    proposal_items = ""
+    if strengths:
+        items = "".join(f"<li><strong>{s['benefit']}</strong>: Leadway offers {s['leadway']} vs client's {s['client']}</li>" for s in strengths[:5])
+        proposal_items += f'<div style="margin-bottom:16px"><div style="font-weight:700;font-size:13px;color:#16a34a;margin-bottom:6px">Key Selling Points</div><ul style="font-size:12px;color:#4B5563;padding-left:20px;line-height:1.8">{items}</ul></div>'
+
+    if gaps:
+        items = "".join(f"<li><strong>{g['benefit']}</strong>: Client currently has {g['client']}, Leadway {lw_plan} offers {g['leadway']}. Consider upgrading this benefit or moving to {recommended_plan}.</li>" for g in gaps[:5])
+        proposal_items += f'<div style="margin-bottom:16px"><div style="font-weight:700;font-size:13px;color:#F15A24;margin-bottom:6px">Coverage Gaps to Address</div><ul style="font-size:12px;color:#4B5563;padding-left:20px;line-height:1.8">{items}</ul></div>'
+
+    rec_premium = ""
+    for b in LEADWAY_BENEFITS:
+        if b["category"] == "premium":
+            rec_premium = b.get(recommended_plan, "—")
+            break
+
+    proposal_recommendation = f"""<div style="background:#EFF6FF;border:2px solid #1B1464;border-radius:12px;padding:20px;margin-top:16px">
+    <div style="font-weight:800;font-size:14px;color:#1B1464;margin-bottom:8px">&#128203; Recommendation</div>
+    <div style="font-size:13px;color:#4B5563;line-height:1.8">
+    Based on this analysis, we recommend <strong>Leadway {recommended_plan}</strong> for {client_name}.
+    {"This plan covers all the client's current benefits and offers superior coverage on " + str(lw_wins) + " additional categories." if recommended_plan == lw_plan else "Upgrading from " + lw_plan + " to <strong>" + recommended_plan + "</strong> would address " + str(len(gaps)) + " coverage gaps where the client currently has better benefits."}
+    <br><br>
+    <strong>Recommended Premium:</strong> &#8358;{rec_premium} per individual per annum.
+    </div></div>"""
+
+    proposal_html = f"""<div style="background:#fff;border-radius:14px;padding:24px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,.04)">
+    <div style="font-weight:700;font-size:18px;color:#262626;margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid #E6E6E6">&#128220; Auto-Generated <span style="color:#16a34a">Proposal</span></div>
+    <div style="font-size:12px;color:#6B7280;margin-bottom:16px">Based on the benefit comparison for {client_name}</div>
+    {proposal_items}
+    {proposal_recommendation}
+    </div>"""
+
     html = f"""<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{client_name} vs Leadway {lw_plan}</title><style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
@@ -1327,12 +1474,13 @@ tbody td{{padding:10px 12px;border-bottom:1px solid #F4F4F6}}tbody tr:hover{{bac
 @media print{{.dl{{display:none}}}}
 </style></head><body><div class="c">
 <div class="hd">{'<img src="data:image/jpeg;base64,'+logo+'">' if logo else ''}
-<div><h1>{client_name} vs Leadway {lw_plan}</h1><div class="s">Benefit Benchmarking | {pd.Timestamp.now().strftime('%d %B %Y')}</div></div>
+<div><h1>{client_name} vs Leadway {lw_plan}</h1><div class="s">Benefit Benchmarking & Proposal | {pd.Timestamp.now().strftime('%d %B %Y')}</div></div>
 <button class="dl" onclick="(function(){{var a=document.createElement('a');a.href='data:text/html;charset=utf-8,'+encodeURIComponent(document.documentElement.outerHTML);a.download='Benefit_{client_name.replace(' ','_')}_vs_{lw_plan}.html';a.click();}})()">&#11015; Download</button></div>
 <div class="kg"><div class="kp g"><div class="lb">Leadway Offers More</div><div class="vl">{lw_wins}</div></div><div class="kp o"><div class="lb">Client Has More</div><div class="vl">{cl_wins}</div></div><div class="kp"><div class="lb">Equivalent</div><div class="vl">{same}</div></div></div>
 {selling}
 <div class="sec"><table><thead><tr><th>Benefit</th><th>{client_name} (Current)</th><th>Leadway {lw_plan}</th><th></th></tr></thead><tbody>{rows}</tbody></table></div>
-<div class="ft">Leadway Health Analytics — Benefit Benchmarking</div></div></body></html>"""
+{proposal_html}
+<div class="ft">Leadway Health Analytics — Benefit Benchmarking & Proposal</div></div></body></html>"""
 
     cn = client_name.replace(" ", "_")[:20]
     rp = REPORTS_DIR / f"Benefit_{cn}_vs_{lw_plan}_{sid}.html"

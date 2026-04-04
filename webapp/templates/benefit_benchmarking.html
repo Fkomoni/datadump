@@ -16,18 +16,16 @@
   .header img { height: 56px; }
   .header h1 { color: white; font-weight: 800; font-size: 26px; }
   .header p { color: rgba(255,255,255,0.6); font-size: 13px; margin-top: 4px; }
-
-  /* Tabs */
-  .tab-bar { display: flex; gap: 4px; margin-bottom: 24px; }
-  .tab-bar button { padding: 10px 20px; border: none; border-radius: 10px; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: white; color: var(--muted); }
+  .tab-bar { display: flex; gap: 4px; margin-bottom: 24px; flex-wrap: wrap; }
+  .tab-bar button { padding: 10px 18px; border: none; border-radius: 10px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.2s; background: white; color: var(--muted); }
   .tab-bar button.active { background: var(--green); color: white; }
   .tab-bar button:hover:not(.active) { background: var(--light-grey); }
-
   .card { background: var(--white); border-radius: 14px; padding: 32px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
   .card h2 { font-size: 18px; font-weight: 700; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid var(--medium-grey); }
   .card h2 span { color: var(--green); }
+  .card p.desc { font-size: 13px; color: var(--muted); margin-bottom: 16px; }
   label { display: block; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 6px; margin-top: 16px; }
-  select, input[type="file"] { width: 100%; padding: 12px; border: 1px solid var(--medium-grey); border-radius: 8px; font-family: inherit; font-size: 13px; background: var(--light-grey); }
+  select, input[type="file"], input[type="text"] { width: 100%; padding: 12px; border: 1px solid var(--medium-grey); border-radius: 8px; font-family: inherit; font-size: 13px; background: var(--light-grey); }
   input[type="file"] { border: 2px dashed var(--medium-grey); cursor: pointer; }
   input[type="file"]:hover { border-color: var(--green); }
   .note { font-size: 11px; color: var(--muted); margin-top: 3px; }
@@ -36,14 +34,16 @@
   .submit-btn { display: block; width: 100%; padding: 14px; background: var(--green); color: white; border: none; border-radius: 10px; font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 24px; transition: background 0.2s; }
   .submit-btn:hover { background: #15803d; }
   .flash { background: #F0FDF4; border: 2px solid var(--green); border-radius: 10px; padding: 14px 20px; margin-bottom: 20px; font-weight: 600; font-size: 13px; color: var(--green); }
-
+  .checkbox-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+  .checkbox-grid label { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: var(--light-grey); border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--lh-dark); text-transform: none; margin: 0; }
+  .checkbox-grid label:hover { background: var(--medium-grey); }
+  .checkbox-grid input[type="checkbox"] { accent-color: var(--green); width: 16px; height: 16px; }
   .reports-list { list-style: none; }
   .reports-list li { padding: 10px 14px; border-bottom: 1px solid var(--light-grey); display: flex; align-items: center; justify-content: space-between; }
   .reports-list li:hover { background: #F0FDF4; }
   .reports-list a { text-decoration: none; color: var(--lh-dark); font-weight: 500; font-size: 13px; }
   .dl-btn { display: inline-flex; align-items: center; gap: 4px; padding: 5px 12px; background: var(--green); color: white; border: none; border-radius: 6px; font-family: inherit; font-size: 11px; font-weight: 600; text-decoration: none; cursor: pointer; }
   .dl-btn:hover { background: #15803d; }
-
   .tab-content { display: none; }
   .tab-content.active { display: block; }
 </style>
@@ -56,22 +56,23 @@
     {% if logo %}<img src="data:image/jpeg;base64,{{ logo }}" alt="Leadway Health">{% endif %}
     <div>
       <h1>Benefit Benchmarking</h1>
-      <p>Compare Leadway plans side by side, or benchmark a client's benefit against Leadway standard</p>
+      <p>Compare plans, benchmark against competitors, generate proposals</p>
     </div>
   </div>
 
   {% with messages = get_flashed_messages() %}{% if messages %}<div class="flash">{{ messages[0] }}</div>{% endif %}{% endwith %}
 
   <div class="tab-bar">
-    <button class="active" onclick="showTab('compare')">Compare Leadway Plans</button>
+    <button class="active" onclick="showTab('compare')">Compare 2 Plans</button>
+    <button onclick="showTab('multi')">Multi-Plan View</button>
     <button onclick="showTab('client')">Client vs Leadway</button>
   </div>
 
-  <!-- TAB 1: Compare two Leadway plans -->
+  <!-- TAB 1: Compare two plans -->
   <div id="tab-compare" class="tab-content active">
     <form class="card" action="/benefit-benchmarking/compare" method="post">
-      <h2>Compare <span>Leadway Plans</span></h2>
-      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Select two plans to see a side-by-side comparison of all benefits, limits, and coverage gaps.</p>
+      <h2>Compare <span>Two Plans</span></h2>
+      <p class="desc">Select two plans to see a detailed side-by-side comparison with coverage highlights.</p>
       <div class="plan-row">
         <div>
           <label>Plan A</label>
@@ -100,14 +101,32 @@
     </form>
   </div>
 
-  <!-- TAB 2: Client benefit vs Leadway -->
+  <!-- TAB 2: Multi-plan -->
+  <div id="tab-multi" class="tab-content">
+    <form class="card" action="/benefit-benchmarking/multi" method="post">
+      <h2>Multi-Plan <span>Comparison</span></h2>
+      <p class="desc">Select 3 or more plans to view all benefits side by side in one table. Great for presentations.</p>
+      <label>Select Plans to Compare</label>
+      <div class="checkbox-grid">
+        <label><input type="checkbox" name="plans" value="PLUS"> PLUS</label>
+        <label><input type="checkbox" name="plans" value="PRO" checked> PRO</label>
+        <label><input type="checkbox" name="plans" value="MAX" checked> MAX</label>
+        <label><input type="checkbox" name="plans" value="PROMAX" checked> PROMAX</label>
+        <label><input type="checkbox" name="plans" value="MAGNUM"> MAGNUM</label>
+        <label><input type="checkbox" name="plans" value="MAGNUM PLUS"> MAGNUM PLUS</label>
+      </div>
+      <button type="submit" class="submit-btn">Generate Comparison</button>
+    </form>
+  </div>
+
+  <!-- TAB 3: Client vs Leadway -->
   <div id="tab-client" class="tab-content">
     <form class="card" action="/benefit-benchmarking/client" method="post" enctype="multipart/form-data">
       <h2>Client vs <span>Leadway</span></h2>
-      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Upload a client's current benefit schedule and compare against a Leadway standard plan. Shows where Leadway offers better coverage and where gaps exist.</p>
+      <p class="desc">Upload a client's benefit schedule from another HMO. Get a comparison report with selling points and an auto-generated proposal recommendation.</p>
       <label>Client Benefit Schedule</label>
       <input type="file" name="client_benefit" accept=".xlsx,.xls,.csv" required>
-      <p class="note">Two columns: Benefit Category | Limit/Coverage. We'll match against Leadway's standard.</p>
+      <p class="note">Two columns: Benefit Category | Limit/Coverage</p>
       <label>Compare Against Leadway Plan</label>
       <select name="leadway_plan">
         <option value="PLUS">PLUS</option>
@@ -118,14 +137,14 @@
         <option value="MAGNUM PLUS">MAGNUM PLUS</option>
       </select>
       <label>Client Name</label>
-      <input type="text" name="client_name" placeholder="e.g. Dangote Industries" style="width:100%;padding:10px 12px;border:1px solid var(--medium-grey);border-radius:8px;font-size:13px;background:var(--light-grey);">
-      <button type="submit" class="submit-btn">Run Benchmark</button>
+      <input type="text" name="client_name" placeholder="e.g. Dangote Industries">
+      <button type="submit" class="submit-btn">Run Benchmark & Generate Proposal</button>
     </form>
   </div>
 
   {% if reports %}
   <div class="card">
-    <h2>Previous <span>Benchmarking Reports</span></h2>
+    <h2>Previous <span>Reports</span></h2>
     <ul class="reports-list">
       {% for r in reports %}
       <li><a href="/report/{{ r.file }}">{{ r.name }}</a><a class="dl-btn" href="/download/{{ r.file }}"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5m0 0l5-5m-5 5V3"/></svg>Download</a></li>
