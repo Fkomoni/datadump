@@ -1858,38 +1858,46 @@ def enrolment_generator_upload():
         p_addr = find_col(["address"], 0, first_dep_start)
         p_name = find_col(["name"], 0, first_dep_start)  # Full name column
 
-        # Build dependant blocks: each block starts at a "first name" or "last name" column
-        # that isn't the principal's
+        # Build dependant blocks by pairing each remaining First Name col
+        # with its nearest Last Name col, then scanning for DOB/Phone/EmpID nearby
         dep_blocks = []
-        used_indices = set()
-        if p_fn is not None: used_indices.add(p_fn)
-        if p_ln is not None: used_indices.add(p_ln)
-
-        # Group remaining first name / last name columns into blocks
         remaining_fn = [i for i in fn_cols if i not in used_indices]
-        remaining_ln = [i for i in ln_cols if i not in used_indices]
 
-        # Pair them: for each remaining first name, find the nearest last name
-        all_name_starts = sorted(set(remaining_fn + remaining_ln))
+        for fi in remaining_fn:
+            # Find nearest Last Name col (prefer fi+1, then fi-1, then next available)
+            paired_ln = None
+            for li in ln_cols:
+                if li == fi + 1:
+                    paired_ln = li; break
+                elif li == fi - 1:
+                    paired_ln = li; break
+            if paired_ln is None:
+                for li in sorted(ln_cols):
+                    if li > fi and li not in used_indices:
+                        paired_ln = li; break
 
-        # Group consecutive columns into blocks
-        i = 0
-        while i < len(all_name_starts):
-            block_start = all_name_starts[i]
-            # Block ends at next block start or end of columns
-            block_end = all_name_starts[i + 1] if i + 1 < len(all_name_starts) else len(cols)
+            # Block range: from min(fn,ln) to next fn_col or end
+            block_start = min(fi, paired_ln) if paired_ln else fi
+            next_fn = None
+            for nf in remaining_fn:
+                if nf > fi:
+                    next_fn = nf; break
+            block_end = next_fn if next_fn else len(cols)
 
-            block = {"fn": None, "ln": None, "dob": None, "phone": None, "empid": None, "addr": None}
+            block = {"fn": fi, "ln": paired_ln, "dob": None, "phone": None, "empid": None, "addr": None}
+            if paired_ln is not None:
+                used_indices.add(paired_ln)
+
+            # Scan the block range for DOB/Phone/EmpID
             for j in range(block_start, block_end):
+                if j == fi or j == paired_ln:
+                    continue
                 cl = cols_lower[j]
-                if "first name" in cl and block["fn"] is None: block["fn"] = j
-                elif "last name" in cl and block["ln"] is None: block["ln"] = j
-                elif ("date of birth" in cl or "dob" in cl or cl == "birth") and block["dob"] is None: block["dob"] = j
+                if ("date of birth" in cl or "dob" in cl) and block["dob"] is None: block["dob"] = j
                 elif any(k in cl for k in ["phone", "contact", "mobile"]) and block["phone"] is None: block["phone"] = j
                 elif any(k in cl for k in ["employee id", "staff id"]) and block["empid"] is None: block["empid"] = j
                 elif "address" in cl and block["addr"] is None: block["addr"] = j
             dep_blocks.append(block)
-            i += 1
 
         # Now iterate rows and expand
         for _, row in df.iterrows():
@@ -1914,39 +1922,38 @@ def enrolment_generator_upload():
                 "Firstname": fn.upper(), "Surname": ln.upper(), "OtherName": "",
                 "DOB": dob, "Gender": "", "Relationship": "SELF", "Member_Dep": "O",
                 "contacts": phone, "email": email, "staff_id": empid,
-                "address": addr.replace(",", " "), "city": "LAGOS",
-                "marital": "MARRIED", "title": "",
+                "address": addr.replace(",", " "), "city": "",
+                "marital": "", "title": "",
                 "plan_code": "", "group_code": "", "start_date": "", "state": "",
             })
 
-            # Dependants
+            # Dependants — deduplicate by (firstname, lastname, dob)
+            seen_deps = set()
             for dep in dep_blocks:
                 d_fn = clean_v(row.iloc[dep["fn"]]) if dep["fn"] is not None else ""
                 d_ln = clean_v(row.iloc[dep["ln"]]) if dep["ln"] is not None else ""
                 if not d_fn and not d_ln:
-                    continue  # Skip empty dependant slots
+                    continue
                 d_dob = row.iloc[dep["dob"]] if dep["dob"] is not None else ""
+                d_dob_str = str(d_dob)[:10] if d_dob else ""
+
+                # Deduplicate
+                dep_key = (d_fn.upper(), d_ln.upper(), d_dob_str)
+                if dep_key in seen_deps:
+                    continue
+                seen_deps.add(dep_key)
+
                 d_phone = fmt_phone(row.iloc[dep["phone"]]) if dep["phone"] is not None else ""
-                d_empid = clean_v(row.iloc[dep["empid"]]) if dep["empid"] is not None else empid  # inherit parent's
+                d_empid = clean_v(row.iloc[dep["empid"]]) if dep["empid"] is not None else empid
 
-                # Infer relationship from DOB
-                rel = "SPOUSE"
-                try:
-                    from datetime import datetime as dt
-                    if hasattr(d_dob, 'year'):
-                        age = (dt.now() - pd.Timestamp(d_dob)).days // 365
-                        if age < 22:
-                            rel = "SON"  # Default child — gender unknown from this data
-                except Exception:
-                    pass
-
+                # Do NOT assume gender or title — leave blank
                 expanded_rows.append({
                     "Firstname": d_fn.upper(), "Surname": d_ln.upper(), "OtherName": "",
-                    "DOB": d_dob, "Gender": "", "Relationship": rel, "Member_Dep": "D",
+                    "DOB": d_dob, "Gender": "", "Relationship": "", "Member_Dep": "D",
                     "contacts": d_phone, "email": "", "staff_id": d_empid,
                     "address": addr.replace(",", " "), "city": "LAGOS",
-                    "marital": "SINGLE" if rel != "SPOUSE" else "MARRIED",
-                    "title": "", "plan_code": "", "group_code": "", "start_date": "", "state": "",
+                    "marital": "", "title": "",
+                    "plan_code": "", "group_code": "", "start_date": "", "state": "",
                 })
 
     else:
@@ -2085,21 +2092,26 @@ def enrolment_generator_upload():
     def infer_title(row):
         t = clean_val(row.get("title", "")).upper()
         if t and t not in ("NAN", ""): return t
-        gender = clean_val(row.get("Gender", "")).upper()
+        # Only infer from explicit relationship — never assume
         rel = str(row.get("Relationship", "")).upper()
-        age = row.get("Age")
-        if rel in ("SON", "DAUGHTER") or (age is not None and age < 18):
-            return "MISS" if gender == "FEMALE" else "MSTR"
-        if gender == "FEMALE": return "MRS" if rel == "SPOUSE" else "MRS"
-        return "MR"
+        gender = clean_val(row.get("Gender", "")).upper()
+        if rel == "SON": return "MSTR"
+        if rel == "DAUGHTER": return "MISS"
+        if rel == "SPOUSE" and gender == "FEMALE": return "MRS"
+        if rel == "SPOUSE" and gender == "MALE": return "MR"
+        if rel == "SELF" and gender == "MALE": return "MR"
+        if rel == "SELF" and gender == "FEMALE": return "MRS"
+        return ""  # Don't assume
 
     def infer_gender(row):
         g = clean_val(row.get("Gender", "")).upper()
         if g in ("MALE", "M"): return "MALE"
         if g in ("FEMALE", "F"): return "FEMALE"
+        # Only infer from explicit relationship
         rel = str(row.get("Relationship", "")).upper()
-        if rel in ("SPOUSE", "DAUGHTER"): return "FEMALE"
+        if rel == "DAUGHTER": return "FEMALE"
         if rel == "SON": return "MALE"
+        if rel == "SPOUSE": return ""  # Don't assume spouse gender
         return ""
 
     result["Title"] = result.apply(infer_title, axis=1)
