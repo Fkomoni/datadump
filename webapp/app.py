@@ -1850,6 +1850,21 @@ def enrolment_generator_upload():
                 if "gender" in cl or "sex" in cl: child_groups[0]["gender"] = c
 
         for _, row in df.iterrows():
+            # Collect shared fields (from principal row in wide format)
+            shared = {}
+            for c, cl in cols_lower.items():
+                if any(k in cl for k in ["address", "addr"]): shared["address"] = row.get(c, "")
+                elif any(k in cl for k in ["city", "town"]): shared["city"] = row.get(c, "")
+                elif any(k in cl for k in ["state"]): shared["state"] = row.get(c, "")
+                elif any(k in cl for k in ["staff id", "employee number", "employee id", "emp id", "emp no"]): shared["staff_id"] = row.get(c, "")
+                elif any(k in cl for k in ["marital", "marital status"]): shared["marital"] = row.get(c, "")
+                elif any(k in cl for k in ["phone", "contact", "mobile", "tel"]) and "spouse" not in cl and "child" not in cl: shared["contacts"] = row.get(c, "")
+                elif any(k in cl for k in ["plan", "plan code"]) and "child" not in cl: shared["plan_code"] = row.get(c, "")
+                elif any(k in cl for k in ["email", "e-mail"]) and "spouse" not in cl: shared["email"] = row.get(c, "")
+                elif any(k in cl for k in ["group code", "group", "group_code"]): shared["group_code"] = row.get(c, "")
+                elif any(k in cl for k in ["start date", "effective", "commencement"]): shared["start_date"] = row.get(c, "")
+                elif any(k in cl for k in ["title"]) and "spouse" not in cl and "child" not in cl: shared["title"] = row.get(c, "")
+
             # Principal
             p_name = str(row.get(principal_name_col, "")).strip() if principal_name_col else ""
             if not p_name or p_name.lower() == "nan":
@@ -1858,7 +1873,9 @@ def enrolment_generator_upload():
                 "Full_Name": p_name,
                 "DOB": row.get(principal_dob_col, "") if principal_dob_col else "",
                 "Gender": row.get(principal_gender_col, "") if principal_gender_col else "",
-                "Relationship": "Principal",
+                "Relationship": "SELF",
+                "Member_Dep": "O",
+                **shared,
             })
 
             # Spouse
@@ -1869,7 +1886,10 @@ def enrolment_generator_upload():
                         "Full_Name": s_name,
                         "DOB": row.get(spouse_dob_col, "") if spouse_dob_col else "",
                         "Gender": row.get(spouse_gender_col, "") if spouse_gender_col else "",
-                        "Relationship": "Spouse",
+                        "Relationship": "SPOUSE",
+                        "Member_Dep": "D",
+                        **{k: v for k, v in shared.items() if k not in ("title", "marital")},
+                        "marital": "MARRIED",
                     })
 
             # Children/Dependants
@@ -1878,35 +1898,81 @@ def enrolment_generator_upload():
                 if cg["name"]:
                     c_name = str(row.get(cg["name"], "")).strip()
                     if c_name and c_name.lower() != "nan":
-                        rel = "Son" if "son" in cg["rel_hint"] else ("Daughter" if "daughter" in cg["rel_hint"] else "Dependent")
+                        rel = "SON" if "son" in cg["rel_hint"] else ("DAUGHTER" if "daughter" in cg["rel_hint"] else "SON")
                         expanded_rows.append({
                             "Full_Name": c_name,
                             "DOB": row.get(cg["dob"], "") if cg["dob"] else "",
                             "Gender": row.get(cg["gender"], "") if cg["gender"] else "",
                             "Relationship": rel,
+                            "Member_Dep": "D",
+                            **{k: v for k, v in shared.items() if k not in ("title", "marital")},
+                            "marital": "SINGLE",
                         })
     else:
         # ── STANDARD FORMAT: one row per person ──
-        name_col = None
-        dob_col = None
-        gender_col = None
-        rel_col = None
+        field_map = {}
         for c, cl in cols_lower.items():
-            if any(k in cl for k in ["name", "full name", "member name", "employee"]) and name_col is None: name_col = c
-            if any(k in cl for k in ["dob", "date of birth", "birth date", "birthdate"]) and dob_col is None: dob_col = c
-            if any(k in cl for k in ["gender", "sex"]) and gender_col is None: gender_col = c
-            if any(k in cl for k in ["relationship", "relation", "member type"]) and rel_col is None: rel_col = c
+            if any(k in cl for k in ["name", "full name", "member name", "employee"]) and "field_map" not in field_map: field_map["name"] = c
+            if any(k in cl for k in ["dob", "date of birth", "birth date"]) and "dob" not in field_map: field_map["dob"] = c
+            if any(k in cl for k in ["gender", "sex"]) and "gender" not in field_map: field_map["gender"] = c
+            if any(k in cl for k in ["relationship", "relation", "member type"]) and "rel" not in field_map: field_map["rel"] = c
+            if any(k in cl for k in ["title"]) and "title" not in field_map: field_map["title"] = c
+            if any(k in cl for k in ["address", "addr"]) and "address" not in field_map: field_map["address"] = c
+            if any(k in cl for k in ["city", "town"]) and "city" not in field_map: field_map["city"] = c
+            if any(k in cl for k in ["state"]) and "state" not in field_map: field_map["state"] = c
+            if any(k in cl for k in ["staff id", "employee number", "emp"]) and "staff_id" not in field_map: field_map["staff_id"] = c
+            if any(k in cl for k in ["marital"]) and "marital" not in field_map: field_map["marital"] = c
+            if any(k in cl for k in ["phone", "contact", "mobile"]) and "contacts" not in field_map: field_map["contacts"] = c
+            if any(k in cl for k in ["plan", "plan code"]) and "plan_code" not in field_map: field_map["plan_code"] = c
+            if any(k in cl for k in ["email", "e-mail"]) and "email" not in field_map: field_map["email"] = c
+            if any(k in cl for k in ["group code", "group"]) and "group_code" not in field_map: field_map["group_code"] = c
+            if any(k in cl for k in ["start date", "effective"]) and "start_date" not in field_map: field_map["start_date"] = c
+            if any(k in cl for k in ["member/dep", "indicator"]) and "member_dep" not in field_map: field_map["member_dep"] = c
+            if any(k in cl for k in ["other name", "othername", "middle"]) and "other_name" not in field_map: field_map["other_name"] = c
+            if any(k in cl for k in ["surname", "last name"]) and "surname" not in field_map: field_map["surname"] = c
+            if any(k in cl for k in ["firstname", "first name"]) and "firstname" not in field_map: field_map["firstname"] = c
 
         for _, row in df.iterrows():
-            name = str(row.get(name_col, "")).strip() if name_col else ""
-            if not name or name.lower() == "nan":
+            # Try surname+firstname first, then full name
+            if "surname" in field_map and "firstname" in field_map:
+                sn = str(row.get(field_map["surname"], "")).strip()
+                fn = str(row.get(field_map["firstname"], "")).strip()
+                full = f"{fn} {sn}" if fn.lower() != "nan" and sn.lower() != "nan" else ""
+            elif "name" in field_map:
+                full = str(row.get(field_map["name"], "")).strip()
+            else:
                 continue
-            expanded_rows.append({
-                "Full_Name": name,
-                "DOB": row.get(dob_col, "") if dob_col else "",
-                "Gender": row.get(gender_col, "") if gender_col else "",
-                "Relationship": str(row.get(rel_col, "")).strip() if rel_col else "",
-            })
+            if not full or full.lower() == "nan":
+                continue
+
+            rel = str(row.get(field_map.get("rel", ""), "")).strip().upper() if "rel" in field_map else ""
+            md = str(row.get(field_map.get("member_dep", ""), "")).strip().upper() if "member_dep" in field_map else ""
+            if not md:
+                md = "O" if rel in ("SELF", "PRINCIPAL", "MAIN MEMBER", "") else "D"
+
+            entry = {
+                "Full_Name": full,
+                "DOB": row.get(field_map.get("dob", ""), "") if "dob" in field_map else "",
+                "Gender": row.get(field_map.get("gender", ""), "") if "gender" in field_map else "",
+                "Relationship": rel if rel else "SELF",
+                "Member_Dep": md,
+                "title": row.get(field_map.get("title", ""), "") if "title" in field_map else "",
+                "address": row.get(field_map.get("address", ""), "") if "address" in field_map else "",
+                "city": row.get(field_map.get("city", ""), "") if "city" in field_map else "",
+                "state": row.get(field_map.get("state", ""), "") if "state" in field_map else "",
+                "staff_id": row.get(field_map.get("staff_id", ""), "") if "staff_id" in field_map else "",
+                "marital": row.get(field_map.get("marital", ""), "") if "marital" in field_map else "",
+                "contacts": row.get(field_map.get("contacts", ""), "") if "contacts" in field_map else "",
+                "plan_code": row.get(field_map.get("plan_code", ""), "") if "plan_code" in field_map else "",
+                "email": row.get(field_map.get("email", ""), "") if "email" in field_map else "",
+                "group_code": row.get(field_map.get("group_code", ""), "") if "group_code" in field_map else "",
+                "start_date": row.get(field_map.get("start_date", ""), "") if "start_date" in field_map else "",
+                "other_name": row.get(field_map.get("other_name", ""), "") if "other_name" in field_map else "",
+            }
+            if "surname" in field_map:
+                entry["_surname"] = str(row.get(field_map["surname"], "")).strip()
+                entry["_firstname"] = str(row.get(field_map["firstname"], "")).strip()
+            expanded_rows.append(entry)
 
     if not expanded_rows:
         flash("No valid records found. Check your file format.")
@@ -1915,78 +1981,162 @@ def enrolment_generator_upload():
     result = pd.DataFrame(expanded_rows)
 
     # ── STEP 3: Name cleaning ──
-    def clean_name(name):
-        if not name or str(name).lower() == "nan":
-            return "", ""
-        parts = str(name).strip().title().split()
-        if len(parts) >= 2:
-            return parts[0], " ".join(parts[1:])
-        return parts[0] if parts else "", ""
+    def clean_val(v):
+        s = str(v).strip()
+        return "" if s.lower() in ("nan", "none", "nat") else s
 
-    result[["First_Name", "Last_Name"]] = result["Full_Name"].apply(lambda x: pd.Series(clean_name(x)))
+    def split_name(name):
+        parts = clean_val(name).upper().split()
+        if len(parts) >= 3:
+            return parts[-1], parts[0], " ".join(parts[1:-1])
+        elif len(parts) == 2:
+            return parts[-1], parts[0], ""
+        elif len(parts) == 1:
+            return parts[0], "", ""
+        return "", "", ""
+
+    if "_surname" in result.columns:
+        result["Surname"] = result["_surname"].apply(lambda x: clean_val(x).upper())
+        result["Firstname"] = result["_firstname"].apply(lambda x: clean_val(x).upper())
+        result["OtherName"] = result.get("other_name", pd.Series([""] * len(result))).apply(lambda x: clean_val(x).upper())
+    else:
+        names = result["Full_Name"].apply(lambda x: pd.Series(split_name(x)))
+        result["Surname"] = names[0]
+        result["Firstname"] = names[1]
+        result["OtherName"] = names[2]
 
     # ── STEP 4: Date standardization ──
     def parse_dob(val):
-        if not val or str(val).strip().lower() in ("nan", "", "nat", "none"):
+        v = clean_val(val)
+        if not v or v == "############":
             return pd.NaT
-        val = str(val).strip()
-        # Try Excel serial
         try:
-            num = float(val.replace(",", ""))
+            num = float(v.replace(",", ""))
             if 10000 < num < 60000:
                 return pd.to_datetime("1899-12-30") + pd.to_timedelta(num, unit="D")
         except (ValueError, TypeError):
             pass
-        # Try standard parsing
         try:
-            return pd.to_datetime(val, dayfirst=True)
+            return pd.to_datetime(v, dayfirst=True)
         except (ValueError, TypeError):
             return pd.NaT
 
     result["DOB_Parsed"] = result["DOB"].apply(parse_dob)
-    result["DOB_Formatted"] = result["DOB_Parsed"].apply(lambda d: d.strftime("%d-%b-%Y") if pd.notna(d) else "")
+    result["DOB_Formatted"] = result["DOB_Parsed"].apply(lambda d: d.strftime("%d/%m/%Y") if pd.notna(d) else "")
 
-    # ── STEP 5: Age calculation ──
+    def parse_start_date(val):
+        v = clean_val(val)
+        if not v: return ""
+        try:
+            d = pd.to_datetime(v, dayfirst=True)
+            return d.strftime("%d/%m/%Y") if pd.notna(d) else ""
+        except (ValueError, TypeError):
+            return ""
+
+    result["Start_Formatted"] = result.get("start_date", pd.Series([""] * len(result))).apply(parse_start_date)
+
+    # ── STEP 5: Age calculation + Gender/Title inference ──
     today = datetime.now()
     result["Age"] = result["DOB_Parsed"].apply(lambda d: (today - d).days // 365 if pd.notna(d) else None)
 
+    def infer_title(row):
+        t = clean_val(row.get("title", "")).upper()
+        if t and t not in ("NAN", ""): return t
+        gender = clean_val(row.get("Gender", "")).upper()
+        rel = str(row.get("Relationship", "")).upper()
+        age = row.get("Age")
+        if rel in ("SON", "DAUGHTER") or (age is not None and age < 18):
+            return "MISS" if gender == "FEMALE" else "MSTR"
+        if gender == "FEMALE": return "MRS" if rel == "SPOUSE" else "MRS"
+        return "MR"
+
+    def infer_gender(row):
+        g = clean_val(row.get("Gender", "")).upper()
+        if g in ("MALE", "M"): return "MALE"
+        if g in ("FEMALE", "F"): return "FEMALE"
+        rel = str(row.get("Relationship", "")).upper()
+        if rel in ("SPOUSE", "DAUGHTER"): return "FEMALE"
+        if rel == "SON": return "MALE"
+        return ""
+
+    result["Title"] = result.apply(infer_title, axis=1)
+    result["Gender_Clean"] = result.apply(infer_gender, axis=1)
+
+    def infer_marital(row):
+        m = clean_val(row.get("marital", "")).upper()
+        if m and m not in ("NAN", ""): return m
+        rel = str(row.get("Relationship", "")).upper()
+        if rel == "SELF": return "MARRIED"
+        if rel == "SPOUSE": return "MARRIED"
+        if rel in ("SON", "DAUGHTER"): return "SINGLE"
+        return ""
+
+    result["Marital_Clean"] = result.apply(infer_marital, axis=1)
+
     # ── STEP 6: Validation ──
-    notes = []
-    flags = []
+    validation_notes = []
+    validation_flags = []
     for _, row in result.iterrows():
-        note_list = []
+        nl = []
         flag = "VALID"
-        rel = str(row["Relationship"]).lower()
+        rel = str(row["Relationship"]).upper()
         age = row["Age"]
 
         if pd.isna(row["DOB_Parsed"]):
-            note_list.append("Missing DOB")
+            nl.append("Missing DOB")
             flag = "WARNING"
-
         if age is not None:
-            if rel in ("principal", "spouse", "") and age > 64:
-                note_list.append(f"Overaged {row['Relationship']} (age {age})")
+            if rel in ("SELF", "SPOUSE", "") and age > 64:
+                nl.append(f"Overaged {rel} (age {age})")
                 flag = "RED"
-            elif rel in ("son", "daughter", "dependent", "child") and age > 21:
-                note_list.append(f"Overaged Dependent (age {age})")
+            elif rel in ("SON", "DAUGHTER", "DEPENDENT") and age > 21:
+                nl.append(f"Overaged Dependent (age {age})")
                 flag = "RED"
+        validation_notes.append("; ".join(nl) if nl else "")
+        validation_flags.append(flag)
 
-        # Duplicate check
-        notes.append("; ".join(note_list) if note_list else "")
-        flags.append(flag)
+    result["Notes"] = validation_notes
+    result["Flag"] = validation_flags
 
-    result["Notes"] = notes
-    result["Flag"] = flags
-
-    # Check duplicates
-    dup_mask = result.duplicated(subset=["First_Name", "Last_Name", "DOB_Formatted"], keep=False) & (result["First_Name"] != "")
+    dup_mask = result.duplicated(subset=["Surname", "Firstname", "DOB_Formatted"], keep=False) & (result["Surname"] != "")
     result.loc[dup_mask, "Notes"] = result.loc[dup_mask, "Notes"].apply(lambda n: (n + "; " if n else "") + "Possible Duplicate")
     result.loc[dup_mask & (result["Flag"] == "VALID"), "Flag"] = "WARNING"
 
-    # ── Build output Excel ──
+    # ── Build output Excel (exact Leadway template: 26 columns) ──
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
-    output = result[["First_Name", "Last_Name", "DOB_Formatted", "Gender", "Relationship", "Age", "Flag", "Notes"]].copy()
-    output.columns = ["First Name", "Last Name", "DOB", "Gender", "Relationship", "Age", "Status", "Notes"]
+
+    output = pd.DataFrame({
+        "Title": result["Title"],
+        "Surname": result["Surname"],
+        "Firstname": result["Firstname"],
+        "Other Name": result["OtherName"],
+        "Date of Birth\ndd/mm/ccyy": result["DOB_Formatted"],
+        "Gender\nFemale or Male": result["Gender_Clean"],
+        "Address \nNo commas": result.get("address", "").apply(lambda x: clean_val(x).replace(",", " ")) if "address" in result.columns else "",
+        "City": result.get("city", "").apply(lambda x: clean_val(x).upper()) if "city" in result.columns else "",
+        "Employee number": result.get("staff_id", "").apply(clean_val) if "staff_id" in result.columns else "",
+        "Group Code": result.get("group_code", "").apply(clean_val) if "group_code" in result.columns else "",
+        "Plan Code": result.get("plan_code", "").apply(clean_val) if "plan_code" in result.columns else "",
+        "Member/DependantIndicator": result["Member_Dep"],
+        "Relationship to main member": result["Relationship"],
+        "Start date of member\ndd/mm/ccyy": result["Start_Formatted"],
+        "Marital status": result["Marital_Clean"],
+        "Contacts": result.get("contacts", "").apply(clean_val) if "contacts" in result.columns else "",
+        "State": result.get("state", "").apply(lambda x: clean_val(x).upper()) if "state" in result.columns else "",
+        "Captitation Provider": "",
+        "Picture Path": "",
+        "Place of birth": "",
+        "Blood Group": "",
+        "Size": "",
+        "weight": "",
+        "occupation": "",
+        "contact 2": "",
+        "email": result.get("email", "").apply(clean_val) if "email" in result.columns else "",
+    })
+
+    # Add validation columns at end
+    output["Status"] = result["Flag"]
+    output["Notes"] = result["Notes"]
 
     clean_client = client_name.replace(" ", "_")[:20]
     filename = f"Enrolment_{clean_client}_{session_id}.xlsx"
@@ -1995,21 +2145,17 @@ def enrolment_generator_upload():
     buf = io.BytesIO()
     with pd.ExcelWriter(buf, engine="openpyxl") as writer:
         output.to_excel(writer, sheet_name="Enrolment", index=False)
-
-        # Summary sheet
         summary_data = {
-            "Metric": ["Total Records", "Principals", "Spouses", "Dependants",
+            "Metric": ["Client", "Total Records", "Principals", "Spouses", "Dependants",
                         "Valid", "Warnings", "Red Flags", "Format Detected"],
-            "Value": [
-                len(output),
-                len(output[output["Relationship"] == "Principal"]),
-                len(output[output["Relationship"] == "Spouse"]),
-                len(output[output["Relationship"].isin(["Son", "Daughter", "Dependent"])]),
+            "Value": [client_name, len(output),
+                len(output[output["Member/DependantIndicator"] == "O"]),
+                len(output[output["Relationship to main member"] == "SPOUSE"]),
+                len(output[output["Relationship to main member"].isin(["SON", "DAUGHTER", "DEPENDENT"])]),
                 len(output[output["Status"] == "VALID"]),
                 len(output[output["Status"] == "WARNING"]),
                 len(output[output["Status"] == "RED"]),
-                "Wide Format (expanded)" if is_wide else "Standard Format",
-            ],
+                "Wide Format (expanded)" if is_wide else "Standard Format"],
         }
         pd.DataFrame(summary_data).to_excel(writer, sheet_name="Summary", index=False)
 
@@ -2030,8 +2176,8 @@ def enrolment_generator_upload():
         cell.fill = header_fill
         cell.font = header_font
 
-    # Style rows
-    status_col = 7  # Column G = Status
+    # Style rows — Status column is 27 (26 template cols + Status)
+    status_col = 27
     for row_idx in range(2, ws.max_row + 1):
         status = ws.cell(row=row_idx, column=status_col).value
         fill = None
