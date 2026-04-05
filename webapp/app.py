@@ -1861,6 +1861,9 @@ def enrolment_generator_upload():
         # Build dependant blocks by pairing each remaining First Name col
         # with its nearest Last Name col, then scanning for DOB/Phone/EmpID nearby
         dep_blocks = []
+        used_indices = set()
+        if p_fn is not None: used_indices.add(p_fn)
+        if p_ln is not None: used_indices.add(p_ln)
         remaining_fn = [i for i in fn_cols if i not in used_indices]
 
         for fi in remaining_fn:
