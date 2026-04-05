@@ -1787,192 +1787,251 @@ def enrolment_generator_upload():
         df = pd.read_excel(fpath)
     df.columns = [str(c).strip() for c in df.columns]
 
-    # ── STEP 0: Detect format (wide vs standard) ──
-    cols_lower = {c: c.lower().strip() for c in df.columns}
-    wide_indicators = ["spouse", "child1", "child 1", "dep1", "dep 1", "dependent1",
-                        "child2", "child 2", "dep2", "dep 2", "child3", "child 3",
-                        "daughter", "son name", "son1", "daughter1"]
-    is_wide = any(any(ind in cl for ind in wide_indicators) for cl in cols_lower.values())
+    # ── STEP 0: Detect format and expand ──
+    # Clean column names: strip whitespace, non-breaking spaces, newlines
+    df.columns = [str(c).replace("\xa0", " ").replace("\n", " ").replace("\r", " ").strip() for c in df.columns]
+    cols = list(df.columns)
+    cols_lower = [c.lower().strip() for c in cols]
+
+    # Detect wide format: look for repeated First Name / Last Name patterns
+    fn_cols = [i for i, c in enumerate(cols_lower) if "first name" in c]
+    ln_cols = [i for i, c in enumerate(cols_lower) if "last name" in c]
+    is_wide = len(fn_cols) > 1 or len(ln_cols) > 1
+
+    # Also detect: Spouse/Child/Dep columns
+    if not is_wide:
+        is_wide = any(any(kw in c for kw in ["spouse", "child1", "child 1", "dep1", "dep 1"]) for c in cols_lower)
 
     expanded_rows = []
 
+    def clean_v(v):
+        """Clean a cell value."""
+        if v is None: return ""
+        s = str(v).strip()
+        if s.lower() in ("nan", "none", "nat", ""): return ""
+        return s
+
+    def fmt_phone(v):
+        """Format phone number."""
+        s = clean_v(v)
+        if not s: return ""
+        # Remove country code prefix, keep as string
+        s = s.replace("+", "").replace(" ", "").replace("-", "")
+        try:
+            n = int(float(s))
+            s = str(n)
+        except (ValueError, TypeError):
+            return s
+        # Nigerian numbers: if starts with 234, strip to 0...
+        if s.startswith("234") and len(s) > 10:
+            s = "0" + s[3:]
+        elif not s.startswith("0") and len(s) == 10:
+            s = "0" + s
+        return s
+
+    def find_col(keywords, start_idx=0, end_idx=None):
+        """Find a column index by keywords within a range."""
+        end = end_idx or len(cols)
+        for i in range(start_idx, end):
+            cl = cols_lower[i]
+            for kw in keywords:
+                if kw in cl:
+                    return i
+        return None
+
     if is_wide:
-        # ── WIDE FORMAT: expand to individual rows ──
-        # Find principal columns
-        principal_name_col = None
-        principal_dob_col = None
-        principal_gender_col = None
+        # ── WIDE FORMAT: Group columns into blocks ──
+        # Strategy: find all "first name" columns — each one starts a person block
+        # The principal block is the first one, subsequent blocks are dependants
 
-        for c, cl in cols_lower.items():
-            if any(k in cl for k in ["principal name", "employee name", "staff name", "member name", "full name", "name"]) and "spouse" not in cl and "child" not in cl and "dep" not in cl:
-                if principal_name_col is None:
-                    principal_name_col = c
-            if any(k in cl for k in ["principal dob", "employee dob", "dob", "date of birth", "birth"]) and "spouse" not in cl and "child" not in cl and "dep" not in cl:
-                if principal_dob_col is None:
-                    principal_dob_col = c
-            if any(k in cl for k in ["principal gender", "sex", "gender"]) and "spouse" not in cl and "child" not in cl:
-                if principal_gender_col is None:
-                    principal_gender_col = c
+        # Find principal columns (before the first repeated first name)
+        # Principal might use "First Name" (col 3) and "Last Name" (col 4)
+        p_fn = fn_cols[0] if fn_cols else None
+        p_ln = ln_cols[0] if ln_cols else None
 
-        # Find spouse columns
-        spouse_name_col = None
-        spouse_dob_col = None
-        spouse_gender_col = None
-        for c, cl in cols_lower.items():
-            if "spouse" in cl and ("name" in cl or cl == "spouse"): spouse_name_col = c
-            if "spouse" in cl and ("dob" in cl or "birth" in cl or "date" in cl): spouse_dob_col = c
-            if "spouse" in cl and ("gender" in cl or "sex" in cl): spouse_gender_col = c
+        # Find other principal fields by scanning cols before the first dependant block
+        first_dep_start = fn_cols[1] if len(fn_cols) > 1 else (ln_cols[1] if len(ln_cols) > 1 else len(cols))
+        p_email = find_col(["email"], 0, first_dep_start)
+        p_phone = find_col(["phone", "contact", "mobile", "tel"], 0, first_dep_start)
+        p_dob = find_col(["date of birth", "dob", "birth"], 0, first_dep_start)
+        p_empid = find_col(["employee id", "staff id", "emp id"], 0, first_dep_start)
+        p_addr = find_col(["address"], 0, first_dep_start)
+        p_name = find_col(["name"], 0, first_dep_start)  # Full name column
 
-        # Find child/dependent columns (could be many)
-        child_groups = {}  # index -> {"name": col, "dob": col, "gender": col}
-        for c, cl in cols_lower.items():
-            import re
-            # Match patterns like child1, child 1, dep1, dependent1, son1, daughter1
-            m = re.search(r'(child|dep|dependent|son|daughter)\s*(\d+)', cl)
-            if m:
-                idx = int(m.group(2))
-                rel_hint = m.group(1)
-                if idx not in child_groups:
-                    child_groups[idx] = {"name": None, "dob": None, "gender": None, "rel_hint": rel_hint}
-                if "name" in cl or (cl.strip() == f"{rel_hint}{idx}" or cl.strip() == f"{rel_hint} {idx}"):
-                    child_groups[idx]["name"] = c
-                    child_groups[idx]["rel_hint"] = rel_hint
-                if "dob" in cl or "birth" in cl or "date" in cl:
-                    child_groups[idx]["dob"] = c
-                if "gender" in cl or "sex" in cl:
-                    child_groups[idx]["gender"] = c
-            # Handle: child name, child dob without numbers (single child)
-            elif any(k in cl for k in ["child name", "child dob", "dependent name", "dependent dob"]) and not any(char.isdigit() for char in cl):
-                if 0 not in child_groups:
-                    child_groups[0] = {"name": None, "dob": None, "gender": None, "rel_hint": "child"}
-                if "name" in cl: child_groups[0]["name"] = c
-                if "dob" in cl or "birth" in cl: child_groups[0]["dob"] = c
-                if "gender" in cl or "sex" in cl: child_groups[0]["gender"] = c
+        # Build dependant blocks: each block starts at a "first name" or "last name" column
+        # that isn't the principal's
+        dep_blocks = []
+        used_indices = set()
+        if p_fn is not None: used_indices.add(p_fn)
+        if p_ln is not None: used_indices.add(p_ln)
 
+        # Group remaining first name / last name columns into blocks
+        remaining_fn = [i for i in fn_cols if i not in used_indices]
+        remaining_ln = [i for i in ln_cols if i not in used_indices]
+
+        # Pair them: for each remaining first name, find the nearest last name
+        all_name_starts = sorted(set(remaining_fn + remaining_ln))
+
+        # Group consecutive columns into blocks
+        i = 0
+        while i < len(all_name_starts):
+            block_start = all_name_starts[i]
+            # Block ends at next block start or end of columns
+            block_end = all_name_starts[i + 1] if i + 1 < len(all_name_starts) else len(cols)
+
+            block = {"fn": None, "ln": None, "dob": None, "phone": None, "empid": None, "addr": None}
+            for j in range(block_start, block_end):
+                cl = cols_lower[j]
+                if "first name" in cl and block["fn"] is None: block["fn"] = j
+                elif "last name" in cl and block["ln"] is None: block["ln"] = j
+                elif ("date of birth" in cl or "dob" in cl or cl == "birth") and block["dob"] is None: block["dob"] = j
+                elif any(k in cl for k in ["phone", "contact", "mobile"]) and block["phone"] is None: block["phone"] = j
+                elif any(k in cl for k in ["employee id", "staff id"]) and block["empid"] is None: block["empid"] = j
+                elif "address" in cl and block["addr"] is None: block["addr"] = j
+            dep_blocks.append(block)
+            i += 1
+
+        # Now iterate rows and expand
         for _, row in df.iterrows():
-            # Collect shared fields (from principal row in wide format)
-            shared = {}
-            for c, cl in cols_lower.items():
-                if any(k in cl for k in ["address", "addr"]): shared["address"] = row.get(c, "")
-                elif any(k in cl for k in ["city", "town"]): shared["city"] = row.get(c, "")
-                elif any(k in cl for k in ["state"]): shared["state"] = row.get(c, "")
-                elif any(k in cl for k in ["staff id", "employee number", "employee id", "emp id", "emp no"]): shared["staff_id"] = row.get(c, "")
-                elif any(k in cl for k in ["marital", "marital status"]): shared["marital"] = row.get(c, "")
-                elif any(k in cl for k in ["phone", "contact", "mobile", "tel"]) and "spouse" not in cl and "child" not in cl: shared["contacts"] = row.get(c, "")
-                elif any(k in cl for k in ["plan", "plan code"]) and "child" not in cl: shared["plan_code"] = row.get(c, "")
-                elif any(k in cl for k in ["email", "e-mail"]) and "spouse" not in cl: shared["email"] = row.get(c, "")
-                elif any(k in cl for k in ["group code", "group", "group_code"]): shared["group_code"] = row.get(c, "")
-                elif any(k in cl for k in ["start date", "effective", "commencement"]): shared["start_date"] = row.get(c, "")
-                elif any(k in cl for k in ["title"]) and "spouse" not in cl and "child" not in cl: shared["title"] = row.get(c, "")
-
             # Principal
-            p_name = str(row.get(principal_name_col, "")).strip() if principal_name_col else ""
-            if not p_name or p_name.lower() == "nan":
+            fn = clean_v(row.iloc[p_fn]) if p_fn is not None else ""
+            ln = clean_v(row.iloc[p_ln]) if p_ln is not None else ""
+            full = clean_v(row.iloc[p_name]) if p_name is not None else ""
+            if not fn and not ln and full:
+                parts = full.split()
+                fn = parts[0] if parts else ""
+                ln = parts[-1] if len(parts) > 1 else ""
+            if not fn and not ln:
                 continue
+
+            email = clean_v(row.iloc[p_email]) if p_email is not None else ""
+            phone = fmt_phone(row.iloc[p_phone]) if p_phone is not None else ""
+            dob = row.iloc[p_dob] if p_dob is not None else ""
+            empid = clean_v(row.iloc[p_empid]) if p_empid is not None else ""
+            addr = clean_v(row.iloc[p_addr]) if p_addr is not None else ""
+
             expanded_rows.append({
-                "Full_Name": p_name,
-                "DOB": row.get(principal_dob_col, "") if principal_dob_col else "",
-                "Gender": row.get(principal_gender_col, "") if principal_gender_col else "",
-                "Relationship": "SELF",
-                "Member_Dep": "O",
-                **shared,
+                "Firstname": fn.upper(), "Surname": ln.upper(), "OtherName": "",
+                "DOB": dob, "Gender": "", "Relationship": "SELF", "Member_Dep": "O",
+                "contacts": phone, "email": email, "staff_id": empid,
+                "address": addr.replace(",", " "), "city": "LAGOS",
+                "marital": "MARRIED", "title": "",
+                "plan_code": "", "group_code": "", "start_date": "", "state": "",
             })
 
-            # Spouse
-            if spouse_name_col:
-                s_name = str(row.get(spouse_name_col, "")).strip()
-                if s_name and s_name.lower() != "nan":
-                    expanded_rows.append({
-                        "Full_Name": s_name,
-                        "DOB": row.get(spouse_dob_col, "") if spouse_dob_col else "",
-                        "Gender": row.get(spouse_gender_col, "") if spouse_gender_col else "",
-                        "Relationship": "SPOUSE",
-                        "Member_Dep": "D",
-                        **{k: v for k, v in shared.items() if k not in ("title", "marital")},
-                        "marital": "MARRIED",
-                    })
+            # Dependants
+            for dep in dep_blocks:
+                d_fn = clean_v(row.iloc[dep["fn"]]) if dep["fn"] is not None else ""
+                d_ln = clean_v(row.iloc[dep["ln"]]) if dep["ln"] is not None else ""
+                if not d_fn and not d_ln:
+                    continue  # Skip empty dependant slots
+                d_dob = row.iloc[dep["dob"]] if dep["dob"] is not None else ""
+                d_phone = fmt_phone(row.iloc[dep["phone"]]) if dep["phone"] is not None else ""
+                d_empid = clean_v(row.iloc[dep["empid"]]) if dep["empid"] is not None else empid  # inherit parent's
 
-            # Children/Dependants
-            for idx in sorted(child_groups.keys()):
-                cg = child_groups[idx]
-                if cg["name"]:
-                    c_name = str(row.get(cg["name"], "")).strip()
-                    if c_name and c_name.lower() != "nan":
-                        rel = "SON" if "son" in cg["rel_hint"] else ("DAUGHTER" if "daughter" in cg["rel_hint"] else "SON")
-                        expanded_rows.append({
-                            "Full_Name": c_name,
-                            "DOB": row.get(cg["dob"], "") if cg["dob"] else "",
-                            "Gender": row.get(cg["gender"], "") if cg["gender"] else "",
-                            "Relationship": rel,
-                            "Member_Dep": "D",
-                            **{k: v for k, v in shared.items() if k not in ("title", "marital")},
-                            "marital": "SINGLE",
-                        })
+                # Infer relationship from DOB
+                rel = "SPOUSE"
+                try:
+                    from datetime import datetime as dt
+                    if hasattr(d_dob, 'year'):
+                        age = (dt.now() - pd.Timestamp(d_dob)).days // 365
+                        if age < 22:
+                            rel = "SON"  # Default child — gender unknown from this data
+                except Exception:
+                    pass
+
+                expanded_rows.append({
+                    "Firstname": d_fn.upper(), "Surname": d_ln.upper(), "OtherName": "",
+                    "DOB": d_dob, "Gender": "", "Relationship": rel, "Member_Dep": "D",
+                    "contacts": d_phone, "email": "", "staff_id": d_empid,
+                    "address": addr.replace(",", " "), "city": "LAGOS",
+                    "marital": "SINGLE" if rel != "SPOUSE" else "MARRIED",
+                    "title": "", "plan_code": "", "group_code": "", "start_date": "", "state": "",
+                })
+
     else:
-        # ── STANDARD FORMAT: one row per person ──
+        # ── STANDARD FORMAT ──
         field_map = {}
-        for c, cl in cols_lower.items():
-            if any(k in cl for k in ["name", "full name", "member name", "employee"]) and "field_map" not in field_map: field_map["name"] = c
-            if any(k in cl for k in ["dob", "date of birth", "birth date"]) and "dob" not in field_map: field_map["dob"] = c
-            if any(k in cl for k in ["gender", "sex"]) and "gender" not in field_map: field_map["gender"] = c
-            if any(k in cl for k in ["relationship", "relation", "member type"]) and "rel" not in field_map: field_map["rel"] = c
-            if any(k in cl for k in ["title"]) and "title" not in field_map: field_map["title"] = c
-            if any(k in cl for k in ["address", "addr"]) and "address" not in field_map: field_map["address"] = c
-            if any(k in cl for k in ["city", "town"]) and "city" not in field_map: field_map["city"] = c
-            if any(k in cl for k in ["state"]) and "state" not in field_map: field_map["state"] = c
-            if any(k in cl for k in ["staff id", "employee number", "emp"]) and "staff_id" not in field_map: field_map["staff_id"] = c
-            if any(k in cl for k in ["marital"]) and "marital" not in field_map: field_map["marital"] = c
-            if any(k in cl for k in ["phone", "contact", "mobile"]) and "contacts" not in field_map: field_map["contacts"] = c
-            if any(k in cl for k in ["plan", "plan code"]) and "plan_code" not in field_map: field_map["plan_code"] = c
-            if any(k in cl for k in ["email", "e-mail"]) and "email" not in field_map: field_map["email"] = c
-            if any(k in cl for k in ["group code", "group"]) and "group_code" not in field_map: field_map["group_code"] = c
-            if any(k in cl for k in ["start date", "effective"]) and "start_date" not in field_map: field_map["start_date"] = c
-            if any(k in cl for k in ["member/dep", "indicator"]) and "member_dep" not in field_map: field_map["member_dep"] = c
-            if any(k in cl for k in ["other name", "othername", "middle"]) and "other_name" not in field_map: field_map["other_name"] = c
-            if any(k in cl for k in ["surname", "last name"]) and "surname" not in field_map: field_map["surname"] = c
-            if any(k in cl for k in ["firstname", "first name"]) and "firstname" not in field_map: field_map["firstname"] = c
+        for i, cl in enumerate(cols_lower):
+            if "surname" in cl or "last name" in cl:
+                if "surname" not in field_map: field_map["surname"] = cols[i]
+            elif "firstname" in cl or "first name" in cl:
+                if "firstname" not in field_map: field_map["firstname"] = cols[i]
+            elif "other name" in cl or "middle" in cl:
+                if "other_name" not in field_map: field_map["other_name"] = cols[i]
+            elif "name" in cl and "surname" not in field_map and "firstname" not in field_map:
+                if "name" not in field_map: field_map["name"] = cols[i]
+            elif "dob" in cl or "date of birth" in cl or "birth date" in cl:
+                if "dob" not in field_map: field_map["dob"] = cols[i]
+            elif "gender" in cl or "sex" in cl:
+                if "gender" not in field_map: field_map["gender"] = cols[i]
+            elif "relationship" in cl or "relation" in cl:
+                if "rel" not in field_map: field_map["rel"] = cols[i]
+            elif "title" in cl:
+                if "title" not in field_map: field_map["title"] = cols[i]
+            elif "address" in cl:
+                if "address" not in field_map: field_map["address"] = cols[i]
+            elif "city" in cl or "town" in cl:
+                if "city" not in field_map: field_map["city"] = cols[i]
+            elif "state" in cl:
+                if "state" not in field_map: field_map["state"] = cols[i]
+            elif "staff" in cl or "employee" in cl or "emp" in cl:
+                if "staff_id" not in field_map: field_map["staff_id"] = cols[i]
+            elif "marital" in cl:
+                if "marital" not in field_map: field_map["marital"] = cols[i]
+            elif "phone" in cl or "contact" in cl or "mobile" in cl:
+                if "contacts" not in field_map: field_map["contacts"] = cols[i]
+            elif "plan" in cl:
+                if "plan_code" not in field_map: field_map["plan_code"] = cols[i]
+            elif "email" in cl:
+                if "email" not in field_map: field_map["email"] = cols[i]
+            elif "group" in cl:
+                if "group_code" not in field_map: field_map["group_code"] = cols[i]
+            elif "start date" in cl or "effective" in cl:
+                if "start_date" not in field_map: field_map["start_date"] = cols[i]
+            elif "member" in cl and ("dep" in cl or "indicator" in cl):
+                if "member_dep" not in field_map: field_map["member_dep"] = cols[i]
 
         for _, row in df.iterrows():
-            # Try surname+firstname first, then full name
             if "surname" in field_map and "firstname" in field_map:
-                sn = str(row.get(field_map["surname"], "")).strip()
-                fn = str(row.get(field_map["firstname"], "")).strip()
-                full = f"{fn} {sn}" if fn.lower() != "nan" and sn.lower() != "nan" else ""
+                sn = clean_v(row.get(field_map["surname"], ""))
+                fn = clean_v(row.get(field_map["firstname"], ""))
+                on = clean_v(row.get(field_map.get("other_name", ""), ""))
             elif "name" in field_map:
-                full = str(row.get(field_map["name"], "")).strip()
+                full = clean_v(row.get(field_map["name"], ""))
+                parts = full.upper().split()
+                sn = parts[-1] if len(parts) > 1 else (parts[0] if parts else "")
+                fn = parts[0] if parts else ""
+                on = " ".join(parts[1:-1]) if len(parts) > 2 else ""
             else:
                 continue
-            if not full or full.lower() == "nan":
+            if not fn and not sn:
                 continue
 
-            rel = str(row.get(field_map.get("rel", ""), "")).strip().upper() if "rel" in field_map else ""
-            md = str(row.get(field_map.get("member_dep", ""), "")).strip().upper() if "member_dep" in field_map else ""
+            rel = clean_v(row.get(field_map.get("rel", ""), "")).upper()
+            md = clean_v(row.get(field_map.get("member_dep", ""), "")).upper()
             if not md:
                 md = "O" if rel in ("SELF", "PRINCIPAL", "MAIN MEMBER", "") else "D"
+            if not rel:
+                rel = "SELF" if md == "O" else "DEPENDENT"
 
-            entry = {
-                "Full_Name": full,
-                "DOB": row.get(field_map.get("dob", ""), "") if "dob" in field_map else "",
-                "Gender": row.get(field_map.get("gender", ""), "") if "gender" in field_map else "",
-                "Relationship": rel if rel else "SELF",
-                "Member_Dep": md,
-                "title": row.get(field_map.get("title", ""), "") if "title" in field_map else "",
-                "address": row.get(field_map.get("address", ""), "") if "address" in field_map else "",
-                "city": row.get(field_map.get("city", ""), "") if "city" in field_map else "",
-                "state": row.get(field_map.get("state", ""), "") if "state" in field_map else "",
-                "staff_id": row.get(field_map.get("staff_id", ""), "") if "staff_id" in field_map else "",
-                "marital": row.get(field_map.get("marital", ""), "") if "marital" in field_map else "",
-                "contacts": row.get(field_map.get("contacts", ""), "") if "contacts" in field_map else "",
-                "plan_code": row.get(field_map.get("plan_code", ""), "") if "plan_code" in field_map else "",
-                "email": row.get(field_map.get("email", ""), "") if "email" in field_map else "",
-                "group_code": row.get(field_map.get("group_code", ""), "") if "group_code" in field_map else "",
-                "start_date": row.get(field_map.get("start_date", ""), "") if "start_date" in field_map else "",
-                "other_name": row.get(field_map.get("other_name", ""), "") if "other_name" in field_map else "",
-            }
-            if "surname" in field_map:
-                entry["_surname"] = str(row.get(field_map["surname"], "")).strip()
-                entry["_firstname"] = str(row.get(field_map["firstname"], "")).strip()
-            expanded_rows.append(entry)
+            expanded_rows.append({
+                "Firstname": fn.upper(), "Surname": sn.upper(), "OtherName": on.upper(),
+                "DOB": row.get(field_map.get("dob", ""), ""),
+                "Gender": clean_v(row.get(field_map.get("gender", ""), "")).upper(),
+                "Relationship": rel, "Member_Dep": md,
+                "title": clean_v(row.get(field_map.get("title", ""), "")).upper(),
+                "address": clean_v(row.get(field_map.get("address", ""), "")).replace(",", " "),
+                "city": clean_v(row.get(field_map.get("city", ""), "")).upper(),
+                "state": clean_v(row.get(field_map.get("state", ""), "")).upper(),
+                "staff_id": clean_v(row.get(field_map.get("staff_id", ""), "")),
+                "marital": clean_v(row.get(field_map.get("marital", ""), "")).upper(),
+                "contacts": fmt_phone(row.get(field_map.get("contacts", ""), "")),
+                "plan_code": clean_v(row.get(field_map.get("plan_code", ""), "")),
+                "email": clean_v(row.get(field_map.get("email", ""), "")),
+                "group_code": clean_v(row.get(field_map.get("group_code", ""), "")),
+                "start_date": clean_v(row.get(field_map.get("start_date", ""), "")),
+            })
 
     if not expanded_rows:
         flash("No valid records found. Check your file format.")
@@ -1980,30 +2039,14 @@ def enrolment_generator_upload():
 
     result = pd.DataFrame(expanded_rows)
 
-    # ── STEP 3: Name cleaning ──
+    # ── Name cleaning (already split in expansion, just ensure uppercase) ──
     def clean_val(v):
         s = str(v).strip()
         return "" if s.lower() in ("nan", "none", "nat") else s
 
-    def split_name(name):
-        parts = clean_val(name).upper().split()
-        if len(parts) >= 3:
-            return parts[-1], parts[0], " ".join(parts[1:-1])
-        elif len(parts) == 2:
-            return parts[-1], parts[0], ""
-        elif len(parts) == 1:
-            return parts[0], "", ""
-        return "", "", ""
-
-    if "_surname" in result.columns:
-        result["Surname"] = result["_surname"].apply(lambda x: clean_val(x).upper())
-        result["Firstname"] = result["_firstname"].apply(lambda x: clean_val(x).upper())
-        result["OtherName"] = result.get("other_name", pd.Series([""] * len(result))).apply(lambda x: clean_val(x).upper())
-    else:
-        names = result["Full_Name"].apply(lambda x: pd.Series(split_name(x)))
-        result["Surname"] = names[0]
-        result["Firstname"] = names[1]
-        result["OtherName"] = names[2]
+    result["Surname"] = result["Surname"].apply(lambda x: clean_val(x).upper())
+    result["Firstname"] = result["Firstname"].apply(lambda x: clean_val(x).upper())
+    result["OtherName"] = result.get("OtherName", pd.Series([""] * len(result))).apply(lambda x: clean_val(x).upper())
 
     # ── STEP 4: Date standardization ──
     def parse_dob(val):
