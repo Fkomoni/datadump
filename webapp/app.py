@@ -1749,6 +1749,319 @@ def pricing_tool_calculate():
 
 
 # ═══════════════════════════════════════════════
+# ENROLMENT TEMPLATE GENERATOR
+# ═══════════════════════════════════════════════
+
+@app.route("/enrolment-generator")
+@login_required
+def enrolment_generator():
+    logo = get_logo_b64()
+    report_list = list_reports("Enrolment_")
+    return render_template("enrolment_generator.html", logo=logo, reports=report_list)
+
+
+@app.route("/enrolment-generator/upload", methods=["POST"])
+@login_required
+def enrolment_generator_upload():
+    import pandas as pd
+    import numpy as np
+    from datetime import datetime
+    import io
+
+    hr_file = request.files.get("hr_file")
+    if not hr_file or hr_file.filename == "":
+        flash("Please upload an HR / enrolment file.")
+        return redirect(url_for("enrolment_generator"))
+
+    client_name = request.form.get("client_name", "Client").strip() or "Client"
+    session_id = str(uuid.uuid4())[:8]
+    upload_dir = app.config["UPLOAD_FOLDER"] / session_id
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    fpath = upload_dir / hr_file.filename
+    hr_file.save(fpath)
+
+    # Parse file
+    if str(fpath).endswith(".csv"):
+        df = pd.read_csv(fpath)
+    else:
+        df = pd.read_excel(fpath)
+    df.columns = [str(c).strip() for c in df.columns]
+
+    # ── STEP 0: Detect format (wide vs standard) ──
+    cols_lower = {c: c.lower().strip() for c in df.columns}
+    wide_indicators = ["spouse", "child1", "child 1", "dep1", "dep 1", "dependent1",
+                        "child2", "child 2", "dep2", "dep 2", "child3", "child 3",
+                        "daughter", "son name", "son1", "daughter1"]
+    is_wide = any(any(ind in cl for ind in wide_indicators) for cl in cols_lower.values())
+
+    expanded_rows = []
+
+    if is_wide:
+        # ── WIDE FORMAT: expand to individual rows ──
+        # Find principal columns
+        principal_name_col = None
+        principal_dob_col = None
+        principal_gender_col = None
+
+        for c, cl in cols_lower.items():
+            if any(k in cl for k in ["principal name", "employee name", "staff name", "member name", "full name", "name"]) and "spouse" not in cl and "child" not in cl and "dep" not in cl:
+                if principal_name_col is None:
+                    principal_name_col = c
+            if any(k in cl for k in ["principal dob", "employee dob", "dob", "date of birth", "birth"]) and "spouse" not in cl and "child" not in cl and "dep" not in cl:
+                if principal_dob_col is None:
+                    principal_dob_col = c
+            if any(k in cl for k in ["principal gender", "sex", "gender"]) and "spouse" not in cl and "child" not in cl:
+                if principal_gender_col is None:
+                    principal_gender_col = c
+
+        # Find spouse columns
+        spouse_name_col = None
+        spouse_dob_col = None
+        spouse_gender_col = None
+        for c, cl in cols_lower.items():
+            if "spouse" in cl and ("name" in cl or cl == "spouse"): spouse_name_col = c
+            if "spouse" in cl and ("dob" in cl or "birth" in cl or "date" in cl): spouse_dob_col = c
+            if "spouse" in cl and ("gender" in cl or "sex" in cl): spouse_gender_col = c
+
+        # Find child/dependent columns (could be many)
+        child_groups = {}  # index -> {"name": col, "dob": col, "gender": col}
+        for c, cl in cols_lower.items():
+            import re
+            # Match patterns like child1, child 1, dep1, dependent1, son1, daughter1
+            m = re.search(r'(child|dep|dependent|son|daughter)\s*(\d+)', cl)
+            if m:
+                idx = int(m.group(2))
+                rel_hint = m.group(1)
+                if idx not in child_groups:
+                    child_groups[idx] = {"name": None, "dob": None, "gender": None, "rel_hint": rel_hint}
+                if "name" in cl or (cl.strip() == f"{rel_hint}{idx}" or cl.strip() == f"{rel_hint} {idx}"):
+                    child_groups[idx]["name"] = c
+                    child_groups[idx]["rel_hint"] = rel_hint
+                if "dob" in cl or "birth" in cl or "date" in cl:
+                    child_groups[idx]["dob"] = c
+                if "gender" in cl or "sex" in cl:
+                    child_groups[idx]["gender"] = c
+            # Handle: child name, child dob without numbers (single child)
+            elif any(k in cl for k in ["child name", "child dob", "dependent name", "dependent dob"]) and not any(char.isdigit() for char in cl):
+                if 0 not in child_groups:
+                    child_groups[0] = {"name": None, "dob": None, "gender": None, "rel_hint": "child"}
+                if "name" in cl: child_groups[0]["name"] = c
+                if "dob" in cl or "birth" in cl: child_groups[0]["dob"] = c
+                if "gender" in cl or "sex" in cl: child_groups[0]["gender"] = c
+
+        for _, row in df.iterrows():
+            # Principal
+            p_name = str(row.get(principal_name_col, "")).strip() if principal_name_col else ""
+            if not p_name or p_name.lower() == "nan":
+                continue
+            expanded_rows.append({
+                "Full_Name": p_name,
+                "DOB": row.get(principal_dob_col, "") if principal_dob_col else "",
+                "Gender": row.get(principal_gender_col, "") if principal_gender_col else "",
+                "Relationship": "Principal",
+            })
+
+            # Spouse
+            if spouse_name_col:
+                s_name = str(row.get(spouse_name_col, "")).strip()
+                if s_name and s_name.lower() != "nan":
+                    expanded_rows.append({
+                        "Full_Name": s_name,
+                        "DOB": row.get(spouse_dob_col, "") if spouse_dob_col else "",
+                        "Gender": row.get(spouse_gender_col, "") if spouse_gender_col else "",
+                        "Relationship": "Spouse",
+                    })
+
+            # Children/Dependants
+            for idx in sorted(child_groups.keys()):
+                cg = child_groups[idx]
+                if cg["name"]:
+                    c_name = str(row.get(cg["name"], "")).strip()
+                    if c_name and c_name.lower() != "nan":
+                        rel = "Son" if "son" in cg["rel_hint"] else ("Daughter" if "daughter" in cg["rel_hint"] else "Dependent")
+                        expanded_rows.append({
+                            "Full_Name": c_name,
+                            "DOB": row.get(cg["dob"], "") if cg["dob"] else "",
+                            "Gender": row.get(cg["gender"], "") if cg["gender"] else "",
+                            "Relationship": rel,
+                        })
+    else:
+        # ── STANDARD FORMAT: one row per person ──
+        name_col = None
+        dob_col = None
+        gender_col = None
+        rel_col = None
+        for c, cl in cols_lower.items():
+            if any(k in cl for k in ["name", "full name", "member name", "employee"]) and name_col is None: name_col = c
+            if any(k in cl for k in ["dob", "date of birth", "birth date", "birthdate"]) and dob_col is None: dob_col = c
+            if any(k in cl for k in ["gender", "sex"]) and gender_col is None: gender_col = c
+            if any(k in cl for k in ["relationship", "relation", "member type"]) and rel_col is None: rel_col = c
+
+        for _, row in df.iterrows():
+            name = str(row.get(name_col, "")).strip() if name_col else ""
+            if not name or name.lower() == "nan":
+                continue
+            expanded_rows.append({
+                "Full_Name": name,
+                "DOB": row.get(dob_col, "") if dob_col else "",
+                "Gender": row.get(gender_col, "") if gender_col else "",
+                "Relationship": str(row.get(rel_col, "")).strip() if rel_col else "",
+            })
+
+    if not expanded_rows:
+        flash("No valid records found. Check your file format.")
+        return redirect(url_for("enrolment_generator"))
+
+    result = pd.DataFrame(expanded_rows)
+
+    # ── STEP 3: Name cleaning ──
+    def clean_name(name):
+        if not name or str(name).lower() == "nan":
+            return "", ""
+        parts = str(name).strip().title().split()
+        if len(parts) >= 2:
+            return parts[0], " ".join(parts[1:])
+        return parts[0] if parts else "", ""
+
+    result[["First_Name", "Last_Name"]] = result["Full_Name"].apply(lambda x: pd.Series(clean_name(x)))
+
+    # ── STEP 4: Date standardization ──
+    def parse_dob(val):
+        if not val or str(val).strip().lower() in ("nan", "", "nat", "none"):
+            return pd.NaT
+        val = str(val).strip()
+        # Try Excel serial
+        try:
+            num = float(val.replace(",", ""))
+            if 10000 < num < 60000:
+                return pd.to_datetime("1899-12-30") + pd.to_timedelta(num, unit="D")
+        except (ValueError, TypeError):
+            pass
+        # Try standard parsing
+        try:
+            return pd.to_datetime(val, dayfirst=True)
+        except (ValueError, TypeError):
+            return pd.NaT
+
+    result["DOB_Parsed"] = result["DOB"].apply(parse_dob)
+    result["DOB_Formatted"] = result["DOB_Parsed"].apply(lambda d: d.strftime("%d-%b-%Y") if pd.notna(d) else "")
+
+    # ── STEP 5: Age calculation ──
+    today = datetime.now()
+    result["Age"] = result["DOB_Parsed"].apply(lambda d: (today - d).days // 365 if pd.notna(d) else None)
+
+    # ── STEP 6: Validation ──
+    notes = []
+    flags = []
+    for _, row in result.iterrows():
+        note_list = []
+        flag = "VALID"
+        rel = str(row["Relationship"]).lower()
+        age = row["Age"]
+
+        if pd.isna(row["DOB_Parsed"]):
+            note_list.append("Missing DOB")
+            flag = "WARNING"
+
+        if age is not None:
+            if rel in ("principal", "spouse", "") and age > 64:
+                note_list.append(f"Overaged {row['Relationship']} (age {age})")
+                flag = "RED"
+            elif rel in ("son", "daughter", "dependent", "child") and age > 21:
+                note_list.append(f"Overaged Dependent (age {age})")
+                flag = "RED"
+
+        # Duplicate check
+        notes.append("; ".join(note_list) if note_list else "")
+        flags.append(flag)
+
+    result["Notes"] = notes
+    result["Flag"] = flags
+
+    # Check duplicates
+    dup_mask = result.duplicated(subset=["First_Name", "Last_Name", "DOB_Formatted"], keep=False) & (result["First_Name"] != "")
+    result.loc[dup_mask, "Notes"] = result.loc[dup_mask, "Notes"].apply(lambda n: (n + "; " if n else "") + "Possible Duplicate")
+    result.loc[dup_mask & (result["Flag"] == "VALID"), "Flag"] = "WARNING"
+
+    # ── Build output Excel ──
+    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+    output = result[["First_Name", "Last_Name", "DOB_Formatted", "Gender", "Relationship", "Age", "Flag", "Notes"]].copy()
+    output.columns = ["First Name", "Last Name", "DOB", "Gender", "Relationship", "Age", "Status", "Notes"]
+
+    clean_client = client_name.replace(" ", "_")[:20]
+    filename = f"Enrolment_{clean_client}_{session_id}.xlsx"
+    filepath = REPORTS_DIR / filename
+
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+        output.to_excel(writer, sheet_name="Enrolment", index=False)
+
+        # Summary sheet
+        summary_data = {
+            "Metric": ["Total Records", "Principals", "Spouses", "Dependants",
+                        "Valid", "Warnings", "Red Flags", "Format Detected"],
+            "Value": [
+                len(output),
+                len(output[output["Relationship"] == "Principal"]),
+                len(output[output["Relationship"] == "Spouse"]),
+                len(output[output["Relationship"].isin(["Son", "Daughter", "Dependent"])]),
+                len(output[output["Status"] == "VALID"]),
+                len(output[output["Status"] == "WARNING"]),
+                len(output[output["Status"] == "RED"]),
+                "Wide Format (expanded)" if is_wide else "Standard Format",
+            ],
+        }
+        pd.DataFrame(summary_data).to_excel(writer, sheet_name="Summary", index=False)
+
+    # Apply conditional formatting
+    from openpyxl import load_workbook
+    from openpyxl.styles import PatternFill, Font
+    buf.seek(0)
+    wb = load_workbook(buf)
+    ws = wb["Enrolment"]
+    red_fill = PatternFill(start_color="FFCCCC", end_color="FFCCCC", fill_type="solid")
+    orange_fill = PatternFill(start_color="FFE5CC", end_color="FFE5CC", fill_type="solid")
+    green_fill = PatternFill(start_color="E6FFE6", end_color="E6FFE6", fill_type="solid")
+    header_fill = PatternFill(start_color="262626", end_color="262626", fill_type="solid")
+    header_font = Font(color="FFFFFF", bold=True, size=10)
+
+    # Style header
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+
+    # Style rows
+    status_col = 7  # Column G = Status
+    for row_idx in range(2, ws.max_row + 1):
+        status = ws.cell(row=row_idx, column=status_col).value
+        fill = None
+        if status == "RED": fill = red_fill
+        elif status == "WARNING": fill = orange_fill
+        elif status == "VALID": fill = green_fill
+        if fill:
+            for col in range(1, ws.max_column + 1):
+                ws.cell(row=row_idx, column=col).fill = fill
+
+    # Auto-width columns
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or "")) for cell in col)
+        ws.column_dimensions[col[0].column_letter].width = min(max_len + 4, 40)
+
+    buf2 = io.BytesIO()
+    wb.save(buf2)
+    buf2.seek(0)
+    filepath.write_bytes(buf2.getvalue())
+
+    # Stats for flash message
+    total = len(output)
+    reds = len(output[output["Status"] == "RED"])
+    warns = len(output[output["Status"] == "WARNING"])
+    fmt_type = "Wide format expanded" if is_wide else "Standard format"
+    flash(f"Done! {total} members processed ({fmt_type}). {reds} red flags, {warns} warnings. Download below.")
+    return redirect(url_for("enrolment_generator"))
+
+
+# ═══════════════════════════════════════════════
 # Shared — Report viewing & download
 # ═══════════════════════════════════════════════
 

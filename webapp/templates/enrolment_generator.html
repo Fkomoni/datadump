@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Enrolment Template Generator — Leadway Health</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+  :root { --lh-red: #C61531; --lh-dark: #262626; --cream: #FAF7F2; --light: #F4F4F6; --grey: #E6E6E6; --white: #FFF; --muted: #6B7280; --green: #16a34a; --orange: #F15A24; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: var(--cream); color: var(--lh-dark); min-height: 100vh; }
+  .container { max-width: 800px; margin: 0 auto; padding: 40px 20px; }
+  .back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 600; margin-bottom: 20px; }
+  .back-link:hover { color: var(--lh-red); }
+  .header { background: var(--lh-dark); padding: 36px; border-radius: 16px; margin-bottom: 32px; display: flex; align-items: center; gap: 24px; }
+  .header img { height: 56px; }
+  .header h1 { color: white; font-weight: 800; font-size: 26px; }
+  .header p { color: rgba(255,255,255,0.6); font-size: 13px; margin-top: 4px; }
+  .card { background: var(--white); border-radius: 14px; padding: 32px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .card h2 { font-size: 18px; font-weight: 700; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid var(--grey); }
+  .card h2 span { color: var(--lh-red); }
+  .card p.desc { font-size: 13px; color: var(--muted); margin-bottom: 16px; line-height: 1.7; }
+  label { display: block; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 6px; margin-top: 16px; }
+  input[type="file"] { width: 100%; padding: 16px; border: 2px dashed var(--grey); border-radius: 10px; background: var(--light); font-family: inherit; cursor: pointer; }
+  input[type="file"]:hover { border-color: var(--lh-red); }
+  input[type="text"] { width: 100%; padding: 12px; border: 1px solid var(--grey); border-radius: 8px; font-family: inherit; font-size: 13px; background: var(--light); }
+  .note { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .submit-btn { display: block; width: 100%; padding: 14px; background: var(--lh-red); color: white; border: none; border-radius: 10px; font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 24px; transition: background 0.2s; }
+  .submit-btn:hover { background: #a00d24; }
+  .flash { background: #FEF2F2; border: 2px solid var(--lh-red); border-radius: 10px; padding: 14px 20px; margin-bottom: 20px; font-weight: 600; font-size: 13px; color: var(--lh-red); }
+  .info-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 20px; }
+  .info-card { background: var(--light); border-radius: 8px; padding: 14px; text-align: center; }
+  .info-card .ic-icon { font-size: 20px; margin-bottom: 6px; }
+  .info-card .ic-label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--muted); }
+  .reports-list { list-style: none; }
+  .reports-list li { padding: 10px 14px; border-bottom: 1px solid var(--light); display: flex; align-items: center; justify-content: space-between; }
+  .reports-list li:hover { background: var(--light); }
+  .reports-list a { text-decoration: none; color: var(--lh-dark); font-weight: 500; font-size: 13px; }
+  .dl-btn { display: inline-flex; align-items: center; gap: 4px; padding: 5px 12px; background: var(--lh-red); color: white; border: none; border-radius: 6px; font-family: inherit; font-size: 11px; font-weight: 600; text-decoration: none; cursor: pointer; }
+  .dl-btn:hover { background: #a00d24; }
+  .format-example { background: var(--light); border-radius: 8px; padding: 16px; margin-top: 12px; font-size: 11px; font-family: monospace; overflow-x: auto; color: var(--muted); line-height: 1.6; }
+</style>
+</head>
+<body>
+<div class="container">
+  <a href="/" class="back-link">&larr; Back to Dashboard</a>
+
+  {% with messages = get_flashed_messages() %}{% if messages %}<div class="flash">{{ messages[0] }}</div>{% endif %}{% endwith %}
+
+  <div class="header">
+    {% if logo %}<img src="data:image/jpeg;base64,{{ logo }}" alt="Leadway Health">{% endif %}
+    <div>
+      <h1>Enrolment Template Generator</h1>
+      <p>Upload messy HR data, get a clean Leadway-standard enrolment template</p>
+    </div>
+  </div>
+
+  <form class="card" action="/enrolment-generator/upload" method="post" enctype="multipart/form-data">
+    <h2>Upload <span>HR Data</span></h2>
+    <p class="desc">Upload any Excel file — wide format (Principal + Spouse + Children in one row) or standard format (one person per row). The system auto-detects the structure, expands to 1-member-per-row, validates ages, and exports a clean standardised template.</p>
+
+    <label>HR / Enrolment File</label>
+    <input type="file" name="hr_file" accept=".xlsx,.xls,.csv" required>
+    <p class="note">Supports: wide format (spouse/child columns), standard format, or mixed. Any column naming.</p>
+
+    <label>Client / Company Name</label>
+    <input type="text" name="client_name" placeholder="e.g. Dangote Industries">
+
+    <div class="info-grid">
+      <div class="info-card"><div class="ic-icon">&#128269;</div><div class="ic-label">Auto-Detect Format</div></div>
+      <div class="info-card"><div class="ic-icon">&#128260;</div><div class="ic-label">Wide → Standard</div></div>
+      <div class="info-card"><div class="ic-icon">&#9989;</div><div class="ic-label">Age Validation</div></div>
+      <div class="info-card"><div class="ic-icon">&#128190;</div><div class="ic-label">Clean Excel Export</div></div>
+    </div>
+
+    <button type="submit" class="submit-btn">Process & Generate Template</button>
+  </form>
+
+  <div class="card">
+    <h2>Accepted <span>Formats</span></h2>
+    <p class="desc"><strong>Wide Format</strong> — one row per family, spouse and children as extra columns:</p>
+    <div class="format-example">
+      Principal Name | DOB | Spouse Name | Spouse DOB | Child1 Name | Child1 DOB | Child2 Name | Child2 DOB
+    </div>
+    <p class="desc" style="margin-top:16px"><strong>Standard Format</strong> — one row per person:</p>
+    <div class="format-example">
+      Name | DOB | Gender | Relationship | Principal Name
+    </div>
+    <p class="desc" style="margin-top:12px">The system handles mixed formats, messy column names, missing DOBs, and duplicate names.</p>
+  </div>
+
+  {% if reports %}
+  <div class="card">
+    <h2>Previous <span>Templates</span></h2>
+    <ul class="reports-list">
+      {% for r in reports %}
+      <li><a href="/download/{{ r.file }}">{{ r.name }}</a><a class="dl-btn" href="/download/{{ r.file }}">&#11015; Download</a></li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+</div>
+</body>
+</html>
