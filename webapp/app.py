@@ -1796,11 +1796,13 @@ def enrolment_generator_upload():
     # Detect wide format: look for repeated First Name / Last Name patterns
     fn_cols = [i for i, c in enumerate(cols_lower) if "first name" in c]
     ln_cols = [i for i, c in enumerate(cols_lower) if "last name" in c]
-    is_wide = len(fn_cols) > 1 or len(ln_cols) > 1
+    is_wide_fn_ln = len(fn_cols) > 1 or len(ln_cols) > 1
 
-    # Also detect: Spouse/Child/Dep columns
-    if not is_wide:
-        is_wide = any(any(kw in c for kw in ["spouse", "child1", "child 1", "dep1", "dep 1"]) for c in cols_lower)
+    # Detect Spouse/Child wide format (e.g. "Spouse Full Names", "Child 1 Full Names")
+    spouse_child_cols = [i for i, c in enumerate(cols_lower) if any(kw in c for kw in ["spouse full", "spouse name", "child 1 full", "child 1 name", "child1 full", "child1 name"])]
+    is_wide_spouse_child = len(spouse_child_cols) > 0
+
+    is_wide = is_wide_fn_ln or is_wide_spouse_child
 
     expanded_rows = []
 
@@ -1839,8 +1841,129 @@ def enrolment_generator_upload():
                     return i
         return None
 
-    if is_wide:
-        # ── WIDE FORMAT: Group columns into blocks ──
+    if is_wide_spouse_child:
+        # ── SPOUSE/CHILD WIDE FORMAT (e.g. En445 style) ──
+        # Principal: "Full Names", "Gender", "DOB", etc. (first occurrence)
+        p_name_col = find_col(["full names", "full name", "name"], 0, spouse_child_cols[0] if spouse_child_cols else len(cols))
+        p_gender_col = find_col(["gender"], 0, spouse_child_cols[0] if spouse_child_cols else len(cols))
+        p_dob_col = find_col(["date of birth", "dob"], 0, spouse_child_cols[0] if spouse_child_cols else len(cols))
+        p_phone_col = find_col(["phone", "contact", "mobile"], 0, spouse_child_cols[0] if spouse_child_cols else len(cols))
+        p_email_col = find_col(["email"], 0, spouse_child_cols[0] if spouse_child_cols else len(cols))
+        p_staff_col = find_col(["staff id", "employee", "emp id"], 0, spouse_child_cols[0] if spouse_child_cols else len(cols))
+        p_addr_col = find_col(["address", "residential"], 0, spouse_child_cols[0] if spouse_child_cols else len(cols))
+
+        # Spouse columns
+        sp_name_col = find_col(["spouse full name", "spouse name"])
+        sp_gender_col = find_col(["spouse gender"])
+        sp_dob_col = find_col(["spouse dob", "spouse date"])
+        sp_phone_col = find_col(["spouse phone"])
+        sp_email_col = find_col(["spouse email"])
+
+        # Child columns: find Child 1..N
+        import re
+        child_groups = {}
+        for i, cl in enumerate(cols_lower):
+            m = re.match(r'child\s*(\d+)\s*(.*)', cl)
+            if m:
+                idx = int(m.group(1))
+                field = m.group(2).strip()
+                if idx not in child_groups:
+                    child_groups[idx] = {"name": None, "gender": None, "dob": None}
+                if "name" in field or "full" in field:
+                    child_groups[idx]["name"] = i
+                elif "gender" in field:
+                    child_groups[idx]["gender"] = i
+                elif "dob" in field or "date" in field or "birth" in field:
+                    child_groups[idx]["dob"] = i
+
+        for _, row in df.iterrows():
+            # Principal
+            p_name = clean_v(row.iloc[p_name_col]) if p_name_col is not None else ""
+            if not p_name:
+                continue
+            parts = p_name.upper().split()
+            p_surname = parts[0] if parts else ""
+            p_firstname = parts[1] if len(parts) > 1 else ""
+            p_othername = " ".join(parts[2:]) if len(parts) > 2 else ""
+
+            p_gender = clean_v(row.iloc[p_gender_col]).upper() if p_gender_col is not None else ""
+            p_dob = row.iloc[p_dob_col] if p_dob_col is not None else ""
+            p_phone = fmt_phone(row.iloc[p_phone_col]) if p_phone_col is not None else ""
+            p_email = clean_v(row.iloc[p_email_col]) if p_email_col is not None else ""
+            p_staff = clean_v(row.iloc[p_staff_col]) if p_staff_col is not None else ""
+            p_addr = clean_v(row.iloc[p_addr_col]) if p_addr_col is not None else ""
+
+            # Infer title from gender only for principal
+            p_title = ""
+            if p_gender == "MALE": p_title = "MR"
+            elif p_gender == "FEMALE": p_title = "MRS"
+
+            expanded_rows.append({
+                "Firstname": p_firstname, "Surname": p_surname, "OtherName": p_othername,
+                "DOB": p_dob, "Gender": p_gender, "Relationship": "SELF", "Member_Dep": "O",
+                "contacts": p_phone, "email": p_email, "staff_id": p_staff,
+                "address": p_addr.replace(",", " "), "city": "", "marital": "",
+                "title": p_title, "plan_code": "", "group_code": "", "start_date": "", "state": "",
+            })
+
+            # Spouse
+            if sp_name_col is not None:
+                sp_name = clean_v(row.iloc[sp_name_col])
+                if sp_name:
+                    sp_parts = sp_name.upper().split()
+                    sp_gender = clean_v(row.iloc[sp_gender_col]).upper() if sp_gender_col is not None else ""
+                    sp_title = ""
+                    if sp_gender == "MALE": sp_title = "MR"
+                    elif sp_gender == "FEMALE": sp_title = "MRS"
+
+                    expanded_rows.append({
+                        "Firstname": sp_parts[1] if len(sp_parts) > 1 else (sp_parts[0] if sp_parts else ""),
+                        "Surname": sp_parts[0] if sp_parts else "",
+                        "OtherName": " ".join(sp_parts[2:]) if len(sp_parts) > 2 else "",
+                        "DOB": row.iloc[sp_dob_col] if sp_dob_col is not None else "",
+                        "Gender": sp_gender, "Relationship": "SPOUSE", "Member_Dep": "D",
+                        "contacts": fmt_phone(row.iloc[sp_phone_col]) if sp_phone_col is not None else "",
+                        "email": clean_v(row.iloc[sp_email_col]) if sp_email_col is not None else "",
+                        "staff_id": p_staff, "address": p_addr.replace(",", " "), "city": "",
+                        "marital": "MARRIED", "title": sp_title,
+                        "plan_code": "", "group_code": "", "start_date": "", "state": "",
+                    })
+
+            # Children
+            for idx in sorted(child_groups.keys()):
+                cg = child_groups[idx]
+                if cg["name"] is None:
+                    continue
+                c_name = clean_v(row.iloc[cg["name"]])
+                if not c_name:
+                    continue
+                c_parts = c_name.upper().split()
+                c_gender = clean_v(row.iloc[cg["gender"]]).upper() if cg["gender"] is not None else ""
+                c_dob = row.iloc[cg["dob"]] if cg["dob"] is not None else ""
+
+                # Infer relationship from gender
+                c_rel = ""
+                c_title = ""
+                if c_gender == "MALE":
+                    c_rel = "SON"
+                    c_title = "MSTR"
+                elif c_gender == "FEMALE":
+                    c_rel = "DAUGHTER"
+                    c_title = "MISS"
+
+                expanded_rows.append({
+                    "Firstname": c_parts[1] if len(c_parts) > 1 else (c_parts[0] if c_parts else ""),
+                    "Surname": c_parts[0] if c_parts else "",
+                    "OtherName": " ".join(c_parts[2:]) if len(c_parts) > 2 else "",
+                    "DOB": c_dob, "Gender": c_gender, "Relationship": c_rel, "Member_Dep": "D",
+                    "contacts": "", "email": "", "staff_id": p_staff,
+                    "address": p_addr.replace(",", " "), "city": "",
+                    "marital": "SINGLE", "title": c_title,
+                    "plan_code": "", "group_code": "", "start_date": "", "state": "",
+                })
+
+    elif is_wide_fn_ln:
+        # ── FIRST NAME / LAST NAME WIDE FORMAT (e.g. GVA style) ──
         # Strategy: find all "first name" columns — each one starts a person block
         # The principal block is the first one, subsequent blocks are dependants
 
