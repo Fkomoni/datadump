@@ -124,11 +124,11 @@ def manage_users():
     return render_template("manage_users.html", logo=logo, users=user_list)
 
 
-def list_reports(prefix=""):
-    """List HTML reports, optionally filtered by filename prefix."""
+def list_reports(prefix="", ext="html"):
+    """List reports, optionally filtered by filename prefix and extension."""
     if not REPORTS_DIR.exists():
         return []
-    all_reports = sorted(REPORTS_DIR.glob("*.html"), key=lambda f: f.stat().st_mtime, reverse=True)
+    all_reports = sorted(REPORTS_DIR.glob(f"*.{ext}"), key=lambda f: f.stat().st_mtime, reverse=True)
     if prefix:
         all_reports = [r for r in all_reports if r.name.lower().startswith(prefix.lower())]
     return [{"name": r.stem.replace("_", " "), "file": r.name} for r in all_reports]
@@ -1756,7 +1756,7 @@ def pricing_tool_calculate():
 @login_required
 def enrolment_generator():
     logo = get_logo_b64()
-    report_list = list_reports("Enrolment_")
+    report_list = list_reports("Enrolment_", ext="xlsx")
     return render_template("enrolment_generator.html", logo=logo, reports=report_list)
 
 
@@ -2203,8 +2203,8 @@ def enrolment_generator_upload():
     reds = len(output[output["Status"] == "RED"])
     warns = len(output[output["Status"] == "WARNING"])
     fmt_type = "Wide format expanded" if is_wide else "Standard format"
-    flash(f"Done! {total} members processed ({fmt_type}). {reds} red flags, {warns} warnings. Download below.")
-    return redirect(url_for("enrolment_generator"))
+    flash(f"Done! {total} members processed ({fmt_type}). {reds} red flags, {warns} warnings.")
+    return redirect(url_for("enrolment_generator", download=filename))
 
 
 # ═══════════════════════════════════════════════

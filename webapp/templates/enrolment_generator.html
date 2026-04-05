@@ -47,6 +47,15 @@
 
   {% with messages = get_flashed_messages() %}{% if messages %}<div class="flash">{{ messages[0] }}</div>{% endif %}{% endwith %}
 
+  {% if request.args.get('download') %}
+  <div style="background:#fff;border:2px solid var(--green);border-radius:14px;padding:24px;margin-bottom:24px;text-align:center;box-shadow:0 2px 8px rgba(22,163,74,0.1);">
+    <div style="font-size:32px;margin-bottom:8px;">&#9989;</div>
+    <div style="font-size:16px;font-weight:800;color:var(--lh-dark);margin-bottom:4px;">Template Ready</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">Your clean Leadway enrolment template has been generated</div>
+    <a href="/download/{{ request.args.get('download') }}" style="display:inline-flex;align-items:center;gap:8px;padding:14px 32px;background:var(--green);color:white;border:none;border-radius:10px;font-family:inherit;font-size:15px;font-weight:700;text-decoration:none;cursor:pointer;transition:background 0.2s;">&#11015; Download Excel Template</a>
+  </div>
+  {% endif %}
+
   <div class="header">
     {% if logo %}<img src="data:image/jpeg;base64,{{ logo }}" alt="Leadway Health">{% endif %}
     <div>
