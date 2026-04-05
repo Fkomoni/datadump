@@ -1808,7 +1808,7 @@ def enrolment_generator_upload():
         """Clean a cell value."""
         if v is None: return ""
         s = str(v).strip()
-        if s.lower() in ("nan", "none", "nat", ""): return ""
+        if s.lower() in ("nan", "none", "nat", "", "nil", "n/a", "na", "-", "null"): return ""
         return s
 
     def fmt_phone(v):
