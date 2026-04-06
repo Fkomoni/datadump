@@ -2628,6 +2628,17 @@ def api_debug():
     try:
         import requests as req
         output = "=== PROGNOSIS API DEBUG ===\n\n"
+
+        # Get this server's outbound IP
+        try:
+            s0 = req.Session()
+            s0.trust_env = False
+            ip_r = s0.get("https://api.ipify.org", timeout=10)
+            output += f"THIS SERVER'S OUTBOUND IP: {ip_r.text}\n"
+            output += f"(Send this IP to your IT team to whitelist on the Azure WAF)\n\n"
+        except Exception as e:
+            output += f"Could not determine outbound IP: {e}\n\n"
+
         output += f"Username: {PROGNOSIS_USERNAME}\n"
         output += f"Password: {'*' * 5}{PROGNOSIS_PASSWORD[-5:]}\n"
         output += f"API Base: {PROGNOSIS_API_BASE}\n\n"
