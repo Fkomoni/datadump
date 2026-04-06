@@ -2472,33 +2472,96 @@ def enrolment_generator_upload():
     today = datetime.now()
     result["Age"] = result["DOB_Parsed"].apply(lambda d: (today - d).days // 365 if pd.notna(d) else None)
 
-    def infer_title(row):
-        t = clean_val(row.get("title", "")).upper()
-        if t and t not in ("NAN", ""): return t
-        # Only infer from explicit relationship — never assume
-        rel = str(row.get("Relationship", "")).upper()
-        gender = clean_val(row.get("Gender", "")).upper()
-        if rel == "SON": return "MSTR"
-        if rel == "DAUGHTER": return "MISS"
-        if rel == "SPOUSE" and gender == "FEMALE": return "MRS"
-        if rel == "SPOUSE" and gender == "MALE": return "MR"
-        if rel == "SELF" and gender == "MALE": return "MR"
-        if rel == "SELF" and gender == "FEMALE": return "MRS"
-        return ""  # Don't assume
+    # Nigerian name-to-gender mapping (common first names)
+    MALE_NAMES = {
+        "abraham", "adamu", "adebayo", "adegoke", "ademola", "adeniji", "adeniyi", "adeola", "adesina",
+        "adetola", "adetunde", "adewale", "adewumi", "ahmed", "ajayi", "akeem", "akin", "akintunde",
+        "albert", "alexander", "alfred", "ali", "allen", "aloysius", "amos", "andrew", "anthony",
+        "augustine", "ayodeji", "babajide", "babatunde", "bamidele", "bartholomew", "basil", "benjamin",
+        "benson", "bernard", "bolaji", "bolanle", "caleb", "charles", "chidi", "chidozie", "chijioke",
+        "chike", "chima", "chinonso", "chinwe", "chisom", "christopher", "chukwudi", "chukwuemeka",
+        "chukwuma", "clement", "cletus", "clifford", "collins", "cornelius", "cyril", "damilare",
+        "damilola", "daniel", "david", "dennis", "desmond", "dominic", "donald", "ebenezer", "edache",
+        "edgar", "edmond", "edward", "ehis", "ejike", "ekene", "elijah", "elvis", "emeka", "emmanuel",
+        "enoch", "ephraim", "eric", "ernest", "ethan", "eugene", "ezekiel", "fabian", "femi", "felix",
+        "festus", "francis", "frank", "fred", "frederick", "gabriel", "gbade", "gbenga", "george",
+        "gerald", "gideon", "godswill", "godwin", "godfrey", "greg", "gregory", "hassan", "henry",
+        "humphrey", "ibrahim", "idowu", "ifeanyi", "ignatius", "ikechukwu", "immanuel", "isaac",
+        "isaiah", "ismail", "israel", "iyke", "jacob", "james", "jide", "joel", "john", "johnson",
+        "jonathan", "joseph", "joshua", "jude", "julius", "kabiru", "kayode", "kelechi", "kelvin",
+        "kennedy", "kenneth", "kingsley", "kolawole", "kunle", "lanre", "lawrence", "lazarus", "leo",
+        "leonard", "linus", "lucas", "luke", "mahmud", "majeed", "martin", "matthew", "maurice",
+        "max", "michael", "mohammed", "moses", "musa", "mustafa", "nath", "nathaniel", "nelson",
+        "nicholas", "nnamdi", "nnanna", "noah", "nonso", "nwabueze", "nwachukwu", "obafemi", "obinna",
+        "obi", "odinaka", "oghenovo", "okafor", "okechukwu", "olalekan", "olanrewaju", "olaoluwa",
+        "olawale", "olayinka", "olumide", "olusegun", "olusola", "oluwafemi", "oluwaseun", "oluwaseyi",
+        "oluwatobi", "oluwatosin", "onyeka", "oscar", "osita", "otoibhi", "patrick", "paul", "peter",
+        "philip", "pius", "prince", "prosper", "raphael", "raymond", "richard", "robert", "roger",
+        "roland", "rotimi", "rufus", "ryan", "sade", "saheed", "samson", "samuel", "sanusi", "segun",
+        "seyi", "shadrach", "simon", "solomon", "stanley", "stephen", "sunday", "sylvester", "taiwo",
+        "temitope", "theodore", "thomas", "timothy", "titus", "tobechukwu", "tochukwu", "tosin",
+        "tunde", "uche", "udochukwu", "ugo", "ugochukwu", "umar", "usman", "valentine", "victor",
+        "vincent", "vitalis", "wale", "wellington", "william", "wilson", "yakubu", "yinka", "yusuf",
+        "zachary", "zenon",
+    }
+    FEMALE_NAMES = {
+        "abigail", "adaeze", "adaeze", "adaora", "adenike", "adesewa", "adunola", "aisha", "akinyi",
+        "alice", "amaka", "amara", "amina", "aminat", "angela", "ann", "anna", "anthonia", "asabe",
+        "atinuke", "augustina", "beatrice", "bimpe", "blessing", "bridget", "bunmi", "caroline",
+        "catherine", "charity", "charlotte", "chichi", "chidera", "chidimma", "chidinma", "chimamanda",
+        "chinenye", "chinwe", "chioma", "christiana", "clara", "comfort", "constance", "cynthia",
+        "damilola", "daniella", "deborah", "dorcas", "dorothy", "ebele", "edith", "elizabeth", "ella",
+        "emily", "emmanuella", "esther", "eunice", "eve", "evelyn", "ezinne", "fadekemi", "faith",
+        "fatima", "favour", "felicia", "florence", "folake", "folashade", "foluke", "francisca",
+        "franca", "funke", "funmilayo", "gladys", "gloria", "grace", "hafsat", "halima", "hannah",
+        "hauwa", "helen", "henrietta", "ifeanyichukwu", "ifeoma", "ifeyinwa", "imade", "itohan",
+        "janet", "jane", "jadesola", "jennifer", "jessica", "jemima", "jemilat", "joan", "josephine",
+        "joy", "joyce", "juliana", "juliet", "jumoke", "justina", "kate", "kehinde", "kemi",
+        "keziah", "khadijah", "lara", "latifat", "lilian", "linda", "lucy", "mabel", "magdalene",
+        "margaret", "maria", "marian", "mariam", "mary", "maureen", "mercy", "mfon", "modupe",
+        "monica", "monisola", "morayo", "motunrayo", "muinat", "nana", "nancy", "ngozi", "nneka",
+        "nkechi", "nkiru", "nmesoma", "nnenna", "nse", "nwakaego", "obiageli", "odunayo", "olajumoke",
+        "olufunke", "oluwabukola", "oluwadamilola", "oluwakemi", "oluwanifemi", "oluwaseun", "oluwatomi",
+        "omolara", "omolola", "omotola", "onyinyechi", "opeyemi", "oyindamola", "patience", "patricia",
+        "pauline", "peace", "phoebe", "praise", "precious", "priscilla", "promise", "queen", "rachael",
+        "rachel", "rahma", "rebecca", "regina", "rejoice", "rita", "rosemary", "roseline", "ruth",
+        "sade", "sarah", "shade", "sharon", "sheila", "shola", "simisola", "sophia", "stella",
+        "susan", "taiwo", "temitope", "thelma", "theresa", "titilayo", "titi", "tosin", "treasure",
+        "uchenna", "udoka", "uduak", "ujunwa", "uju", "vanessa", "vera", "veronica", "victoria",
+        "vivian", "wuraola", "yemi", "yetunde", "zainab",
+    }
 
     def infer_gender(row):
         g = clean_val(row.get("Gender", "")).upper()
         if g in ("MALE", "M"): return "MALE"
         if g in ("FEMALE", "F"): return "FEMALE"
-        # Only infer from explicit relationship
+        # Infer from explicit relationship
         rel = str(row.get("Relationship", "")).upper()
         if rel == "DAUGHTER": return "FEMALE"
         if rel == "SON": return "MALE"
-        if rel == "SPOUSE": return ""  # Don't assume spouse gender
+        # Infer from first name
+        fn = str(row.get("Firstname", "")).strip().lower()
+        if fn in MALE_NAMES: return "MALE"
+        if fn in FEMALE_NAMES: return "FEMALE"
+        return ""
+
+    # Infer gender FIRST (uses name lookup), then title (uses inferred gender)
+    result["Gender_Clean"] = result.apply(infer_gender, axis=1)
+
+    def infer_title(row):
+        t = clean_val(row.get("title", "")).upper()
+        if t and t not in ("NAN", ""): return t
+        rel = str(row.get("Relationship", "")).upper()
+        gender = row.get("Gender_Clean", "")  # Use already-inferred gender
+        if rel == "SON": return "MSTR"
+        if rel == "DAUGHTER": return "MISS"
+        if gender == "MALE": return "MR"
+        if gender == "FEMALE":
+            if rel == "SPOUSE": return "MRS"
+            return "MRS"  # Default female title
         return ""
 
     result["Title"] = result.apply(infer_title, axis=1)
-    result["Gender_Clean"] = result.apply(infer_gender, axis=1)
 
     def infer_marital(row):
         m = clean_val(row.get("marital", "")).upper()
