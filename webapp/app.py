@@ -2604,26 +2604,79 @@ def api_debug():
     import json as jsonlib
     import traceback
     try:
-        token = prognosis_login()
-        if not token:
-            return "<pre>Failed to login to Prognosis API.\n\nCheck:\n1. PROGNOSIS_USERNAME env var is set\n2. PROGNOSIS_PASSWORD env var is set\n3. API server is reachable from Render</pre>"
+        import requests as req
+        output = "=== PROGNOSIS API DEBUG ===\n\n"
+        output += f"Username: {PROGNOSIS_USERNAME}\n"
+        output += f"Password: {'*' * 5}{PROGNOSIS_PASSWORD[-5:]}\n"
+        output += f"API Base: {PROGNOSIS_API_BASE}\n\n"
 
-        data = prognosis_get("Production/ProviderAnalytics", {"from": "2025-10-10", "to": "2025-10-11", "Provider_id": "4151"})
-        if data is None:
-            return f"<pre>Login OK (token: {token[:20]}...)\n\nBut ProviderAnalytics endpoint returned None.\nThe endpoint may have returned an error or empty response.</pre>"
+        # Step 1: Login
+        output += "--- Step 1: Login ---\n"
+        s = req.Session()
+        s.trust_env = False
+        payload = {"Username": PROGNOSIS_USERNAME, "Password": PROGNOSIS_PASSWORD}
+        r = s.post(f"{PROGNOSIS_API_BASE}/ApiUsers/Login", json=payload, timeout=30)
+        output += f"Status: {r.status_code}\n"
+        output += f"Response: {r.text[:300]}\n\n"
 
-        output = f"Login OK. Token: {token[:20]}...\n\n"
-        output += f"Records returned: {len(data)}\n\n"
-        if isinstance(data, list) and data:
-            output += f"COLUMNS ({len(data[0].keys())}):\n"
-            for k, v in data[0].items():
-                output += f"  {k:40s} = {repr(v)[:80]}\n"
-            output += f"\n\nFIRST 2 RECORDS:\n{jsonlib.dumps(data[:2], indent=2, default=str)}"
-        elif isinstance(data, dict):
-            output += f"Response is a dict (not a list):\n{jsonlib.dumps(data, indent=2, default=str)[:2000]}"
+        if r.status_code != 200:
+            return f"<pre>{output}Login failed with status {r.status_code}</pre>"
+
+        token = r.text.strip().strip('"')
+        output += f"Token: {token[:30]}...\n\n"
+
+        # Step 2: Test ProviderAnalytics
+        output += "--- Step 2: ProviderAnalytics ---\n"
+        r2 = s.get(f"{PROGNOSIS_API_BASE}/Production/ProviderAnalytics",
+                     params={"from": "2025-10-10", "to": "2025-10-11", "Provider_id": "4151"},
+                     headers={"Authorization": f"Bearer {token}"}, timeout=60)
+        output += f"Status: {r2.status_code}\n"
+        output += f"Content-Type: {r2.headers.get('content-type', '?')}\n"
+        output += f"Size: {len(r2.content)} bytes\n\n"
+
+        if r2.status_code == 200:
+            data = r2.json()
+            output += f"Records: {len(data) if isinstance(data, list) else 'not a list'}\n\n"
+            if isinstance(data, list) and data:
+                output += f"COLUMNS ({len(data[0].keys())}):\n"
+                for k, v in data[0].items():
+                    output += f"  {k:40s} = {repr(v)[:80]}\n"
+                output += f"\n\nFIRST 2 RECORDS:\n{jsonlib.dumps(data[:2], indent=2, default=str)}"
+            elif isinstance(data, dict):
+                output += f"Dict response:\n{jsonlib.dumps(data, indent=2, default=str)[:1000]}"
+            else:
+                output += f"Empty or unexpected: {str(data)[:500]}"
         else:
-            output += f"Response type: {type(data)}\nContent: {str(data)[:1000]}"
+            output += f"Error body: {r2.text[:500]}"
+
+        # Step 3: Test GetProviders
+        output += "\n\n--- Step 3: GetProviders ---\n"
+        r3 = s.get(f"{PROGNOSIS_API_BASE}/ListValues/GetProviders",
+                     headers={"Authorization": f"Bearer {token}"}, timeout=30)
+        output += f"Status: {r3.status_code}\n"
+        if r3.status_code == 200:
+            pdata = r3.json()
+            output += f"Providers: {len(pdata) if isinstance(pdata, list) else 'not a list'}\n"
+            if isinstance(pdata, list) and pdata:
+                output += f"Sample: {jsonlib.dumps(pdata[:2], indent=2, default=str)}"
+        else:
+            output += f"Error: {r3.text[:300]}"
+
+        # Step 4: Test GetGroups
+        output += "\n\n--- Step 4: GetGroups ---\n"
+        r4 = s.get(f"{PROGNOSIS_API_BASE}/ListValues/GetGroups",
+                     headers={"Authorization": f"Bearer {token}"}, timeout=30)
+        output += f"Status: {r4.status_code}\n"
+        if r4.status_code == 200:
+            gdata = r4.json()
+            output += f"Groups: {len(gdata) if isinstance(gdata, list) else 'not a list'}\n"
+            if isinstance(gdata, list) and gdata:
+                output += f"Sample: {jsonlib.dumps(gdata[:2], indent=2, default=str)}"
+        else:
+            output += f"Error: {r4.text[:300]}"
+
         return f"<pre>{output}</pre>"
+
     except Exception:
         return f"<pre>ERROR:\n{traceback.format_exc()}</pre>"
 
