@@ -512,8 +512,9 @@ def generate_report_from_files(files, admin_pct, nhia_pct, broker_fee, additiona
     if "Provider" in claims.columns:
         top_prov = claims.groupby("Provider").agg(Paid=("Amount_Paid", "sum"), Claims=("Claim_Number", "nunique") if "Claim_Number" in claims.columns else ("Amount_Paid", "count")).sort_values("Paid", ascending=False).head(10)
         top_prov["Pct"] = (top_prov["Paid"] / paid_total * 100).round(1)
+        top_prov["AvgPerVisit"] = (top_prov["Paid"] / top_prov["Claims"].clip(lower=1)).round(0)
         for i, (name, row) in enumerate(top_prov.iterrows(), 1):
-            prov_rows += f'<tr><td>{i}</td><td>{str(name).strip().title()}</td><td class="num">{fmt_full(row["Paid"])}</td><td class="num">{pct(row["Pct"])}</td><td class="num">{row["Claims"]:,}</td></tr>'
+            prov_rows += f'<tr><td>{i}</td><td>{str(name).strip().title()}</td><td class="num">{fmt_full(row["Paid"])}</td><td class="num">{row["Claims"]:,}</td><td class="num">{fmt_full(row["AvgPerVisit"])}</td><td class="num">{pct(row["Pct"])}</td></tr>'
 
     # ── Department Breakdown ──
     dept_rows = ""
@@ -527,22 +528,27 @@ def generate_report_from_files(files, admin_pct, nhia_pct, broker_fee, additiona
     disease_cat_rows = ""
     if "Diagnosis_Description" in claims.columns:
         disease_categories = {
-            "Malaria": ["malaria", "plasmodium"],
-            "Respiratory Infections": ["respiratory", "pneumonia", "bronchitis", "asthma", "cough", "influenza", "flu", "pharyngitis", "sinusitis", "tonsillitis", "rhinitis", "laryngitis", "upper respiratory", "lower respiratory", "urt", "lrt", "urti", "lrti", "nasal"],
-            "Cardiovascular & Hypertension": ["hypertension", "hypertensive", "cardiac", "heart", "cardiovascular", "angina", "stroke", "cerebrovascular", "ischaemic", "ischemic", "coronary", "arrhythmia", "blood pressure"],
-            "Diabetes & Metabolic": ["diabet", "glucose", "metabolic", "thyroid", "cholesterol", "lipid", "obesity", "gout", "hyperglycaemia", "hypoglycaemia"],
-            "Gastrointestinal": ["gastro", "gastritis", "ulcer", "diarrh", "dyspepsia", "colitis", "intestin", "abdominal", "stomach", "bowel", "hepatitis", "liver", "gerd", "reflux", "constipation", "appendic", "hernia", "pancreat", "gallstone", "peptic"],
-            "Musculoskeletal": ["arthritis", "osteo", "muscul", "joint", "back pain", "spine", "spinal", "fracture", "rheumat", "ortho", "lumbar", "cervical", "spondyl", "musculo"],
-            "Eye & Ophthalmology": ["eye", "ophthalm", "visual", "cataract", "glaucoma", "conjunctiv", "retina", "myopia", "optical", "vision"],
-            "Dental & Oral": ["dental", "tooth", "teeth", "oral", "gingiv", "caries", "periodon", "dentition"],
-            "Obstetric & Maternity": ["pregnan", "matern", "obstetric", "antenatal", "postnatal", "delivery", "caesarean", "c-section", "labour", "labor", "gestation", "neonatal", "perinatal"],
-            "Surgery & Procedures": ["surgery", "surgical", "operation", "procedure", "excision", "repair", "implant", "biopsy", "laparoscop", "endoscop"],
-            "Dermatology & Skin": ["skin", "dermat", "eczema", "rash", "wound", "abscess", "cellulitis", "fungal", "urticaria", "psoriasis", "acne"],
-            "Genitourinary": ["urinary", "kidney", "renal", "bladder", "urin", "prostat", "uti", "nephri", "genital", "pelvic"],
-            "Infections & Parasitic": ["typhoid", "infection", "sepsis", "hiv", "tuberculosis", "measles", "chicken pox", "viral", "bacterial", "fever", "parasit"],
-            "Oncology": ["cancer", "tumour", "tumor", "malignan", "carcinoma", "oncolog", "leukaemia", "leukemia", "lymphoma", "neoplasm"],
-            "Mental Health & Neurology": ["mental", "depression", "anxiety", "psychi", "epilep", "seizure", "migraine", "headache", "neuro", "insomnia", "bipolar"],
-            "ENT": ["ear", "nose", "throat", "otitis", "hearing", "vertigo", "adenoid"],
+            "Malaria & Febrile Illness": ["malaria", "plasmodium", "falciparum", "vivax", "febrile", "pyrexia"],
+            "Primary Care & URTI": ["upper respiratory", "urti", "common cold", "coryza", "nasopharyngitis", "pharyngitis", "tonsillitis", "laryngitis", "rhinitis", "sinusitis", "catarrh", "sore throat", "adenoid", "routine", "check", "screening", "general examination", "encounter for", "counselling", "counseling", "observation"],
+            "Lower Respiratory & Chest": ["pneumonia", "bronchitis", "asthma", "lower respiratory", "lrti", "pleurisy", "emphysema", "copd", "pulmonary", "lung", "chest infection", "tuberculosis", "tb "],
+            "Malaria & Sepsis": ["sepsis", "septic", "septicaemia", "bacteraemia", "severe malaria"],
+            "Gastrointestinal & Liver": ["gastro", "gastritis", "ulcer", "diarrh", "dyspepsia", "colitis", "intestin", "abdominal", "stomach", "bowel", "hepatitis", "liver", "gerd", "reflux", "constipation", "appendic", "hernia", "pancreat", "gallstone", "peptic", "dysentery", "vomiting", "nausea", "irritable bowel", "ibs", "cirrhosis", "jaundice", "cholecyst"],
+            "Cardiovascular & Hypertension": ["hypertension", "hypertensive", "cardiac", "heart", "cardiovascular", "angina", "stroke", "cerebrovascular", "ischaemic", "ischemic", "coronary", "arrhythmia", "blood pressure", "atrial", "ventricular", "cardiomyopathy", "heart failure", "dvt", "embolism", "aneurysm"],
+            "Diabetes & Metabolic": ["diabet", "glucose", "metabolic", "thyroid", "cholesterol", "lipid", "obesity", "gout", "hyperglycaemia", "hypoglycaemia", "insulin", "hba1c", "ketoacidosis", "dyslipid"],
+            "Orthopaedic & Musculoskeletal": ["arthritis", "osteo", "muscul", "joint", "back pain", "spine", "spinal", "fracture", "rheumat", "ortho", "lumbar", "cervical", "spondyl", "musculo", "sciatica", "tendon", "ligament", "meniscus", "rotator", "carpal", "dislocation", "myalgia", "fibromyalgia", "frozen shoulder", "knee", "hip replacement"],
+            "Eye & Ophthalmology": ["eye", "ophthalm", "visual", "cataract", "glaucoma", "conjunctiv", "retina", "myopia", "optical", "vision", "presbyopia", "astigmat", "keratitis", "blepharitis", "stye", "pterygium", "macular"],
+            "Dental & Oral": ["dental", "tooth", "teeth", "oral", "gingiv", "caries", "periodon", "dentition", "extraction", "filling", "root canal", "denture", "orthodon"],
+            "Obstetric & Maternity": ["pregnan", "matern", "obstetric", "antenatal", "postnatal", "delivery", "caesarean", "c-section", "labour", "labor", "gestation", "neonatal", "perinatal", "ectopic", "miscarriage", "preeclampsia", "eclampsia", "placenta", "postpartum", "puerper"],
+            "Surgery & Procedures": ["surgery", "surgical", "operation", "procedure", "excision", "repair", "implant", "biopsy", "laparoscop", "endoscop", "amputation", "debridement", "drainage", "incision"],
+            "Dermatology & Skin": ["skin", "dermat", "eczema", "rash", "wound", "abscess", "cellulitis", "fungal", "urticaria", "psoriasis", "acne", "boil", "carbuncle", "tinea", "herpes", "wart", "vitiligo", "pruritus"],
+            "Genitourinary & Renal": ["urinary", "kidney", "renal", "bladder", "urin", "prostat", "uti", "nephri", "genital", "pelvic", "cystitis", "dialysis", "calculi", "stone", "hydronephrosis", "incontinence", "erectile"],
+            "Infections & Parasitic": ["typhoid", "infection", "sepsis", "hiv", "measles", "chicken pox", "viral", "bacterial", "parasit", "worm", "helminth", "schistosom", "filaria", "hookworm"],
+            "Anaemia & Blood Disorders": ["anaemia", "anemia", "sickle cell", "thalassaemia", "haemoglobin", "hemoglobin", "blood disorder", "bleeding", "coagulation", "platelet", "leukocyt", "pancytopenia", "haemophilia"],
+            "Oncology & Cancer": ["cancer", "tumour", "tumor", "malignan", "carcinoma", "oncolog", "leukaemia", "leukemia", "lymphoma", "neoplasm", "chemotherapy", "radiotherapy", "metast"],
+            "Mental Health & Neurology": ["mental", "depression", "anxiety", "psychi", "epilep", "seizure", "migraine", "headache", "neuro", "insomnia", "bipolar", "schizophren", "dementia", "parkinson", "neuropathy", "bell palsy", "vertigo", "dizziness"],
+            "ENT (Ear, Nose & Throat)": ["ear ", "nose ", "throat", "otitis", "hearing", "vertigo", "nasal polyp", "deviated septum", "mastoid", "labyrinthitis", "meniere", "tinnitus", "deafness"],
+            "Endocrine & Hormonal": ["endocrine", "hormone", "adrenal", "pituitary", "cushing", "addison", "polycystic", "pcos", "hormonal"],
+            "Allergies & Immunology": ["allergy", "allergic", "anaphylaxis", "urticaria", "angioedema", "hay fever", "autoimmune", "lupus", "immune"],
         }
 
         def classify_diagnosis(desc):
@@ -561,8 +567,8 @@ def generate_report_from_files(files, admin_pct, nhia_pct, broker_fee, additiona
             Claims=("Claim_Number", "nunique") if "Claim_Number" in claims.columns else ("Amount_Paid", "count"),
         ).sort_values("Paid", ascending=False)
         disease_agg["Pct"] = (disease_agg["Paid"] / paid_total * 100).round(1)
-        for i, (cat, row) in enumerate(disease_agg.head(10).iterrows(), 1):
-            disease_cat_rows += f'<tr><td>{i}</td><td>{cat}</td><td class="num">{fmt_full(row["Paid"])}</td><td class="num">{pct(row["Pct"])}</td><td class="num">{row["Claims"]:,}</td></tr>'
+        for i, (cat, row) in enumerate(disease_agg.head(20).iterrows(), 1):
+            disease_cat_rows += f'<tr><td>{i}</td><td>{cat}</td><td class="num">{fmt_full(row["Paid"])}</td><td class="num">{row["Claims"]:,}</td><td class="num">{fmt_full(round(float(row["Paid"]) / max(int(row["Claims"]), 1)))}</td><td class="num">{pct(row["Pct"])}</td></tr>'
 
     # ── MLR by Age Group ──
     age_mlr_rows = ""
@@ -708,6 +714,46 @@ def generate_report_from_files(files, admin_pct, nhia_pct, broker_fee, additiona
     <h2>&#128161; Key <span class="accent">Recommendations</span></h2>
     <ol class="insight-list numbered">{reco_items}</ol></div>'''
 
+    # ── Premium Recommendation (COR-based rules) ──
+    premium_reco_html = ""
+    if earned_total > 0:
+        current_premium_per_member = earned_total / max(total_enrolled, 1)
+        if cor_pct > 100:
+            excess = cor_pct - 100
+            increment_pct = 30 + excess
+            reco_label = "CRITICAL"
+            reco_color = "var(--crimson)"
+            reco_bg = "#FEF2F2"
+            reco_border = "var(--crimson)"
+            reco_text = f"COR is {pct(cor_pct)} — exceeds 100%. The plan is operating at a loss. Recommended increment: <strong>{pct(increment_pct)}</strong> (30% base + {pct(excess)} excess above 100%)."
+        elif cor_pct > 80:
+            increment_pct = 20
+            reco_label = "REVIEW"
+            reco_color = "var(--coral)"
+            reco_bg = "#FFF7ED"
+            reco_border = "var(--coral)"
+            reco_text = f"COR is {pct(cor_pct)} — above 80% threshold. Recommended increment: <strong>{pct(increment_pct)}</strong> to restore margin."
+        else:
+            increment_pct = 15
+            reco_label = "STANDARD"
+            reco_color = "#16a34a"
+            reco_bg = "#F0FDF4"
+            reco_border = "#16a34a"
+            reco_text = f"COR is {pct(cor_pct)} — within acceptable range. Standard increment: <strong>{pct(increment_pct)}</strong> for inflation and trend."
+
+        new_premium = current_premium_per_member * (1 + increment_pct / 100)
+        total_new = new_premium * total_enrolled
+
+        premium_reco_html = f'''<div style="background:{reco_bg};border:2px solid {reco_border};border-radius:14px;padding:28px;margin-bottom:24px;">
+    <h2 style="font-weight:700;font-size:20px;color:{reco_color};margin-bottom:12px;padding-bottom:8px;border-bottom:2px solid rgba(0,0,0,0.08);">&#128178; Premium <span style="color:{reco_color};">Recommendation</span> <span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:4px;background:{reco_color};color:white;margin-left:8px;">{reco_label}</span></h2>
+    <p style="font-size:13px;color:#4B5563;line-height:1.8;margin-bottom:16px;">{reco_text}</p>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <tr style="border-bottom:1px solid rgba(0,0,0,0.06);"><td style="padding:8px 0;color:#6B7280;">Current Premium / Member</td><td style="padding:8px 0;text-align:right;font-weight:600;">{fmt_full(current_premium_per_member)}</td></tr>
+      <tr style="border-bottom:1px solid rgba(0,0,0,0.06);"><td style="padding:8px 0;color:#6B7280;">Recommended Increment</td><td style="padding:8px 0;text-align:right;font-weight:700;color:{reco_color};">{pct(increment_pct)}</td></tr>
+      <tr style="border-bottom:1px solid rgba(0,0,0,0.06);"><td style="padding:8px 0;color:#6B7280;">Recommended Premium / Member</td><td style="padding:8px 0;text-align:right;font-weight:800;font-size:16px;color:{reco_color};">{fmt_full(new_premium)}</td></tr>
+      <tr><td style="padding:8px 0;color:#6B7280;">Estimated Total Premium ({total_enrolled:,} lives)</td><td style="padding:8px 0;text-align:right;font-weight:700;">{fmt_full(total_new)}</td></tr>
+    </table></div>'''
+
     logo = get_logo_b64()
     clean_name = str(client_name).strip().replace(" ", "_")[:30]
 
@@ -755,8 +801,8 @@ def generate_report_from_files(files, admin_pct, nhia_pct, broker_fee, additiona
   .mlr-card {{ background: var(--navy); color: var(--white); border-radius: 14px; padding: 32px; margin-bottom: 24px; }}
   .mlr-card h2 {{ color: var(--white); border: none; }}
   .mlr-table {{ width: 100%; border-collapse: collapse; }}
-  .mlr-table td {{ padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 13px; }}
-  .mlr-table td:last-child {{ text-align: right; font-weight: 600; }}
+  .mlr-table td {{ padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 13px; color: #FFFFFF; }}
+  .mlr-table td:last-child {{ text-align: right; font-weight: 600; color: #FFFFFF; }}
   .mlr-table tr.total td {{ border-top: 2px solid var(--crimson); font-weight: 800; font-size: 15px; }}
   .mlr-table tr.total td:last-child {{ color: var(--coral); }}
   .footer {{ text-align: center; color: var(--text-muted); font-size: 11px; margin-top: 20px; padding: 20px; }}
@@ -825,17 +871,18 @@ def generate_report_from_files(files, admin_pct, nhia_pct, broker_fee, additiona
     <table class="data-table"><thead><tr><th>Month</th><th class="num">Unique Claims</th><th class="num">Members</th><th class="num">Total Paid</th><th class="num">Avg/Member</th><th class="num">Visits/Member</th></tr></thead>
     <tbody>{monthly_rows}</tbody></table></div>
   <div class="section"><h2>Top <span class="accent">Providers</span></h2>
-    <table class="data-table"><thead><tr><th>#</th><th>Provider</th><th class="num">Total Paid</th><th class="num">%</th><th class="num">Claims</th></tr></thead>
+    <table class="data-table"><thead><tr><th>#</th><th>Provider</th><th class="num">Total Paid</th><th class="num">Visit Count</th><th class="num">Avg Cost/Visit</th><th class="num">%</th></tr></thead>
     <tbody>{prov_rows}</tbody></table></div>
   <div class="section"><h2>Department <span class="accent">Breakdown</span></h2>
     <table class="data-table"><thead><tr><th>#</th><th>Department</th><th class="num">Total Paid</th><th class="num">%</th><th class="num">Claims</th></tr></thead>
     <tbody>{dept_rows}</tbody></table></div>
-  {"" if not disease_cat_rows else '<div class="section"><h2>Top 10 <span class="accent">Disease Categories</span></h2><table class="data-table"><thead><tr><th>#</th><th>Disease Category</th><th class="num">Total Paid</th><th class="num">%</th><th class="num">Claims</th></tr></thead><tbody>' + disease_cat_rows + '</tbody></table></div>'}
+  {"" if not disease_cat_rows else '<div class="section"><h2>Top 20 <span class="accent">Disease Categories</span></h2><table class="data-table"><thead><tr><th>#</th><th>Disease Category</th><th class="num">Total Paid</th><th class="num">Visit Count</th><th class="num">Avg Cost/Visit</th><th class="num">%</th></tr></thead><tbody>' + disease_cat_rows + '</tbody></table></div>'}
   {"" if not age_mlr_rows else '<div class="section"><h2>MLR by <span class="accent">Age Group</span></h2><table class="data-table"><thead><tr><th>Age Group</th><th class="num">Members</th><th class="num">Claims</th><th class="num">Total Paid</th><th class="num">Earned Premium</th><th class="num">MLR</th><th class="num">Avg/Member</th></tr></thead><tbody>' + age_mlr_rows + '</tbody></table></div>'}
   {"" if not early_claimers_rows else '<div class="section"><h2>Early High <span class="accent">Claimers</span></h2><p style="color:var(--text-muted);font-size:13px;margin-bottom:16px;">Members who spent over &#8358;200K within 30 days of enrolment (' + str(early_claimers_count) + ' flagged)</p><table class="data-table"><thead><tr><th>Member ID</th><th>Principal</th><th class="num">Join Date</th><th class="num">First Claim</th><th class="num">Days</th><th class="num">Total Spent</th><th class="num">Premium</th><th class="num">Spend/Premium</th></tr></thead><tbody>' + early_claimers_rows + '</tbody></table></div>'}
   {what_went_wrong_html}
   {pricing_html}
   {recommendations_html}
+  {premium_reco_html}
   <div class="footer">Generated by Leadway Health Analytics &nbsp;|&nbsp; {pd.Timestamp.now().strftime('%d %B %Y')}</div>
 </div>
 <script>
