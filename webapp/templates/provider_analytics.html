@@ -24,6 +24,7 @@
   input[type="file"] { width: 100%; padding: 16px; border: 2px dashed var(--medium-grey); border-radius: 10px; background: var(--light-grey); font-family: inherit; cursor: pointer; }
   input[type="file"]:hover { border-color: var(--lh-navy); }
   input[type="text"], input[type="date"], select { width: 100%; padding: 10px 12px; border: 1px solid var(--medium-grey); border-radius: 8px; font-family: inherit; font-size: 13px; background: var(--light-grey); }
+  select { max-height: 200px; }
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
   .submit-btn { display: block; width: 100%; padding: 14px; color: white; border: none; border-radius: 10px; font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 24px; transition: background 0.2s; }
@@ -79,7 +80,7 @@
   <div id="tab-api" class="tab-content active">
     <form class="card" action="/provider-analytics/api-pull" method="post">
       <h2>Pull from <span>Prognosis</span> <span class="api-badge live">API Connected</span></h2>
-      <p class="desc">Pull claims data directly from the Prognosis core system. Filter by provider, date range, client, and claim status.</p>
+      <p class="desc">Pull claims data directly from the Prognosis core system. Select provider, date range, client, and claim status.</p>
 
       <div class="form-row">
         <div>
@@ -92,35 +93,27 @@
         </div>
       </div>
 
-      <div class="form-row">
-        <div>
-          <label>Provider ID</label>
-          <input type="text" name="provider_id" placeholder="e.g. 4151">
-          <p class="note">Prognosis provider ID. Leave blank for all providers.</p>
-        </div>
-        <div>
-          <label>Provider Name (for report title)</label>
-          <input type="text" name="provider_name_api" placeholder="e.g. Oxford Healthplus Hospital">
-        </div>
-      </div>
+      <label>Provider</label>
+      <select name="provider_id" id="providerSelect" style="margin-bottom:4px;">
+        <option value="">All Providers (loading...)</option>
+      </select>
+      <input type="hidden" name="provider_name_api" id="providerNameHidden">
+      <p class="note">Select a provider or leave as "All Providers".</p>
 
-      <div class="form-row">
-        <div>
-          <label>Client / Group ID</label>
-          <input type="text" name="client_id" placeholder="e.g. 1490">
-          <p class="note">Leave blank for all clients.</p>
-        </div>
-        <div>
-          <label>Claim Status</label>
-          <select name="claim_status">
-            <option value="">All Statuses</option>
-            <option value="Paid Claims">Paid Claims</option>
-            <option value="Awaiting Payment">Awaiting Payment</option>
-            <option value="In Process">In Process</option>
-            <option value="Claims for adjudication">Claims for Adjudication</option>
-          </select>
-        </div>
-      </div>
+      <label>Client / Group</label>
+      <select name="client_id" id="groupSelect">
+        <option value="">All Clients (loading...)</option>
+      </select>
+      <p class="note">Select a client group or leave as "All Clients".</p>
+
+      <label>Claim Status</label>
+      <select name="claim_status">
+        <option value="">All Statuses</option>
+        <option value="Paid Claims">Paid Claims</option>
+        <option value="Awaiting Payment">Awaiting Payment</option>
+        <option value="In Process">In Process</option>
+        <option value="Claims for adjudication">Claims for Adjudication</option>
+      </select>
 
       <button type="submit" class="submit-btn green">&#9889; Pull Data & Generate Report</button>
     </form>
@@ -159,6 +152,55 @@ function showTab(tab) {
   document.getElementById('tab-' + tab).classList.add('active');
   event.target.classList.add('active');
 }
+
+// Load providers from API
+fetch('/api/providers')
+  .then(r => r.json())
+  .then(data => {
+    const sel = document.getElementById('providerSelect');
+    sel.innerHTML = '<option value="">All Providers</option>';
+    if (Array.isArray(data)) {
+      data.forEach(p => {
+        const id = p.Id || p.id || p.ProviderId || p.provider_id || p.Value || '';
+        const name = p.Name || p.name || p.ProviderName || p.provider_name || p.Text || p.Description || JSON.stringify(p);
+        const opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = name + (id ? ' (' + id + ')' : '');
+        opt.dataset.name = name;
+        sel.appendChild(opt);
+      });
+    }
+  })
+  .catch(() => {
+    document.getElementById('providerSelect').innerHTML = '<option value="">All Providers (API unavailable)</option>';
+  });
+
+// Load groups from API
+fetch('/api/groups')
+  .then(r => r.json())
+  .then(data => {
+    const sel = document.getElementById('groupSelect');
+    sel.innerHTML = '<option value="">All Clients</option>';
+    if (Array.isArray(data)) {
+      data.forEach(g => {
+        const id = g.Id || g.id || g.GroupId || g.group_id || g.Value || '';
+        const name = g.Name || g.name || g.GroupName || g.group_name || g.Text || g.Description || JSON.stringify(g);
+        const opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = name;
+        sel.appendChild(opt);
+      });
+    }
+  })
+  .catch(() => {
+    document.getElementById('groupSelect').innerHTML = '<option value="">All Clients (API unavailable)</option>';
+  });
+
+// When provider changes, store name in hidden field
+document.getElementById('providerSelect').addEventListener('change', function() {
+  const selected = this.options[this.selectedIndex];
+  document.getElementById('providerNameHidden').value = selected.dataset.name || '';
+});
 </script>
 </body>
 </html>

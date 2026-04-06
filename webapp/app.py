@@ -881,9 +881,28 @@ def provider_submodule_upload():
 def provider_analytics():
     logo = get_logo_b64()
     report_list = list_reports("ProviderAnalytics_")
-    # Check if API is available
     api_available = bool(PROGNOSIS_USERNAME and PROGNOSIS_PASSWORD)
     return render_template("provider_analytics.html", logo=logo, reports=report_list, api_available=api_available)
+
+
+@app.route("/api/providers")
+@login_required
+def api_get_providers():
+    """Proxy to Prognosis GetProviders — returns JSON for dropdown."""
+    data = prognosis_get("ListValues/GetProviders")
+    if data is None:
+        return json.dumps([]), 200, {"Content-Type": "application/json"}
+    return json.dumps(data, default=str), 200, {"Content-Type": "application/json"}
+
+
+@app.route("/api/groups")
+@login_required
+def api_get_groups():
+    """Proxy to Prognosis GetGroups — returns JSON for dropdown."""
+    data = prognosis_get("ListValues/GetGroups")
+    if data is None:
+        return json.dumps([]), 200, {"Content-Type": "application/json"}
+    return json.dumps(data, default=str), 200, {"Content-Type": "application/json"}
 
 
 @app.route("/provider-analytics/api-pull", methods=["POST"])
