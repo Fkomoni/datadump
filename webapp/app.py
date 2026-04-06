@@ -25,8 +25,8 @@ USERS_FILE = Path(__file__).parent / "users.json"
 
 # Prognosis API config
 PROGNOSIS_API_BASE = "https://prognosis-api.leadwayhealth.com/api"
-PROGNOSIS_USERNAME = os.environ.get("PROGNOSIS_USERNAME", "whatsappBot")
-PROGNOSIS_PASSWORD = os.environ.get("PROGNOSIS_PASSWORD", '15kUVH)RFn!PgR#{UyWAYA[[K0c_53xi5ZEf4s5__*3PS')
+PROGNOSIS_USERNAME = "whatsappBot"
+PROGNOSIS_PASSWORD = r'15kUVH)RFn!PgR#{UyWAYA[[K0c_53xi5ZEf4s5__*3PS'
 _prognosis_token = None
 _prognosis_token_time = None
 
