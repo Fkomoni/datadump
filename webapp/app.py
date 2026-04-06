@@ -33,47 +33,59 @@ _prognosis_token_time = None
 
 def prognosis_login():
     """Login to Prognosis API and cache token."""
-    import requests
-    from datetime import datetime, timedelta
     global _prognosis_token, _prognosis_token_time
+    try:
+        import requests as req
+        from datetime import datetime
+    except ImportError:
+        app.logger.error("requests library not installed")
+        return None
 
-    # Reuse token if less than 30 min old
     if _prognosis_token and _prognosis_token_time and (datetime.now() - _prognosis_token_time).seconds < 1800:
         return _prognosis_token
 
     try:
-        s = requests.Session()
-        s.trust_env = False  # bypass proxy
+        s = req.Session()
+        s.trust_env = False
         r = s.post(f"{PROGNOSIS_API_BASE}/ApiUsers/Login",
                     json={"Username": PROGNOSIS_USERNAME, "Password": PROGNOSIS_PASSWORD},
                     timeout=30)
+        app.logger.info(f"Prognosis login: status={r.status_code}")
         if r.status_code == 200:
             token = r.text.strip().strip('"')
             _prognosis_token = token
             _prognosis_token_time = datetime.now()
             return token
+        app.logger.error(f"Prognosis login failed: {r.status_code} {r.text[:200]}")
         return None
-    except Exception:
+    except Exception as e:
+        app.logger.error(f"Prognosis login error: {e}")
         return None
 
 
 def prognosis_get(endpoint, params=None):
     """Make authenticated GET request to Prognosis API."""
-    import requests
+    try:
+        import requests as req
+    except ImportError:
+        return None
     token = prognosis_login()
     if not token:
         return None
     try:
-        s = requests.Session()
+        s = req.Session()
         s.trust_env = False
         r = s.get(f"{PROGNOSIS_API_BASE}/{endpoint}",
                    params=params,
                    headers={"Authorization": f"Bearer {token}"},
-                   timeout=60)
+                   timeout=120)
+        app.logger.info(f"Prognosis GET {endpoint}: status={r.status_code}, size={len(r.content)}")
         if r.status_code == 200:
             return r.json()
+        app.logger.error(f"Prognosis GET failed: {r.status_code} {r.text[:200]}")
         return None
-    except Exception:
+    except Exception as e:
+        app.logger.error(f"Prognosis GET error: {e}")
         return None
 
 
@@ -2571,24 +2583,30 @@ def features_doc():
 def api_debug():
     """Debug endpoint to test Prognosis API connection and see response structure."""
     import json as jsonlib
-    token = prognosis_login()
-    if not token:
-        return "<pre>Failed to login to Prognosis API. Check PROGNOSIS_USERNAME and PROGNOSIS_PASSWORD env vars.</pre>"
+    import traceback
+    try:
+        token = prognosis_login()
+        if not token:
+            return "<pre>Failed to login to Prognosis API.\n\nCheck:\n1. PROGNOSIS_USERNAME env var is set\n2. PROGNOSIS_PASSWORD env var is set\n3. API server is reachable from Render</pre>"
 
-    # Try fetching a small sample
-    data = prognosis_get("Production/ProviderAnalytics", {"from": "2025-10-10", "to": "2025-10-11", "Provider_id": "4151"})
-    if data is None:
-        return f"<pre>Login OK (token: {token[:20]}...)\nBut ProviderAnalytics endpoint returned None.\nCheck if endpoint URL is correct.</pre>"
+        data = prognosis_get("Production/ProviderAnalytics", {"from": "2025-10-10", "to": "2025-10-11", "Provider_id": "4151"})
+        if data is None:
+            return f"<pre>Login OK (token: {token[:20]}...)\n\nBut ProviderAnalytics endpoint returned None.\nThe endpoint may have returned an error or empty response.</pre>"
 
-    # Show structure
-    output = f"Login OK. Token: {token[:20]}...\n\n"
-    output += f"Records returned: {len(data)}\n\n"
-    if data:
-        output += f"COLUMNS ({len(data[0].keys())}):\n"
-        for k, v in data[0].items():
-            output += f"  {k:40s} = {repr(v)[:80]}\n"
-        output += f"\n\nFIRST 2 RECORDS:\n{jsonlib.dumps(data[:2], indent=2, default=str)}"
-    return f"<pre>{output}</pre>"
+        output = f"Login OK. Token: {token[:20]}...\n\n"
+        output += f"Records returned: {len(data)}\n\n"
+        if isinstance(data, list) and data:
+            output += f"COLUMNS ({len(data[0].keys())}):\n"
+            for k, v in data[0].items():
+                output += f"  {k:40s} = {repr(v)[:80]}\n"
+            output += f"\n\nFIRST 2 RECORDS:\n{jsonlib.dumps(data[:2], indent=2, default=str)}"
+        elif isinstance(data, dict):
+            output += f"Response is a dict (not a list):\n{jsonlib.dumps(data, indent=2, default=str)[:2000]}"
+        else:
+            output += f"Response type: {type(data)}\nContent: {str(data)[:1000]}"
+        return f"<pre>{output}</pre>"
+    except Exception:
+        return f"<pre>ERROR:\n{traceback.format_exc()}</pre>"
 
 
 if __name__ == "__main__":
