@@ -72,12 +72,26 @@
   </div>
 
   <div class="tab-bar">
-    <button class="active" onclick="showTab('api')">Pull from Prognosis</button>
-    <button onclick="showTab('upload')">Upload File</button>
+    <button class="active" onclick="showTab('upload')">Upload File</button>
+    <button onclick="showTab('api')">Pull from Prognosis</button>
   </div>
 
-  <!-- TAB 1: Pull from Prognosis API -->
-  <div id="tab-api" class="tab-content active">
+  <!-- TAB 1: Manual Upload -->
+  <div id="tab-upload" class="tab-content active">
+    <form class="card" action="/provider-analytics/upload" method="post" enctype="multipart/form-data">
+      <h2>Upload <span>Claims File</span></h2>
+      <p class="desc">Upload your claims export file manually. The system auto-detects columns.</p>
+
+      <label>Claims File</label>
+      <input type="file" name="claims_file" accept=".xlsx,.xls,.csv" required>
+      <p class="note">Upload your claims export. Supports Leadway export format with auto column detection.</p>
+
+      <button type="submit" class="submit-btn navy">Generate Provider Report</button>
+    </form>
+  </div>
+
+  <!-- TAB 2: Pull from Prognosis API -->
+  <div id="tab-api" class="tab-content">
     <form class="card" action="/provider-analytics/api-pull" method="post">
       <h2>Pull from <span>Prognosis</span> <span class="api-badge live">API Connected</span></h2>
       <p class="desc">Pull claims data directly from the Prognosis core system. Select provider, date range, client, and claim status.</p>
@@ -116,20 +130,6 @@
       </select>
 
       <button type="submit" class="submit-btn green">&#9889; Pull Data & Generate Report</button>
-    </form>
-  </div>
-
-  <!-- TAB 2: Manual Upload -->
-  <div id="tab-upload" class="tab-content">
-    <form class="card" action="/provider-analytics/upload" method="post" enctype="multipart/form-data">
-      <h2>Upload <span>Claims File</span></h2>
-      <p class="desc">Upload your claims export file manually. The system auto-detects columns.</p>
-
-      <label>Claims File</label>
-      <input type="file" name="claims_file" accept=".xlsx,.xls,.csv" required>
-      <p class="note">Upload your claims export. Supports Leadway export format with auto column detection.</p>
-
-      <button type="submit" class="submit-btn navy">Generate Provider Report</button>
     </form>
   </div>
 
