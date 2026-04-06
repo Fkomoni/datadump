@@ -47,15 +47,31 @@ def prognosis_login():
     try:
         s = req.Session()
         s.trust_env = False
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": "LeadwayHealthBot/1.0"
+        }
         r = s.post(f"{PROGNOSIS_API_BASE}/ApiUsers/Login",
                     json={"Username": PROGNOSIS_USERNAME, "Password": PROGNOSIS_PASSWORD},
+                    headers=headers,
                     timeout=30)
         app.logger.info(f"Prognosis login: status={r.status_code}")
         if r.status_code == 200:
-            token = r.text.strip().strip('"')
-            _prognosis_token = token
-            _prognosis_token_time = datetime.now()
-            return token
+            data = r.json()
+            # Token may be in different fields
+            token = (
+                data.get("token") or data.get("Token") or
+                data.get("access_token") or data.get("AccessToken")
+            )
+            if not token and isinstance(data, str):
+                token = data.strip().strip('"')
+            if token:
+                _prognosis_token = token
+                _prognosis_token_time = datetime.now()
+                return token
+            app.logger.error(f"No token in response. Keys: {list(data.keys()) if isinstance(data, dict) else 'not a dict'}")
+            return None
         app.logger.error(f"Prognosis login failed: {r.status_code} {r.text[:200]}")
         return None
     except Exception as e:
@@ -75,9 +91,15 @@ def prognosis_get(endpoint, params=None):
     try:
         s = req.Session()
         s.trust_env = False
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": "LeadwayHealthBot/1.0"
+        }
         r = s.get(f"{PROGNOSIS_API_BASE}/{endpoint}",
                    params=params,
-                   headers={"Authorization": f"Bearer {token}"},
+                   headers=headers,
                    timeout=120)
         app.logger.info(f"Prognosis GET {endpoint}: status={r.status_code}, size={len(r.content)}")
         if r.status_code == 200:
@@ -2614,22 +2636,38 @@ def api_debug():
         output += "--- Step 1: Login ---\n"
         s = req.Session()
         s.trust_env = False
+        headers = {"Content-Type": "application/json", "Accept": "application/json", "User-Agent": "LeadwayHealthBot/1.0"}
         payload = {"Username": PROGNOSIS_USERNAME, "Password": PROGNOSIS_PASSWORD}
-        r = s.post(f"{PROGNOSIS_API_BASE}/ApiUsers/Login", json=payload, timeout=30)
+        r = s.post(f"{PROGNOSIS_API_BASE}/ApiUsers/Login", json=payload, headers=headers, timeout=30)
         output += f"Status: {r.status_code}\n"
         output += f"Response: {r.text[:300]}\n\n"
 
         if r.status_code != 200:
             return f"<pre>{output}Login failed with status {r.status_code}</pre>"
 
-        token = r.text.strip().strip('"')
-        output += f"Token: {token[:30]}...\n\n"
+        # Parse token from JSON response (same as WhatsApp bot)
+        try:
+            data = r.json()
+            token = data.get("token") or data.get("Token") or data.get("access_token") or data.get("AccessToken")
+            if not token and isinstance(data, str):
+                token = data.strip().strip('"')
+            output += f"Token type: {type(data).__name__}\n"
+            if isinstance(data, dict):
+                output += f"Response keys: {list(data.keys())}\n"
+        except Exception:
+            token = r.text.strip().strip('"')
+
+        output += f"Token: {token[:30] if token else 'NONE'}...\n\n"
+
+        if not token:
+            return f"<pre>{output}No token found in response!</pre>"
 
         # Step 2: Test ProviderAnalytics
+        auth_headers = {**headers, "Authorization": f"Bearer {token}"}
         output += "--- Step 2: ProviderAnalytics ---\n"
         r2 = s.get(f"{PROGNOSIS_API_BASE}/Production/ProviderAnalytics",
                      params={"from": "2025-10-10", "to": "2025-10-11", "Provider_id": "4151"},
-                     headers={"Authorization": f"Bearer {token}"}, timeout=60)
+                     headers=auth_headers, timeout=60)
         output += f"Status: {r2.status_code}\n"
         output += f"Content-Type: {r2.headers.get('content-type', '?')}\n"
         output += f"Size: {len(r2.content)} bytes\n\n"
@@ -2652,7 +2690,7 @@ def api_debug():
         # Step 3: Test GetProviders
         output += "\n\n--- Step 3: GetProviders ---\n"
         r3 = s.get(f"{PROGNOSIS_API_BASE}/ListValues/GetProviders",
-                     headers={"Authorization": f"Bearer {token}"}, timeout=30)
+                     headers=auth_headers, timeout=30)
         output += f"Status: {r3.status_code}\n"
         if r3.status_code == 200:
             pdata = r3.json()
@@ -2665,7 +2703,7 @@ def api_debug():
         # Step 4: Test GetGroups
         output += "\n\n--- Step 4: GetGroups ---\n"
         r4 = s.get(f"{PROGNOSIS_API_BASE}/ListValues/GetGroups",
-                     headers={"Authorization": f"Bearer {token}"}, timeout=30)
+                     headers=auth_headers, timeout=30)
         output += f"Status: {r4.status_code}\n"
         if r4.status_code == 200:
             gdata = r4.json()
