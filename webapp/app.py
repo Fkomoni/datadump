@@ -23,6 +23,59 @@ REPORTS_DIR = BASE_DIR / "reports"
 LOGO_PATH = BASE_DIR / "leadway health logo 20266.jpg"
 USERS_FILE = Path(__file__).parent / "users.json"
 
+# Prognosis API config
+PROGNOSIS_API_BASE = "https://prognosis-api.leadwayhealth.com/api"
+PROGNOSIS_USERNAME = os.environ.get("PROGNOSIS_USERNAME", "whatsappBot")
+PROGNOSIS_PASSWORD = os.environ.get("PROGNOSIS_PASSWORD", '15kUVH)RFn!PgR#{UyWAYA[[K0c_53xi5ZEf4s5__*3PS')
+_prognosis_token = None
+_prognosis_token_time = None
+
+
+def prognosis_login():
+    """Login to Prognosis API and cache token."""
+    import requests
+    from datetime import datetime, timedelta
+    global _prognosis_token, _prognosis_token_time
+
+    # Reuse token if less than 30 min old
+    if _prognosis_token and _prognosis_token_time and (datetime.now() - _prognosis_token_time).seconds < 1800:
+        return _prognosis_token
+
+    try:
+        s = requests.Session()
+        s.trust_env = False  # bypass proxy
+        r = s.post(f"{PROGNOSIS_API_BASE}/ApiUsers/Login",
+                    json={"Username": PROGNOSIS_USERNAME, "Password": PROGNOSIS_PASSWORD},
+                    timeout=30)
+        if r.status_code == 200:
+            token = r.text.strip().strip('"')
+            _prognosis_token = token
+            _prognosis_token_time = datetime.now()
+            return token
+        return None
+    except Exception:
+        return None
+
+
+def prognosis_get(endpoint, params=None):
+    """Make authenticated GET request to Prognosis API."""
+    import requests
+    token = prognosis_login()
+    if not token:
+        return None
+    try:
+        s = requests.Session()
+        s.trust_env = False
+        r = s.get(f"{PROGNOSIS_API_BASE}/{endpoint}",
+                   params=params,
+                   headers={"Authorization": f"Bearer {token}"},
+                   timeout=60)
+        if r.status_code == 200:
+            return r.json()
+        return None
+    except Exception:
+        return None
+
 
 def load_users():
     if USERS_FILE.exists():
@@ -816,7 +869,111 @@ def provider_submodule_upload():
 def provider_analytics():
     logo = get_logo_b64()
     report_list = list_reports("ProviderAnalytics_")
-    return render_template("provider_analytics.html", logo=logo, reports=report_list)
+    # Check if API is available
+    api_available = bool(PROGNOSIS_USERNAME and PROGNOSIS_PASSWORD)
+    return render_template("provider_analytics.html", logo=logo, reports=report_list, api_available=api_available)
+
+
+@app.route("/provider-analytics/api-pull", methods=["POST"])
+@login_required
+def provider_analytics_api_pull():
+    """Pull claims data directly from Prognosis API and generate report."""
+    import pandas as pd
+    import numpy as np
+
+    provider_id = request.form.get("provider_id", "").strip()
+    provider_name_input = request.form.get("provider_name_api", "").strip()
+    date_from = request.form.get("date_from", "").strip()
+    date_to = request.form.get("date_to", "").strip()
+    client_id = request.form.get("client_id", "").strip()
+    claim_status = request.form.get("claim_status", "").strip()
+
+    if not date_from or not date_to:
+        flash("Please provide a date range.")
+        return redirect(url_for("provider_analytics"))
+
+    # Build API params
+    params = {"from": date_from, "to": date_to}
+    if provider_id:
+        params["Provider_id"] = provider_id
+    if client_id:
+        params["Client_id"] = client_id
+    if claim_status:
+        params["ClaimStatus"] = claim_status
+
+    # Call Prognosis API
+    data = prognosis_get("Production/ProviderAnalytics", params)
+    if data is None:
+        flash("Failed to connect to Prognosis API. Check credentials or try again.")
+        return redirect(url_for("provider_analytics"))
+
+    if not data or len(data) == 0:
+        flash("No records returned from API for the selected filters.")
+        return redirect(url_for("provider_analytics"))
+
+    # Convert to DataFrame
+    df = pd.DataFrame(data)
+
+    # Log the columns we received for debugging
+    app.logger.info(f"Prognosis API returned {len(df)} rows, columns: {list(df.columns)}")
+
+    # ── Column mapping — map Prognosis API fields to our standard names ──
+    col_map = {}
+    for col in df.columns:
+        cl = col.lower().strip().replace("_", " ")
+        if cl in ("amt paid", "claims paid", "amount paid", "amtpaid", "paid"): col_map[col] = "Amt_Paid"
+        elif cl in ("amt claimed", "amount claimed", "amtclaimed"): col_map[col] = "Amt_Claimed"
+        elif cl in ("claim number", "claim no", "claimno", "claim numb", "claimnumber"): col_map[col] = "Claim_No"
+        elif cl in ("membershipno", "enrolee id", "member id", "enrolleeid", "memberid"): col_map[col] = "Enrolee_ID"
+        elif cl in ("treatment date", "encounter date", "treatmentdate", "encounterdate"): col_map[col] = "Treatment_Date"
+        elif cl in ("provider", "provider name", "providername"): col_map[col] = "Provider"
+        elif cl in ("group name", "group", "groupname", "clientname", "client name"): col_map[col] = "Group_Name"
+        elif cl in ("scheme", "scheme name", "schemename"): col_map[col] = "Scheme"
+        elif cl in ("service type", "servicetype"): col_map[col] = "Service_Type"
+        elif cl in ("tariff descr", "tariff description", "tariffdescr"): col_map[col] = "Tariff_Descr"
+        elif cl in ("benefit", "benefit type", "benefittype"): col_map[col] = "Benefit"
+        elif cl in ("diag descr", "diagnosis description", "diagdescr"): col_map[col] = "Diag_Descr"
+        elif cl in ("diagnosis", "diagnosiscode"): col_map[col] = "Diagnosis"
+        elif cl in ("claim status", "claimstatus"): col_map[col] = "Claim_Status"
+        elif cl in ("relationship type", "relationship", "relationshiptype"): col_map[col] = "Relationship"
+        elif cl in ("member gender", "gender", "membergender"): col_map[col] = "Gender"
+        elif cl in ("member age", "age", "memberage"): col_map[col] = "Member_Age"
+        elif cl in ("prov location", "provider location", "provlocation", "state"): col_map[col] = "Prov_Location"
+        elif cl in ("discipline", "speciality", "specialty"): col_map[col] = "Discipline"
+    df.rename(columns=col_map, inplace=True)
+
+    # Parse types (same as upload route)
+    for col in ["Amt_Paid", "Amt_Claimed"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col].astype(str).str.replace(",", "").str.replace("₦", ""), errors="coerce").fillna(0)
+
+    if "Treatment_Date" in df.columns:
+        df["Treatment_Date"] = pd.to_datetime(df["Treatment_Date"], errors="coerce", dayfirst=True)
+
+    if "Service_Type" in df.columns:
+        st = df["Service_Type"].astype(str).str.strip().str.lower()
+        df.loc[st.isin(["outpatient", "opd", "out-patient", "mtn pha"]), "Service_Type"] = "Outpatient"
+        df.loc[st.isin(["inpatient", "ipd", "in-patient"]), "Service_Type"] = "Inpatient"
+
+    if "Claim_Status" in df.columns:
+        df = df[~df["Claim_Status"].str.lower().str.strip().isin(["abandoned", "rejected", "declined"])]
+
+    df["Spend"] = df["Amt_Paid"] if "Amt_Paid" in df.columns else 0
+    if "Amt_Claimed" in df.columns and "Amt_Paid" in df.columns:
+        zero_paid = df["Amt_Paid"].fillna(0) == 0
+        df.loc[zero_paid, "Spend"] = df.loc[zero_paid, "Amt_Claimed"]
+
+    if "Enrolee_ID" in df.columns:
+        df["Family_ID"] = df["Enrolee_ID"].astype(str).str[:8]
+
+    # Generate report using same function as upload
+    session_id = str(uuid.uuid4())[:8]
+    try:
+        report_path = generate_provider_report(df, session_id)
+        return redirect(url_for("view_report", filename=report_path.name))
+    except Exception:
+        import traceback
+        return f"<pre>Error generating report:\n{traceback.format_exc()}</pre>", 500
 
 
 @app.route("/provider-analytics/upload", methods=["POST"])
@@ -2407,6 +2564,31 @@ def download_report(filename):
 @app.route("/features-doc")
 def features_doc():
     return render_template("features_doc.html")
+
+
+@app.route("/api-debug")
+@login_required
+def api_debug():
+    """Debug endpoint to test Prognosis API connection and see response structure."""
+    import json as jsonlib
+    token = prognosis_login()
+    if not token:
+        return "<pre>Failed to login to Prognosis API. Check PROGNOSIS_USERNAME and PROGNOSIS_PASSWORD env vars.</pre>"
+
+    # Try fetching a small sample
+    data = prognosis_get("Production/ProviderAnalytics", {"from": "2025-10-10", "to": "2025-10-11", "Provider_id": "4151"})
+    if data is None:
+        return f"<pre>Login OK (token: {token[:20]}...)\nBut ProviderAnalytics endpoint returned None.\nCheck if endpoint URL is correct.</pre>"
+
+    # Show structure
+    output = f"Login OK. Token: {token[:20]}...\n\n"
+    output += f"Records returned: {len(data)}\n\n"
+    if data:
+        output += f"COLUMNS ({len(data[0].keys())}):\n"
+        for k, v in data[0].items():
+            output += f"  {k:40s} = {repr(v)[:80]}\n"
+        output += f"\n\nFIRST 2 RECORDS:\n{jsonlib.dumps(data[:2], indent=2, default=str)}"
+    return f"<pre>{output}</pre>"
 
 
 if __name__ == "__main__":
