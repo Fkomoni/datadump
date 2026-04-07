@@ -1826,9 +1826,12 @@ def pricing_tool_calculate():
     brokered = request.form.get("brokered", "no")
     broker_fee = float(request.form.get("broker_fee", 0)) if brokered == "yes" else 0
     plan_name = request.form.get("plan", "PRO")
-    total_principals = int(request.form.get("total_principals", 50))
-    total_dependants = int(request.form.get("total_dependants", 0))
+    p_val = request.form.get("total_principals", "").strip()
+    d_val = request.form.get("total_dependants", "").strip()
+    total_principals = int(p_val) if p_val else 0
+    total_dependants = int(d_val) if d_val else 0
     total_lives = total_principals + total_dependants
+    lives_provided = bool(p_val)  # Track whether user provided lives
     sme_tier = request.form.get("sme_tier", "20-29")
     senior_age = request.form.get("senior_age", "55-69")
     pricing_mode = request.form.get("pricing_mode", "table")
@@ -1864,45 +1867,62 @@ def pricing_tool_calculate():
         tier = plan_data["tier"]
         product_label = "Corporate"
 
-    # ── Benefit upgrades (same logic as before) ──
+    # ── Benefit customisation (text input based) ──
+    # User types a new limit; if blank, keep plan default
+    # Cost impact = (new_limit - base_limit) × utilization_rate × cost_factor
     upgrade_total = 0
     comparison = []
     upgrade_count = 0
 
-    for ben_key, ben_name, icon in [("dental", "Dental", "🦷"), ("optical", "Optical", "👓"), ("surgery", "Surgery", "🏥"), ("major_disease", "Major Disease", "🧬")]:
-        toggled = request.form.get(f"{ben_key}_toggle") == "on"
-        limit = int(request.form.get(f"{ben_key}_limit", BENEFIT_DEFAULTS[ben_key]["base"]))
-        d = BENEFIT_DEFAULTS[ben_key]
-        cost = 0
-        if toggled and limit > d["base"]:
-            cost = (limit - d["base"]) * d["util"] * d["cost_factor"]
-            upgrade_total += cost
-            upgrade_count += 1
-        comparison.append({"name": ben_name, "base": f"\u20A6{d['base']:,.0f}", "custom": f"\u20A6{limit:,.0f}" if toggled else f"\u20A6{d['base']:,.0f}", "impact": f"+\u20A6{cost:,.0f}" if cost > 0 else "\u2014"})
+    BENEFIT_CONFIG = [
+        {"key": "dental",      "name": "Dental",              "base": 50000,   "util": 0.35, "factor": 0.08},
+        {"key": "optical",     "name": "Optical / Lens",      "base": 30000,   "util": 0.25, "factor": 0.06},
+        {"key": "surgery",     "name": "Surgery",             "base": 250000,  "util": 0.08, "factor": 0.12},
+        {"key": "major_disease","name": "Major Disease",      "base": 500000,  "util": 0.02, "factor": 0.15},
+        {"key": "icu",         "name": "ICU",                 "base": 500000,  "util": 0.03, "factor": 0.10},
+        {"key": "chronic",     "name": "Chronic Medication",  "base": 400000,  "util": 0.08, "factor": 0.06},
+        {"key": "neonatal",    "name": "Neonatal / NICU",     "base": 500000,  "util": 0.01, "factor": 0.15},
+        {"key": "congenital",  "name": "Congenital",          "base": 250000,  "util": 0.005,"factor": 0.12},
+        {"key": "physio",      "name": "Physiotherapy",       "base": 50000,   "util": 0.10, "factor": 0.05},
+        {"key": "diagnostics", "name": "Adv. Diagnostics",    "base": 70000,   "util": 0.15, "factor": 0.06},
+        {"key": "devices",     "name": "Devices & Appliances","base": 50000,   "util": 0.03, "factor": 0.05},
+        {"key": "fertility",   "name": "Fertility Services",  "base": 30000,   "util": 0.02, "factor": 0.08},
+    ]
 
-    # ICU
-    icu_on = request.form.get("icu_toggle") == "on"
-    icu_days = int(request.form.get("icu_days", 3))
-    d = BENEFIT_DEFAULTS["icu_days"]
-    icu_cost = (icu_days - d["base"]) * d["util"] * d["per_day_cost"] if icu_on and icu_days > d["base"] else 0
-    if icu_cost > 0: upgrade_total += icu_cost; upgrade_count += 1
-    comparison.append({"name": "ICU Days", "base": f"{d['base']} days", "custom": f"{icu_days} days" if icu_on else f"{d['base']} days", "impact": f"+\u20A6{icu_cost:,.0f}" if icu_cost > 0 else "\u2014"})
+    for bc in BENEFIT_CONFIG:
+        raw = request.form.get(f"{bc['key']}_limit", "").strip()
+        base = bc["base"]
+        if raw:
+            new_limit = int(float(raw))
+            cost = max(0, (new_limit - base) * bc["util"] * bc["factor"])
+            if new_limit != base:
+                upgrade_count += 1
+                upgrade_total += cost
+            comparison.append({"name": bc["name"], "base": f"\u20A6{base:,.0f}", "custom": f"\u20A6{new_limit:,.0f}", "impact": f"+\u20A6{cost:,.0f}" if cost > 0 else ("\u20A6{:,.0f}".format(cost) if new_limit < base else "\u2014")})
+        else:
+            comparison.append({"name": bc["name"], "base": f"\u20A6{base:,.0f}", "custom": f"\u20A6{base:,.0f}", "impact": "\u2014"})
 
-    # Flat add-ons
-    for name, key, cost_val in [("NICU", "nicu_toggle", NICU_COST), ("Gym / Wellness", "gym_toggle", GYM_COST), ("Immunization", "immunization_toggle", IMMUNIZATION_COST)]:
-        toggled = request.form.get(key) == "on"
-        cost = cost_val if toggled else 0
-        upgrade_total += cost
-        if toggled: upgrade_count += 1
-        comparison.append({"name": name, "base": "Not included", "custom": "Included" if toggled else "Not included", "impact": f"+\u20A6{cost:,.0f}" if cost > 0 else "\u2014"})
+    # Flat add-ons (dropdown)
+    gym_on = request.form.get("gym_option") == "yes"
+    immun_on = request.form.get("immunization_option") == "yes"
+    if gym_on:
+        upgrade_total += GYM_COST; upgrade_count += 1
+        comparison.append({"name": "Gym / Wellness", "base": "Not included", "custom": "Included", "impact": f"+\u20A6{GYM_COST:,.0f}"})
+    else:
+        comparison.append({"name": "Gym / Wellness", "base": "Not included", "custom": "Not included", "impact": "\u2014"})
+    if immun_on:
+        upgrade_total += IMMUNIZATION_COST; upgrade_count += 1
+        comparison.append({"name": "Immunization", "base": "Not included", "custom": "Included", "impact": f"+\u20A6{IMMUNIZATION_COST:,.0f}"})
+    else:
+        comparison.append({"name": "Immunization", "base": "Not included", "custom": "Not included", "impact": "\u2014"})
 
     # ── Loadings ──
     ind_multiplier = INDUSTRY_LOADING.get(industry, 1.0)
     subtotal = base_price + upgrade_total
     industry_loading = subtotal * (ind_multiplier - 1)
 
-    # Small group
-    if product_line == "senior":
+    # Small group (only applies if lives are provided)
+    if not lives_provided or product_line == "senior":
         small_group_pct = 0
     elif total_lives < 30:
         small_group_pct = 0.15
@@ -1950,17 +1970,24 @@ def pricing_tool_calculate():
     else:
         family_price = final_price * family_mult
 
-    if total_dependants > 0:
-        annual_total = (final_price * total_principals) + (family_price * total_dependants)
+    if lives_provided and total_lives > 0:
+        if total_dependants > 0:
+            annual_total = (final_price * total_principals) + (family_price * total_dependants)
+        else:
+            annual_total = final_price * total_lives
     else:
-        annual_total = final_price * total_lives
+        annual_total = 0  # Can't calculate without lives
 
     # ── Risk assessment ──
-    nicu_on = request.form.get("nicu_toggle") == "on"
-    surgery_on = request.form.get("surgery_toggle") == "on"
-    surgery_limit = int(request.form.get("surgery_limit", 250000))
-    high_risk = (surgery_on and icu_on and plan_name in ("PROMAX", "MAGNUM", "MAGNUM PLUS")) or nicu_on
-    moderate_risk = upgrade_count >= 3 or (surgery_on and surgery_limit >= 500000)
+    surgery_raw = request.form.get("surgery_limit", "").strip()
+    surgery_val = int(float(surgery_raw)) if surgery_raw else 250000
+    neonatal_raw = request.form.get("neonatal_limit", "").strip()
+    neonatal_val = int(float(neonatal_raw)) if neonatal_raw else 500000
+    icu_raw = request.form.get("icu_limit", "").strip()
+    icu_val = int(float(icu_raw)) if icu_raw else 500000
+
+    high_risk = (surgery_val >= 1000000 and icu_val >= 1000000 and plan_name in ("PROMAX", "MAGNUM", "MAGNUM PLUS")) or neonatal_val >= 3000000
+    moderate_risk = upgrade_count >= 3 or surgery_val >= 500000
     if high_risk:
         risk_level, risk_label = "high", "High Risk — Manual review recommended"
     elif moderate_risk:

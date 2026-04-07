@@ -192,12 +192,12 @@
     </div>
     <div class="field-row">
       <div class="field">
-        <label>Total Principals</label>
-        <input type="number" name="total_principals" value="50" min="1" required>
+        <label>Total Principals (optional)</label>
+        <input type="number" name="total_principals" value="" min="1" placeholder="e.g. 50">
       </div>
       <div class="field">
-        <label>Total Dependants</label>
-        <input type="number" name="total_dependants" value="0" min="0">
+        <label>Total Dependants (optional)</label>
+        <input type="number" name="total_dependants" value="" min="0" placeholder="e.g. 120">
       </div>
     </div>
     <div class="field" id="smeGroupSize" style="display:none;">
@@ -238,9 +238,87 @@
       <input type="file" name="claims_file" accept=".xlsx,.xls,.csv" style="font-size:11px;padding:6px;">
     </div>
 
+    <h3>Benefit Customisation</h3>
+    <p style="font-size:10px;color:var(--muted);margin-bottom:10px;">Enter new limits to override the standard plan. Leave blank to keep default.</p>
+
+    <div class="field-row">
+      <div class="field">
+        <label>Dental Limit (₦)</label>
+        <input type="number" name="dental_limit" placeholder="Default: 50,000" min="0" step="1000">
+      </div>
+      <div class="field">
+        <label>Optical / Lens (₦)</label>
+        <input type="number" name="optical_limit" placeholder="Default: 30,000" min="0" step="1000">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Surgery Limit (₦)</label>
+        <input type="number" name="surgery_limit" placeholder="Default: 250,000" min="0" step="10000">
+      </div>
+      <div class="field">
+        <label>Major Disease (₦)</label>
+        <input type="number" name="major_disease_limit" placeholder="Default: 500,000" min="0" step="50000">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>ICU Limit (₦)</label>
+        <input type="number" name="icu_limit" placeholder="Default: 500,000" min="0" step="50000">
+      </div>
+      <div class="field">
+        <label>Chronic Meds (₦)</label>
+        <input type="number" name="chronic_limit" placeholder="Default: 400,000" min="0" step="50000">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Neonatal / NICU (₦)</label>
+        <input type="number" name="neonatal_limit" placeholder="Default: 500,000" min="0" step="50000">
+      </div>
+      <div class="field">
+        <label>Congenital (₦)</label>
+        <input type="number" name="congenital_limit" placeholder="Default: 250,000" min="0" step="50000">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Physiotherapy (₦)</label>
+        <input type="number" name="physio_limit" placeholder="Default: 50,000" min="0" step="10000">
+      </div>
+      <div class="field">
+        <label>Adv. Diagnostics (₦)</label>
+        <input type="number" name="diagnostics_limit" placeholder="Default: 70,000" min="0" step="10000">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Devices & Appliances (₦)</label>
+        <input type="number" name="devices_limit" placeholder="Default: 50,000" min="0" step="10000">
+      </div>
+      <div class="field">
+        <label>Fertility (₦)</label>
+        <input type="number" name="fertility_limit" placeholder="Default: 30,000" min="0" step="10000">
+      </div>
+    </div>
+    <div class="field">
+      <label>Add Gym / Wellness?</label>
+      <select name="gym_option">
+        <option value="no" selected>No (Standard)</option>
+        <option value="yes">Yes — Add Gym Access</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Add Immunization?</label>
+      <select name="immunization_option">
+        <option value="no" selected>No (Standard)</option>
+        <option value="yes">Yes — Add Adult Immunization</option>
+      </select>
+    </div>
+
     <h3>Special Requests</h3>
     <div class="field">
-      <textarea name="custom_request" placeholder="e.g. Add maternity for all, exclude NICU..." style="width:100%;padding:8px;border:1px solid var(--grey);border-radius:6px;font-family:inherit;font-size:11px;min-height:50px;resize:vertical;background:var(--light);"></textarea>
+      <textarea name="custom_request" placeholder="e.g. Add maternity for all, exclude NICU, cap surgery at 1M..." style="width:100%;padding:8px;border:1px solid var(--grey);border-radius:6px;font-family:inherit;font-size:11px;min-height:50px;resize:vertical;background:var(--light);"></textarea>
     </div>
 
     <button type="submit" class="btn btn-red" style="margin-top:16px;">Calculate Price</button>
@@ -296,7 +374,7 @@
     <h3>Plan Summary</h3>
     <div class="price-row"><span class="pl">Plan</span><span class="pv">{{ result.plan_name }}</span></div>
     <div class="price-row"><span class="pl">Product</span><span class="pv">{{ result.product_line }}</span></div>
-    <div class="price-row"><span class="pl">Lives</span><span class="pv">{{ result.total_lives }}</span></div>
+    <div class="price-row"><span class="pl">Lives</span><span class="pv">{{ result.total_lives if result.total_lives > 0 else 'Not specified' }}</span></div>
     <div class="price-row"><span class="pl">Provider Tier</span><span class="pv">{{ result.provider_tier }}</span></div>
 
     <h3>Pricing Breakdown</h3>
@@ -320,7 +398,11 @@
     </div>
 
     <div class="price-row"><span class="pl">Family Rate</span><span class="pv">{{ result.family_price_fmt }}</span></div>
+    {% if result.total_lives > 0 %}
     <div class="price-row total"><span class="pl">Annual Total</span><span class="pv">{{ result.annual_total_fmt }}</span></div>
+    {% else %}
+    <div class="price-row"><span class="pl">Annual Total</span><span class="pv" style="font-size:10px;opacity:0.5;">Enter lives to calculate</span></div>
+    {% endif %}
 
     <h3>Editable Parameters</h3>
     <div class="param-row"><label>Target LR (%)</label><input type="number" name="target_lr" value="{{ result.target_lr }}" min="50" max="100" step="1"></div>
