@@ -25,8 +25,8 @@ USERS_FILE = Path(__file__).parent / "users.json"
 
 # Prognosis API config
 PROGNOSIS_API_BASE = "https://prognosis-api.leadwayhealth.com/api"
-PROGNOSIS_USERNAME = "whatsappBot"
-PROGNOSIS_PASSWORD = r'15kUVH)RFn!PgR#{UyWAYA[[K0c_53xi5ZEf4s5__*3PS'
+PROGNOSIS_USERNAME = os.environ.get("PROGNOSIS_USERNAME", "")
+PROGNOSIS_PASSWORD = os.environ.get("PROGNOSIS_PASSWORD", "")
 _prognosis_token = None
 _prognosis_token_time = None
 
@@ -2750,7 +2750,7 @@ def api_debug():
             output += f"Could not determine outbound IP: {e}\n\n"
 
         output += f"Username: {PROGNOSIS_USERNAME}\n"
-        output += f"Password: {'*' * 5}{PROGNOSIS_PASSWORD[-5:]}\n"
+        output += f"Password: {'SET' if PROGNOSIS_PASSWORD else 'NOT SET'} ({len(PROGNOSIS_PASSWORD)} chars)\n"
         output += f"API Base: {PROGNOSIS_API_BASE}\n\n"
 
         # Step 1: Login
