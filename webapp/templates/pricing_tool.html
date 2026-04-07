@@ -3,189 +3,155 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pricing Tool — Leadway Health</title>
+<title>Pricing Workbench — Leadway Health</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
   :root {
     --lh-red: #C61531; --lh-orange: #F15A24; --lh-dark: #262626; --lh-navy: #1B1464;
-    --cream: #FAF7F2; --light-grey: #F4F4F6; --medium-grey: #E6E6E6; --white: #FFFFFF;
-    --text-muted: #6B7280; --green: #16a34a; --blue: #2563EB;
+    --cream: #FAF7F2; --light: #F4F4F6; --grey: #E6E6E6; --white: #FFF;
+    --muted: #6B7280; --green: #16a34a; --blue: #2563EB;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Inter', sans-serif; background: var(--cream); color: var(--lh-dark); min-height: 100vh; font-size: 14px; }
+  body { font-family: 'Inter', sans-serif; background: var(--cream); color: var(--lh-dark); min-height: 100vh; font-size: 13px; }
 
   /* TOP BAR */
-  .top-bar { background: var(--lh-dark); padding: 12px 32px; display: flex; align-items: center; justify-content: space-between; }
-  .top-bar .logo-area { display: flex; align-items: center; gap: 12px; }
-  .top-bar .logo-area img { height: 36px; }
-  .top-bar .logo-area span { color: white; font-weight: 700; font-size: 15px; }
-  .top-bar nav { display: flex; gap: 4px; }
-  .top-bar nav a { color: rgba(255,255,255,0.6); text-decoration: none; font-size: 12px; font-weight: 600; padding: 8px 16px; border-radius: 6px; transition: all 0.2s; }
-  .top-bar nav a:hover, .top-bar nav a.active { color: white; background: rgba(255,255,255,0.1); }
-  .top-bar .user-area { color: rgba(255,255,255,0.6); font-size: 12px; }
-  .top-bar .user-area a { color: var(--lh-red); text-decoration: none; font-weight: 600; margin-left: 12px; }
+  .top-bar { background: var(--lh-dark); padding: 10px 24px; display: flex; align-items: center; justify-content: space-between; }
+  .top-bar .brand { display: flex; align-items: center; gap: 10px; }
+  .top-bar .brand img { height: 32px; }
+  .top-bar .brand span { color: white; font-weight: 700; font-size: 14px; }
+  .top-bar nav { display: flex; gap: 6px; }
+  .top-bar nav a { color: rgba(255,255,255,0.5); text-decoration: none; font-size: 11px; font-weight: 600; padding: 6px 12px; border-radius: 6px; }
+  .top-bar nav a:hover { color: white; background: rgba(255,255,255,0.1); }
 
-  /* SPLIT LAYOUT */
-  .split-layout { display: grid; grid-template-columns: 420px 1fr; min-height: calc(100vh - 56px); }
+  /* 3-PANEL LAYOUT */
+  .layout { display: grid; grid-template-columns: 280px 1fr 320px; min-height: calc(100vh - 48px); }
 
   /* LEFT PANEL */
-  .left-panel { background: var(--white); border-right: 1px solid var(--medium-grey); overflow-y: auto; max-height: calc(100vh - 56px); padding: 28px 24px; }
-  .left-panel h2 { font-size: 18px; font-weight: 800; color: var(--lh-dark); margin-bottom: 4px; }
-  .left-panel .subtitle { font-size: 12px; color: var(--text-muted); margin-bottom: 24px; }
-  .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--lh-red); margin: 24px 0 12px; padding-bottom: 8px; border-bottom: 2px solid var(--medium-grey); }
-  .section-title:first-of-type { margin-top: 0; }
-
-  .form-group { margin-bottom: 16px; }
-  .form-group label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
-  .form-group input, .form-group select, .form-group textarea {
-    width: 100%; padding: 10px 12px; border: 1px solid var(--medium-grey); border-radius: 8px;
-    font-family: inherit; font-size: 13px; background: var(--light-grey); transition: border-color 0.2s;
-  }
-  .form-group input:focus, .form-group select:focus { border-color: var(--lh-red); outline: none; background: white; }
-  .form-group textarea { min-height: 60px; resize: vertical; }
-  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .left { background: white; border-right: 1px solid var(--grey); padding: 20px; overflow-y: auto; max-height: calc(100vh - 48px); }
+  .left h3 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--lh-red); margin: 20px 0 10px; padding-bottom: 6px; border-bottom: 2px solid var(--grey); }
+  .left h3:first-child { margin-top: 0; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 4px; }
+  .field input, .field select { width: 100%; padding: 8px 10px; border: 1px solid var(--grey); border-radius: 6px; font-family: inherit; font-size: 12px; background: var(--light); }
+  .field input:focus, .field select:focus { border-color: var(--lh-red); outline: none; background: white; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
   /* PLAN CARDS */
-  .plan-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
-  .plan-card { border: 2px solid var(--medium-grey); border-radius: 10px; padding: 12px 8px; text-align: center; cursor: pointer; transition: all 0.2s; background: white; }
+  .plan-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .plan-card { border: 2px solid var(--grey); border-radius: 8px; padding: 10px 6px; text-align: center; cursor: pointer; transition: all 0.15s; background: white; }
   .plan-card:hover { border-color: var(--lh-orange); }
   .plan-card.selected { border-color: var(--lh-red); background: #FEF2F2; }
-  .plan-card .plan-name { font-weight: 800; font-size: 12px; color: var(--lh-dark); }
-  .plan-card .plan-price { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-  .plan-card .plan-tier { font-size: 10px; color: var(--lh-red); font-weight: 600; margin-top: 4px; }
+  .plan-card .pn { font-weight: 800; font-size: 11px; }
+  .plan-card .pp { font-size: 10px; color: var(--muted); margin-top: 2px; }
 
-  /* BENEFIT TOGGLES */
-  .benefit-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--light-grey); }
+  /* MIDDLE PANEL */
+  .middle { padding: 20px; overflow-y: auto; max-height: calc(100vh - 48px); background: var(--cream); }
+  .section-card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .section-card h2 { font-size: 15px; font-weight: 700; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 2px solid var(--grey); }
+  .section-card h2 span { color: var(--lh-red); }
+
+  /* BENEFIT ROWS */
+  .benefit-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--light); }
   .benefit-row:last-child { border: none; }
-  .benefit-left { display: flex; align-items: center; gap: 10px; }
-  .benefit-icon { font-size: 18px; width: 32px; text-align: center; }
-  .benefit-name { font-size: 13px; font-weight: 600; color: var(--lh-dark); }
-  .benefit-base { font-size: 11px; color: var(--text-muted); }
-  .benefit-right { display: flex; align-items: center; gap: 8px; }
-  .benefit-slider { width: 100px; accent-color: var(--lh-red); }
-  .benefit-value { font-size: 12px; font-weight: 700; color: var(--lh-dark); min-width: 70px; text-align: right; }
-  .badge { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; }
-  .badge.warning { background: #FFF7ED; color: var(--lh-orange); }
-  .badge.danger { background: #FEF2F2; color: var(--lh-red); }
+  .ben-left { display: flex; align-items: center; gap: 8px; }
+  .ben-icon { font-size: 16px; width: 24px; text-align: center; }
+  .ben-name { font-size: 12px; font-weight: 600; }
+  .ben-base { font-size: 10px; color: var(--muted); }
+  .ben-right { display: flex; align-items: center; gap: 6px; }
+  .ben-slider { width: 80px; accent-color: var(--lh-red); }
+  .ben-val { font-size: 11px; font-weight: 700; min-width: 60px; text-align: right; }
+  .ben-impact { font-size: 10px; color: var(--lh-red); font-weight: 600; min-width: 50px; text-align: right; }
 
-  /* TOGGLE SWITCH */
-  .toggle { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+  /* TOGGLE */
+  .toggle { position: relative; width: 32px; height: 18px; flex-shrink: 0; }
   .toggle input { opacity: 0; width: 0; height: 0; }
-  .toggle .slider { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: var(--medium-grey); border-radius: 20px; cursor: pointer; transition: 0.2s; }
-  .toggle .slider:before { content: ""; position: absolute; height: 16px; width: 16px; left: 2px; bottom: 2px; background: white; border-radius: 50%; transition: 0.2s; }
-  .toggle input:checked + .slider { background: var(--lh-red); }
-  .toggle input:checked + .slider:before { transform: translateX(16px); }
+  .toggle .sl { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: var(--grey); border-radius: 18px; cursor: pointer; transition: 0.2s; }
+  .toggle .sl:before { content: ""; position: absolute; height: 14px; width: 14px; left: 2px; bottom: 2px; background: white; border-radius: 50%; transition: 0.2s; }
+  .toggle input:checked + .sl { background: var(--lh-red); }
+  .toggle input:checked + .sl:before { transform: translateX(14px); }
+
+  /* SCENARIO TABS */
+  .scenario-tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+  .scenario-tabs button { padding: 6px 16px; border: 2px solid var(--grey); border-radius: 8px; font-family: inherit; font-size: 11px; font-weight: 700; cursor: pointer; background: white; color: var(--muted); transition: all 0.15s; }
+  .scenario-tabs button.active { border-color: var(--lh-red); color: var(--lh-red); background: #FEF2F2; }
 
   /* RIGHT PANEL */
-  .right-panel { background: var(--cream); overflow-y: auto; max-height: calc(100vh - 56px); padding: 28px 32px; }
-
-  .output-card { background: var(--white); border-radius: 14px; padding: 24px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
-  .output-card h3 { font-size: 14px; font-weight: 700; color: var(--lh-dark); margin-bottom: 14px; padding-bottom: 8px; border-bottom: 2px solid var(--medium-grey); }
-  .output-card h3 span { color: var(--lh-red); }
-
-  /* PLAN SUMMARY */
-  .plan-summary { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
-  .plan-stat { text-align: center; padding: 14px; background: var(--light-grey); border-radius: 10px; }
-  .plan-stat .stat-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
-  .plan-stat .stat-value { font-size: 16px; font-weight: 800; color: var(--lh-dark); margin-top: 4px; }
-
-  /* COMPARISON TABLE */
-  .compare-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  .compare-table thead th { background: var(--lh-dark); color: white; padding: 10px 8px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; }
-  .compare-table thead th.num { text-align: right; }
-  .compare-table tbody td { padding: 8px; border-bottom: 1px solid var(--light-grey); }
-  .compare-table tbody td.num { text-align: right; font-weight: 600; }
-  .compare-table tbody td.positive { color: var(--lh-red); }
-  .compare-table tbody td.neutral { color: var(--text-muted); }
-  .compare-table tbody tr:hover { background: var(--light-grey); }
-
-  /* PRICING BREAKDOWN */
-  .price-breakdown { background: var(--lh-dark); border-radius: 14px; padding: 24px; margin-bottom: 20px; color: white; }
-  .price-breakdown h3 { color: white; border-bottom-color: rgba(255,255,255,0.1); font-size: 14px; font-weight: 700; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 2px solid rgba(255,255,255,0.1); }
-  .price-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 13px; }
-  .price-row.total { border-top: 2px solid var(--lh-red); border-bottom: none; padding-top: 14px; margin-top: 8px; }
-  .price-row.total .price-label { font-weight: 800; font-size: 16px; }
-  .price-row.total .price-amount { font-weight: 800; font-size: 20px; color: var(--lh-orange); }
-  .price-row .price-label { color: rgba(255,255,255,0.7); }
-  .price-row .price-amount { font-weight: 600; }
-  .price-row.discount .price-amount { color: var(--green); }
+  .right { background: var(--lh-dark); color: white; padding: 20px; overflow-y: auto; max-height: calc(100vh - 48px); }
+  .right h3 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.4); margin: 16px 0 8px; }
+  .right h3:first-child { margin-top: 0; }
+  .price-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 12px; }
+  .price-row .pl { color: rgba(255,255,255,0.6); }
+  .price-row .pv { font-weight: 600; }
+  .price-row.total { border-top: 2px solid var(--lh-red); border-bottom: none; padding-top: 10px; margin-top: 6px; }
+  .price-row.total .pl { font-weight: 800; font-size: 13px; color: white; }
+  .price-row.total .pv { font-weight: 800; font-size: 16px; color: var(--lh-orange); }
+  .price-row.discount .pv { color: var(--green); }
+  .final-box { background: rgba(255,255,255,0.05); border: 2px solid var(--lh-red); border-radius: 10px; padding: 16px; text-align: center; margin: 16px 0; }
+  .final-box .fl { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.5); }
+  .final-box .fv { font-size: 24px; font-weight: 900; color: var(--lh-orange); margin-top: 4px; }
+  .final-box .fs { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 4px; }
 
   /* RISK BADGE */
-  .risk-indicator { display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: 10px; margin-bottom: 16px; }
-  .risk-indicator.low { background: #F0FDF4; border: 2px solid var(--green); }
-  .risk-indicator.moderate { background: #FFF7ED; border: 2px solid var(--lh-orange); }
-  .risk-indicator.high { background: #FEF2F2; border: 2px solid var(--lh-red); }
-  .risk-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
-  .risk-indicator.low .risk-dot { background: var(--green); }
-  .risk-indicator.moderate .risk-dot { background: var(--lh-orange); }
-  .risk-indicator.high .risk-dot { background: var(--lh-red); }
-  .risk-text { font-size: 13px; font-weight: 700; }
-  .risk-indicator.low .risk-text { color: var(--green); }
-  .risk-indicator.moderate .risk-text { color: var(--lh-orange); }
-  .risk-indicator.high .risk-text { color: var(--lh-red); }
+  .risk-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 6px; font-size: 11px; font-weight: 700; margin: 8px 0; }
+  .risk-badge.low { background: rgba(22,163,74,0.15); color: var(--green); }
+  .risk-badge.moderate { background: rgba(241,90,36,0.15); color: var(--lh-orange); }
+  .risk-badge.high { background: rgba(198,21,49,0.15); color: var(--lh-red); }
+  .risk-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .risk-badge.low .risk-dot { background: var(--green); }
+  .risk-badge.moderate .risk-dot { background: var(--lh-orange); }
+  .risk-badge.high .risk-dot { background: var(--lh-red); }
 
-  /* UNDERWRITER NOTES */
-  .uw-notes { background: var(--light-grey); border-radius: 10px; padding: 16px; font-size: 13px; line-height: 1.7; color: var(--text-muted); }
-  .uw-notes strong { color: var(--lh-dark); }
+  /* UW NOTES */
+  .uw-note { background: rgba(255,255,255,0.05); border-radius: 8px; padding: 10px; font-size: 11px; color: rgba(255,255,255,0.6); line-height: 1.6; margin-top: 8px; }
 
-  /* DECISION BADGE */
-  .decision-badge { display: inline-block; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
-  .decision-badge.approve { background: #F0FDF4; color: var(--green); border: 2px solid var(--green); }
-  .decision-badge.review { background: #FFF7ED; color: var(--lh-orange); border: 2px solid var(--lh-orange); }
-  .decision-badge.escalate { background: #FEF2F2; color: var(--lh-red); border: 2px solid var(--lh-red); }
+  /* ACTIONS */
+  .btn { display: block; width: 100%; padding: 12px; border: none; border-radius: 8px; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.15s; text-align: center; text-decoration: none; }
+  .btn-red { background: var(--lh-red); color: white; }
+  .btn-red:hover { background: #a00d24; }
+  .btn-navy { background: var(--lh-navy); color: white; }
+  .btn-dark { background: rgba(255,255,255,0.1); color: white; margin-top: 8px; }
 
-  /* BUTTONS */
-  .btn-generate { width: 100%; padding: 14px; background: var(--lh-red); color: white; border: none; border-radius: 10px; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; margin-top: 20px; transition: background 0.2s; }
-  .btn-generate:hover { background: #a00d24; }
-  .btn-secondary { padding: 10px 20px; background: var(--lh-dark); color: white; border: none; border-radius: 8px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; transition: background 0.2s; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
-  .btn-secondary:hover { background: #444; }
-  .output-actions { display: flex; gap: 10px; margin-top: 16px; }
+  /* EDITABLE PARAMS */
+  .param-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; }
+  .param-row label { font-size: 10px; color: rgba(255,255,255,0.5); }
+  .param-row input { width: 60px; padding: 4px 6px; border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; background: rgba(255,255,255,0.05); color: white; font-family: inherit; font-size: 11px; text-align: right; }
 
-  .back-link { display: inline-flex; align-items: center; gap: 6px; color: var(--text-muted); text-decoration: none; font-size: 12px; font-weight: 600; margin-bottom: 16px; }
-  .back-link:hover { color: var(--lh-red); }
-
-  /* FILE UPLOAD */
-  .upload-section { margin-top: 16px; padding: 16px; background: var(--light-grey); border-radius: 10px; }
-  .upload-section label { font-size: 11px; }
-  .upload-section input[type="file"] { font-size: 12px; padding: 8px; border: 1px dashed var(--medium-grey); border-radius: 6px; background: white; width: 100%; cursor: pointer; margin-top: 4px; }
-
-  /* RESPONSIVE */
-  @media (max-width: 900px) { .split-layout { grid-template-columns: 1fr; } .left-panel, .right-panel { max-height: none; } }
-  @media print { .left-panel, .top-bar { display: none; } .split-layout { grid-template-columns: 1fr; } }
+  @media (max-width: 1100px) { .layout { grid-template-columns: 1fr; } .left, .middle, .right { max-height: none; } }
+  @media print { .left, .top-bar { display: none; } .layout { grid-template-columns: 1fr 320px; } }
 </style>
 </head>
 <body>
 
 <div class="top-bar">
-  <div class="logo-area">
-    {% if logo %}<img src="data:image/jpeg;base64,{{ logo }}" alt="Leadway Health">{% endif %}
-    <span>Pricing Tool</span>
+  <div class="brand">
+    {% if logo %}<img src="data:image/jpeg;base64,{{ logo }}" alt="">{% endif %}
+    <span>Pricing Workbench</span>
   </div>
   <nav>
-    <a href="/" class="active">New Quote</a>
-  </nav>
-  <div class="user-area">
     <a href="/">Dashboard</a>
     <a href="/logout">Sign Out</a>
-  </div>
+  </nav>
 </div>
 
-<form id="pricingForm" class="split-layout" action="/pricing-tool/calculate" method="post" enctype="multipart/form-data">
+<form class="layout" action="/pricing-tool/calculate" method="post" enctype="multipart/form-data">
 
   <!-- LEFT PANEL -->
-  <div class="left-panel">
-    <a href="/" class="back-link">&larr; Dashboard</a>
-    <h2>Corporate Quote</h2>
-    <p class="subtitle">Configure plan, customise benefits, get instant pricing</p>
-
-    <!-- SECTION 1: COMPANY -->
-    <div class="section-title">Company Details</div>
-    <div class="form-group">
+  <div class="left">
+    <h3>Company</h3>
+    <div class="field">
       <label>Company Name</label>
       <input type="text" name="company_name" placeholder="e.g. Dangote Industries" required>
     </div>
-    <div class="form-row">
-      <div class="form-group">
+    <div class="field-row">
+      <div class="field">
+        <label>Product Line</label>
+        <select name="product_line" id="productLine" onchange="updatePlans()">
+          <option value="corporate" selected>Corporate</option>
+          <option value="sme">SME</option>
+          <option value="senior">Senior Citizen</option>
+        </select>
+      </div>
+      <div class="field">
         <label>Industry</label>
         <select name="industry">
           <option value="banking">Banking & Finance</option>
@@ -196,287 +162,183 @@
           <option value="telecom">Telecommunications</option>
           <option value="consulting">Consulting</option>
           <option value="ngo">NGO / Development</option>
-          <option value="government">Government / Parastatal</option>
+          <option value="government">Government</option>
           <option value="education">Education</option>
           <option value="other" selected>Other</option>
         </select>
       </div>
-      <div class="form-group">
+    </div>
+    <div class="field-row">
+      <div class="field">
         <label>Location</label>
         <select name="location">
           <option value="lagos" selected>Lagos</option>
           <option value="abuja">Abuja</option>
           <option value="ph">Port Harcourt</option>
-          <option value="other_urban">Other Urban</option>
           <option value="nationwide">Nationwide</option>
         </select>
       </div>
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>Total Principals</label>
-        <input type="number" name="total_principals" value="50" min="10" required>
+      <div class="field">
+        <label>Brokered?</label>
+        <select name="brokered" id="brokeredSelect" onchange="toggleBroker()">
+          <option value="no" selected>No — Direct</option>
+          <option value="yes">Yes — Brokered</option>
+        </select>
       </div>
-      <div class="form-group">
+    </div>
+    <div class="field" id="brokerFeeField" style="display:none;">
+      <label>Broker Commission (%)</label>
+      <input type="number" name="broker_fee" value="5" min="0" max="20" step="0.5">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Total Principals</label>
+        <input type="number" name="total_principals" value="50" min="1" required>
+      </div>
+      <div class="field">
         <label>Total Dependants</label>
         <input type="number" name="total_dependants" value="0" min="0">
       </div>
     </div>
-
-    <!-- SECTION 2: PLAN -->
-    <div class="section-title">Select Base Plan</div>
-    <div class="plan-grid">
-      <label class="plan-card">
-        <input type="radio" name="plan" value="PLUS" style="display:none;">
-        <div class="plan-name">PLUS</div>
-        <div class="plan-price">&#8358;121,268</div>
-        <div class="plan-tier">Tier D</div>
-      </label>
-      <label class="plan-card selected">
-        <input type="radio" name="plan" value="PRO" checked style="display:none;">
-        <div class="plan-name">PRO</div>
-        <div class="plan-price">&#8358;164,200</div>
-        <div class="plan-tier">Tier C+D</div>
-      </label>
-      <label class="plan-card">
-        <input type="radio" name="plan" value="MAX" style="display:none;">
-        <div class="plan-name">MAX</div>
-        <div class="plan-price">&#8358;262,275</div>
-        <div class="plan-tier">Tier B+C+D</div>
-      </label>
-      <label class="plan-card">
-        <input type="radio" name="plan" value="PROMAX" style="display:none;">
-        <div class="plan-name">PROMAX</div>
-        <div class="plan-price">&#8358;382,582</div>
-        <div class="plan-tier">Tier A+B+C+D</div>
-      </label>
-      <label class="plan-card">
-        <input type="radio" name="plan" value="MAGNUM" style="display:none;">
-        <div class="plan-name">MAGNUM</div>
-        <div class="plan-price">&#8358;734,250</div>
-        <div class="plan-tier">Tier A+B+C+D</div>
-      </label>
-      <label class="plan-card">
-        <input type="radio" name="plan" value="MAGNUM PLUS" style="display:none;">
-        <div class="plan-name">MAGNUM+</div>
-        <div class="plan-price">&#8358;1,737,750</div>
-        <div class="plan-tier">Tier A*+A+B+C+D</div>
-      </label>
+    <div class="field" id="smeGroupSize" style="display:none;">
+      <label>Group Size Tier (SME)</label>
+      <select name="sme_tier">
+        <option value="10-19">10–19 lives</option>
+        <option value="20-29" selected>20–29 lives</option>
+      </select>
+    </div>
+    <div class="field" id="seniorAge" style="display:none;">
+      <label>Age Band (Senior Citizen)</label>
+      <select name="senior_age">
+        <option value="55-69" selected>55–69</option>
+        <option value="70-79">70–79</option>
+      </select>
     </div>
 
-    <!-- SECTION 3: BENEFIT CUSTOMIZATION -->
-    <div class="section-title">Benefit Customization</div>
-
-    <div class="benefit-row">
-      <div class="benefit-left">
-        <span class="benefit-icon">&#129463;</span>
-        <div><div class="benefit-name">Dental</div><div class="benefit-base">Base: &#8358;50,000</div></div>
-      </div>
-      <div class="benefit-right">
-        <label class="toggle"><input type="checkbox" name="dental_toggle"><span class="slider"></span></label>
-        <input type="range" class="benefit-slider" name="dental_limit" min="50000" max="200000" step="10000" value="50000">
-        <span class="benefit-value" id="dental_val">&#8358;50K</span>
-      </div>
+    <h3>Select Plan</h3>
+    <div class="plan-grid" id="planGrid">
+      <label class="plan-card"><input type="radio" name="plan" value="PLUS" style="display:none"><div class="pn">PLUS</div><div class="pp">₦121,268</div></label>
+      <label class="plan-card selected"><input type="radio" name="plan" value="PRO" checked style="display:none"><div class="pn">PRO</div><div class="pp">₦164,200</div></label>
+      <label class="plan-card"><input type="radio" name="plan" value="MAX" style="display:none"><div class="pn">MAX</div><div class="pp">₦262,275</div></label>
+      <label class="plan-card"><input type="radio" name="plan" value="PROMAX" style="display:none"><div class="pn">PROMAX</div><div class="pp">₦382,582</div></label>
+      <label class="plan-card"><input type="radio" name="plan" value="MAGNUM" style="display:none"><div class="pn">MAGNUM</div><div class="pp">₦734,250</div></label>
+      <label class="plan-card"><input type="radio" name="plan" value="MAGNUM PLUS" style="display:none"><div class="pn">MAGNUM+</div><div class="pp">₦1,737,750</div></label>
     </div>
 
-    <div class="benefit-row">
-      <div class="benefit-left">
-        <span class="benefit-icon">&#128083;</span>
-        <div><div class="benefit-name">Optical</div><div class="benefit-base">Base: &#8358;30,000</div></div>
-      </div>
-      <div class="benefit-right">
-        <label class="toggle"><input type="checkbox" name="optical_toggle"><span class="slider"></span></label>
-        <input type="range" class="benefit-slider" name="optical_limit" min="30000" max="150000" step="10000" value="30000">
-        <span class="benefit-value" id="optical_val">&#8358;30K</span>
-      </div>
+    <h3>Pricing Mode</h3>
+    <div class="field">
+      <select name="pricing_mode">
+        <option value="table" selected>Table-Driven (Standard)</option>
+        <option value="renewal">Renewal (Claims-Based)</option>
+        <option value="blended">Blended (Recommended)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Claims File (for renewal/blended)</label>
+      <input type="file" name="claims_file" accept=".xlsx,.xls,.csv" style="font-size:11px;padding:6px;">
     </div>
 
-    <div class="benefit-row">
-      <div class="benefit-left">
-        <span class="benefit-icon">&#127973;</span>
-        <div><div class="benefit-name">Surgery</div><div class="benefit-base">Base: &#8358;250,000</div></div>
-      </div>
-      <div class="benefit-right">
-        <span class="badge warning">High cost</span>
-        <label class="toggle"><input type="checkbox" name="surgery_toggle"><span class="slider"></span></label>
-        <input type="range" class="benefit-slider" name="surgery_limit" min="250000" max="3000000" step="50000" value="250000">
-        <span class="benefit-value" id="surgery_val">&#8358;250K</span>
-      </div>
+    <h3>Special Requests</h3>
+    <div class="field">
+      <textarea name="custom_request" placeholder="e.g. Add maternity for all, exclude NICU..." style="width:100%;padding:8px;border:1px solid var(--grey);border-radius:6px;font-family:inherit;font-size:11px;min-height:50px;resize:vertical;background:var(--light);"></textarea>
     </div>
 
-    <div class="benefit-row">
-      <div class="benefit-left">
-        <span class="benefit-icon">&#127961;</span>
-        <div><div class="benefit-name">ICU Days</div><div class="benefit-base">Base: 3 days</div></div>
-      </div>
-      <div class="benefit-right">
-        <label class="toggle"><input type="checkbox" name="icu_toggle"><span class="slider"></span></label>
-        <input type="range" class="benefit-slider" name="icu_days" min="3" max="10" step="1" value="3">
-        <span class="benefit-value" id="icu_val">3 days</span>
-      </div>
-    </div>
-
-    <div class="benefit-row">
-      <div class="benefit-left">
-        <span class="benefit-icon">&#128118;</span>
-        <div><div class="benefit-name">NICU</div><div class="benefit-base">Add neonatal ICU</div></div>
-      </div>
-      <div class="benefit-right">
-        <span class="badge danger">High risk</span>
-        <label class="toggle"><input type="checkbox" name="nicu_toggle"><span class="slider"></span></label>
-      </div>
-    </div>
-
-    <div class="benefit-row">
-      <div class="benefit-left">
-        <span class="benefit-icon">&#129516;</span>
-        <div><div class="benefit-name">Major Disease</div><div class="benefit-base">Base: &#8358;500,000</div></div>
-      </div>
-      <div class="benefit-right">
-        <label class="toggle"><input type="checkbox" name="major_disease_toggle"><span class="slider"></span></label>
-        <input type="range" class="benefit-slider" name="major_disease_limit" min="500000" max="5000000" step="100000" value="500000">
-        <span class="benefit-value" id="major_disease_val">&#8358;500K</span>
-      </div>
-    </div>
-
-    <div class="benefit-row">
-      <div class="benefit-left">
-        <span class="benefit-icon">&#128170;</span>
-        <div><div class="benefit-name">Gym / Wellness</div><div class="benefit-base">Network gym access</div></div>
-      </div>
-      <div class="benefit-right">
-        <label class="toggle"><input type="checkbox" name="gym_toggle"><span class="slider"></span></label>
-      </div>
-    </div>
-
-    <div class="benefit-row">
-      <div class="benefit-left">
-        <span class="benefit-icon">&#128137;</span>
-        <div><div class="benefit-name">Immunization</div><div class="benefit-base">Adult vaccinations</div></div>
-      </div>
-      <div class="benefit-right">
-        <label class="toggle"><input type="checkbox" name="immunization_toggle"><span class="slider"></span></label>
-      </div>
-    </div>
-
-    <!-- SECTION 4: CUSTOM REQUEST -->
-    <div class="section-title">Special Requests</div>
-    <div class="form-group">
-      <textarea name="custom_request" placeholder="e.g. Add maternity for all female staff, include international evacuation, etc."></textarea>
-    </div>
-
-    <!-- OPTIONAL FILE UPLOAD -->
-    <div class="upload-section">
-      <label>Upload claims data for experience-rated pricing (optional)</label>
-      <input type="file" name="claims_file" accept=".xlsx,.xls,.csv">
-    </div>
-
-    <button type="submit" class="btn-generate">Calculate Price</button>
+    <button type="submit" class="btn btn-red" style="margin-top:16px;">Calculate Price</button>
   </div>
 
-  <!-- RIGHT PANEL -->
-  <div class="right-panel">
-
+  <!-- MIDDLE PANEL -->
+  <div class="middle">
     {% if result %}
-    <!-- PLAN SUMMARY -->
-    <div class="output-card">
-      <h3>Plan <span>Summary</span></h3>
-      <div class="plan-summary">
-        <div class="plan-stat">
-          <div class="stat-label">Plan</div>
-          <div class="stat-value">{{ result.plan_name }}</div>
-        </div>
-        <div class="plan-stat">
-          <div class="stat-label">Lives</div>
-          <div class="stat-value">{{ result.total_lives }}</div>
-        </div>
-        <div class="plan-stat">
-          <div class="stat-label">Provider Tier</div>
-          <div class="stat-value">{{ result.provider_tier }}</div>
-        </div>
-      </div>
+    <!-- SCENARIO TABS -->
+    <div class="scenario-tabs">
+      <button type="button" class="active">Current Quote</button>
     </div>
 
-    <!-- RISK INDICATOR -->
-    <div class="risk-indicator {{ result.risk_level }}">
-      <div class="risk-dot"></div>
-      <div class="risk-text">{{ result.risk_label }}</div>
-    </div>
-
-    <!-- COMPARISON TABLE -->
-    <div class="output-card">
-      <h3>Benefit <span>Comparison</span></h3>
-      <table class="compare-table">
-        <thead><tr><th>Benefit</th><th class="num">Base Plan</th><th class="num">Customised</th><th class="num">Impact / Member</th></tr></thead>
+    <!-- BENEFIT COMPARISON -->
+    <div class="section-card">
+      <h2>Benefit <span>Comparison</span></h2>
+      <table style="width:100%;border-collapse:collapse;font-size:11px;">
+        <thead><tr style="background:var(--lh-dark);color:white;"><th style="padding:8px;text-align:left;">Benefit</th><th style="padding:8px;text-align:right;">Base Plan</th><th style="padding:8px;text-align:right;">Customised</th><th style="padding:8px;text-align:right;">Impact/Member</th></tr></thead>
         <tbody>
-          {% for b in result.comparison %}
-          <tr>
-            <td>{{ b.name }}</td>
-            <td class="num">{{ b.base }}</td>
-            <td class="num">{{ b.custom }}</td>
-            <td class="num {{ 'positive' if b.impact != '—' and b.impact != '₦0' else 'neutral' }}">{{ b.impact }}</td>
-          </tr>
-          {% endfor %}
+        {% for b in result.comparison %}
+        <tr style="border-bottom:1px solid var(--light);">
+          <td style="padding:6px 8px;">{{ b.name }}</td>
+          <td style="padding:6px 8px;text-align:right;color:var(--muted);">{{ b.base }}</td>
+          <td style="padding:6px 8px;text-align:right;">{{ b.custom }}</td>
+          <td style="padding:6px 8px;text-align:right;color:var(--lh-red);font-weight:600;">{{ b.impact }}</td>
+        </tr>
+        {% endfor %}
         </tbody>
       </table>
     </div>
 
-    <!-- PRICING BREAKDOWN -->
-    <div class="price-breakdown">
-      <h3>Pricing Breakdown (Per Member)</h3>
-      <div class="price-row"><span class="price-label">Base Premium</span><span class="price-amount">{{ result.base_price_fmt }}</span></div>
-      <div class="price-row"><span class="price-label">Benefit Upgrades</span><span class="price-amount">{{ result.upgrades_fmt }}</span></div>
-      <div class="price-row"><span class="price-label">Industry Loading ({{ result.industry_loading_pct }})</span><span class="price-amount">{{ result.industry_loading_fmt }}</span></div>
-      <div class="price-row"><span class="price-label">Small Group Loading</span><span class="price-amount">{{ result.small_group_fmt }}</span></div>
-      {% if result.discount > 0 %}
-      <div class="price-row discount"><span class="price-label">Volume Discount</span><span class="price-amount">-{{ result.discount_fmt }}</span></div>
-      {% endif %}
-      <div class="price-row total"><span class="price-label">Final Premium / Member</span><span class="price-amount">{{ result.final_price_fmt }}</span></div>
-    </div>
-
-    <!-- ANNUAL TOTAL -->
-    <div class="output-card">
-      <h3>Annual <span>Total</span></h3>
-      <div class="plan-summary">
-        <div class="plan-stat">
-          <div class="stat-label">Per Member</div>
-          <div class="stat-value">{{ result.final_price_fmt }}</div>
-        </div>
-        <div class="plan-stat">
-          <div class="stat-label">Total ({{ result.total_lives }} lives)</div>
-          <div class="stat-value" style="color:var(--lh-red);">{{ result.annual_total_fmt }}</div>
-        </div>
-        <div class="plan-stat">
-          <div class="stat-label">Family Rate</div>
-          <div class="stat-value">{{ result.family_price_fmt }}</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- UNDERWRITING DECISION -->
-    <div class="output-card">
-      <h3>Underwriting <span>Decision</span></h3>
-      <div style="margin-bottom:14px;">
-        <span class="decision-badge {{ result.decision_class }}">{{ result.decision }}</span>
-      </div>
-      <div class="uw-notes">{{ result.uw_notes }}</div>
-    </div>
-
-    <div class="output-actions">
-      <button type="button" class="btn-secondary" onclick="window.print();">&#128424; Print Quote</button>
+    <!-- UNDERWRITING -->
+    <div class="section-card">
+      <h2>Underwriting <span>Decision</span></h2>
+      <div class="risk-badge {{ result.risk_level }}"><div class="risk-dot"></div>{{ result.risk_label }}</div>
+      <div class="uw-note" style="background:var(--light);color:var(--muted);">{{ result.uw_notes }}</div>
     </div>
 
     {% else %}
-    <!-- EMPTY STATE -->
     <div style="display:flex;align-items:center;justify-content:center;height:60vh;text-align:center;">
       <div>
-        <div style="font-size:48px;margin-bottom:16px;">&#128200;</div>
-        <h3 style="font-size:20px;font-weight:800;color:var(--lh-dark);margin-bottom:8px;">Configure & Price</h3>
-        <p style="color:var(--text-muted);font-size:13px;max-width:300px;">Select a plan, customise benefits, and click <strong>Calculate Price</strong> to see the live pricing output here.</p>
+        <div style="font-size:40px;margin-bottom:12px;">&#128200;</div>
+        <div style="font-size:18px;font-weight:800;color:var(--lh-dark);margin-bottom:6px;">Pricing Workbench</div>
+        <div style="color:var(--muted);font-size:12px;max-width:300px;">Configure company, select plan, and click <strong>Calculate Price</strong></div>
       </div>
     </div>
     {% endif %}
   </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right">
+    {% if result %}
+    <h3>Plan Summary</h3>
+    <div class="price-row"><span class="pl">Plan</span><span class="pv">{{ result.plan_name }}</span></div>
+    <div class="price-row"><span class="pl">Product</span><span class="pv">{{ result.product_line }}</span></div>
+    <div class="price-row"><span class="pl">Lives</span><span class="pv">{{ result.total_lives }}</span></div>
+    <div class="price-row"><span class="pl">Provider Tier</span><span class="pv">{{ result.provider_tier }}</span></div>
+
+    <h3>Pricing Breakdown</h3>
+    <div class="price-row"><span class="pl">Base Premium</span><span class="pv">{{ result.base_price_fmt }}</span></div>
+    <div class="price-row"><span class="pl">Benefit Upgrades</span><span class="pv">{{ result.upgrades_fmt }}</span></div>
+    <div class="price-row"><span class="pl">Industry ({{ result.industry_loading_pct }})</span><span class="pv">{{ result.industry_loading_fmt }}</span></div>
+    <div class="price-row"><span class="pl">Group Size</span><span class="pv">{{ result.small_group_fmt }}</span></div>
+    {% if result.discount > 0 %}
+    <div class="price-row discount"><span class="pl">Volume Discount</span><span class="pv">-{{ result.discount_fmt }}</span></div>
+    {% endif %}
+
+    <h3>Price Outputs</h3>
+    <div class="price-row"><span class="pl">Technical Price</span><span class="pv">{{ result.technical_price_fmt }}</span></div>
+    <div class="price-row"><span class="pl">Minimum Floor</span><span class="pv">{{ result.floor_price_fmt }}</span></div>
+    <div class="price-row"><span class="pl">Recommended</span><span class="pv" style="color:var(--green);">{{ result.recommended_fmt }}</span></div>
+
+    <div class="final-box">
+      <div class="fl">Final Price / Member</div>
+      <div class="fv">{{ result.final_price_fmt }}</div>
+      <div class="fs">{{ result.total_lives }} lives · {{ result.product_line }}</div>
+    </div>
+
+    <div class="price-row"><span class="pl">Family Rate</span><span class="pv">{{ result.family_price_fmt }}</span></div>
+    <div class="price-row total"><span class="pl">Annual Total</span><span class="pv">{{ result.annual_total_fmt }}</span></div>
+
+    <h3>Editable Parameters</h3>
+    <div class="param-row"><label>Target LR (%)</label><input type="number" name="target_lr" value="{{ result.target_lr }}" min="50" max="100" step="1"></div>
+    <div class="param-row"><label>Admin Fee (%)</label><input type="number" name="admin_pct" value="{{ result.admin_pct }}" min="0" max="30" step="0.5"></div>
+    <div class="param-row"><label>NHIA (%)</label><input type="number" name="nhia_pct" value="{{ result.nhia_pct }}" min="0" max="10" step="0.5"></div>
+    <div class="param-row"><label>Family Multiplier</label><input type="number" name="family_mult" value="{{ result.family_mult }}" min="1" max="10" step="0.25"></div>
+    <div class="param-row"><label>Medical Inflation (%)</label><input type="number" name="inflation" value="{{ result.inflation }}" min="0" max="50" step="1"></div>
+
+    <button type="submit" class="btn btn-dark">&#8635; Recalculate</button>
+    <button type="button" class="btn btn-dark" onclick="window.print();">&#128424; Print Quote</button>
+
+    {% else %}
+    <div style="padding:40px 0;text-align:center;color:rgba(255,255,255,0.3);font-size:12px;">
+      Configure and calculate to see pricing
+    </div>
+    {% endif %}
+  </div>
+
 </form>
 
 <script>
@@ -488,21 +350,42 @@ document.querySelectorAll('.plan-card').forEach(card => {
   });
 });
 
-// Slider value display
-function fmtN(v) {
-  if (v >= 1000000) return '\u20A6' + (v/1000000).toFixed(1) + 'M';
-  if (v >= 1000) return '\u20A6' + (v/1000).toFixed(0) + 'K';
-  return '\u20A6' + v;
+function toggleBroker() {
+  document.getElementById('brokerFeeField').style.display =
+    document.getElementById('brokeredSelect').value === 'yes' ? 'block' : 'none';
 }
-document.querySelectorAll('.benefit-slider').forEach(slider => {
-  const id = slider.name.replace('_limit','_val').replace('_days','_val');
-  const display = document.getElementById(id);
-  if (!display) return;
-  slider.addEventListener('input', () => {
-    if (slider.name === 'icu_days') { display.textContent = slider.value + ' days'; }
-    else { display.textContent = fmtN(parseInt(slider.value)); }
+
+function updatePlans() {
+  const line = document.getElementById('productLine').value;
+  document.getElementById('smeGroupSize').style.display = line === 'sme' ? 'block' : 'none';
+  document.getElementById('seniorAge').style.display = line === 'senior' ? 'block' : 'none';
+
+  const plans = {
+    corporate: [
+      {v:'PLUS',n:'PLUS',p:'₦121,268'},{v:'PRO',n:'PRO',p:'₦164,200'},{v:'MAX',n:'MAX',p:'₦262,275'},
+      {v:'PROMAX',n:'PROMAX',p:'₦382,582'},{v:'MAGNUM',n:'MAGNUM',p:'₦734,250'},{v:'MAGNUM PLUS',n:'MAGNUM+',p:'₦1,737,750'}
+    ],
+    sme: [
+      {v:'PLUS',n:'PLUS',p:'₦121,268'},{v:'PRO',n:'PRO',p:'₦164,200'},{v:'MAX',n:'MAX',p:'₦262,275'},
+      {v:'PROMAX',n:'PROMAX',p:'₦382,582'},{v:'MAGNUM',n:'MAGNUM',p:'₦734,250'}
+    ],
+    senior: [
+      {v:'PLAN 1',n:'Cranberry',p:'₦575,603'},{v:'PLAN 2',n:'Blueberry',p:'₦872,361'},
+      {v:'PLAN 3',n:'Blackberry',p:'₦1,255,829'},{v:'PLAN 4',n:'Raspberry',p:'₦1,550,768'}
+    ]
+  };
+  const grid = document.getElementById('planGrid');
+  const items = plans[line] || plans.corporate;
+  grid.innerHTML = items.map((p,i) =>
+    `<label class="plan-card${i===1?' selected':''}"><input type="radio" name="plan" value="${p.v}"${i===1?' checked':''} style="display:none"><div class="pn">${p.n}</div><div class="pp">${p.p}</div></label>`
+  ).join('');
+  grid.querySelectorAll('.plan-card').forEach(card => {
+    card.addEventListener('click', () => {
+      grid.querySelectorAll('.plan-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+    });
   });
-});
+}
 </script>
 </body>
 </html>

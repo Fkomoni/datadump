@@ -1752,15 +1752,59 @@ def benefit_benchmarking_upload():
 
 
 # ═══════════════════════════════════════════════
-# MODULE 4 — Pricing Tool
+# MODULE 4 — Pricing Tool (Workbench)
 # ═══════════════════════════════════════════════
+
+# ── PLAN DATABASES ──
+CORPORATE_PLANS = {
+    "PLUS":        {"individual": 121268,  "family": 576023,    "tier": "D"},
+    "PRO":         {"individual": 164200,  "family": 779950,    "tier": "C+D"},
+    "MAX":         {"individual": 262275,  "family": 1245806,   "tier": "B+C+D"},
+    "PROMAX":      {"individual": 382582,  "family": 1817265,   "tier": "A+B+C+D"},
+    "MAGNUM":      {"individual": 734250,  "family": 3487688,   "tier": "A+B+C+D"},
+    "MAGNUM PLUS": {"individual": 1737750, "family": 8254313,   "tier": "A*+A+B+C+D"},
+}
+SME_PLANS = {
+    "10-19": {
+        "PLUS": {"individual": 133395, "family": 666974}, "PRO": {"individual": 180620, "family": 903100},
+        "MAX": {"individual": 288503, "family": 1442513}, "PROMAX": {"individual": 420840, "family": 2104201},
+        "MAGNUM": {"individual": 807675, "family": 4038375},
+    },
+    "20-29": {
+        "PLUS": {"individual": 121268, "family": 606340}, "PRO": {"individual": 164200, "family": 821000},
+        "MAX": {"individual": 262275, "family": 1311375}, "PROMAX": {"individual": 382582, "family": 1912910},
+        "MAGNUM": {"individual": 734250, "family": 3671250},
+    },
+}
+SENIOR_PLANS = {
+    "55-69": {"PLAN 1": 575603, "PLAN 2": 872361, "PLAN 3": 1255829, "PLAN 4": 1550768},
+    "70-79": {"PLAN 1": 611319, "PLAN 2": 944153, "PLAN 3": 1365453, "PLAN 4": 1688883},
+}
+SENIOR_TIERS = {"PLAN 1": "D", "PLAN 2": "C+D", "PLAN 3": "B+C+D", "PLAN 4": "B+C+D"}
+
+INDUSTRY_LOADING = {
+    "oil_gas": 1.20, "manufacturing": 1.15, "government": 1.10, "banking": 1.05,
+    "telecom": 1.05, "fmcg": 1.05, "education": 1.00, "tech": 1.00,
+    "consulting": 1.00, "ngo": 1.00, "other": 1.00,
+}
+
+BENEFIT_DEFAULTS = {
+    "dental":        {"base": 50000,  "util": 0.35, "cost_factor": 0.08},
+    "optical":       {"base": 30000,  "util": 0.25, "cost_factor": 0.06},
+    "surgery":       {"base": 250000, "util": 0.08, "cost_factor": 0.12},
+    "icu_days":      {"base": 3,      "util": 0.03, "per_day_cost": 85000},
+    "major_disease": {"base": 500000, "util": 0.02, "cost_factor": 0.15},
+}
+NICU_COST = 45000
+GYM_COST = 8000
+IMMUNIZATION_COST = 5000
+
 
 @app.route("/pricing-tool")
 @login_required
 def pricing_tool():
     logo = get_logo_b64()
-    report_list = list_reports("Pricing_")
-    return render_template("pricing_tool.html", logo=logo, reports=report_list)
+    return render_template("pricing_tool.html", logo=logo, result=None)
 
 
 @app.route("/pricing-tool/upload", methods=["POST"])
@@ -1774,168 +1818,147 @@ def pricing_tool_upload():
 def pricing_tool_calculate():
     logo = get_logo_b64()
 
-    # ── Plan base premiums (from 2026 Corporate benefit table) ──
-    PLAN_DATA = {
-        "PLUS":        {"individual": 121268,  "family": 576023,    "tier": "D"},
-        "PRO":         {"individual": 164200,  "family": 779950,    "tier": "C+D"},
-        "MAX":         {"individual": 262275,  "family": 1245806,   "tier": "B+C+D"},
-        "PROMAX":      {"individual": 382582,  "family": 1817265,   "tier": "A+B+C+D"},
-        "MAGNUM":      {"individual": 734250,  "family": 3487688,   "tier": "A+B+C+D"},
-        "MAGNUM PLUS": {"individual": 1737750, "family": 8254313,   "tier": "A*+A+B+C+D"},
-    }
-
-    # ── Industry risk loadings ──
-    INDUSTRY_LOADING = {
-        "oil_gas": 1.20, "manufacturing": 1.15, "government": 1.10, "banking": 1.05,
-        "telecom": 1.05, "fmcg": 1.05, "education": 1.00, "tech": 1.00,
-        "consulting": 1.00, "ngo": 1.00, "other": 1.00,
-    }
-
-    # ── Benefit upgrade cost factors (actuarial estimates per member) ──
-    # Cost = (new_limit - base_limit) * utilization_rate * avg_cost_factor
-    BENEFIT_DEFAULTS = {
-        "dental":        {"base": 50000,  "util": 0.35, "cost_factor": 0.08},
-        "optical":       {"base": 30000,  "util": 0.25, "cost_factor": 0.06},
-        "surgery":       {"base": 250000, "util": 0.08, "cost_factor": 0.12},
-        "icu_days":      {"base": 3,      "util": 0.03, "per_day_cost": 85000},
-        "major_disease": {"base": 500000, "util": 0.02, "cost_factor": 0.15},
-    }
-    NICU_COST = 45000       # per member loading for NICU
-    GYM_COST = 8000         # per member
-    IMMUNIZATION_COST = 5000  # per member
-
     # ── Read form ──
     company_name = request.form.get("company_name", "Client")
+    product_line = request.form.get("product_line", "corporate")
     industry = request.form.get("industry", "other")
+    location = request.form.get("location", "lagos")
+    brokered = request.form.get("brokered", "no")
+    broker_fee = float(request.form.get("broker_fee", 0)) if brokered == "yes" else 0
     plan_name = request.form.get("plan", "PRO")
     total_principals = int(request.form.get("total_principals", 50))
     total_dependants = int(request.form.get("total_dependants", 0))
     total_lives = total_principals + total_dependants
+    sme_tier = request.form.get("sme_tier", "20-29")
+    senior_age = request.form.get("senior_age", "55-69")
+    pricing_mode = request.form.get("pricing_mode", "table")
 
-    plan = PLAN_DATA.get(plan_name, PLAN_DATA["PRO"])
-    base_price = plan["individual"]
+    # Editable parameters
+    target_lr = float(request.form.get("target_lr", 85))
+    admin_pct = float(request.form.get("admin_pct", 15 if brokered == "no" else 12))
+    nhia_pct = float(request.form.get("nhia_pct", 2))
+    family_mult = float(request.form.get("family_mult", 4.75 if product_line == "corporate" else (5.0 if product_line == "sme" else 1)))
+    inflation = float(request.form.get("inflation", 15))
 
-    # ── Calculate benefit upgrades ──
+    # ── Resolve base price from product line ──
+    if product_line == "corporate":
+        plan_data = CORPORATE_PLANS.get(plan_name, CORPORATE_PLANS["PRO"])
+        base_price = plan_data["individual"]
+        tier = plan_data["tier"]
+        product_label = "Corporate"
+    elif product_line == "sme":
+        tier_plans = SME_PLANS.get(sme_tier, SME_PLANS["20-29"])
+        plan_data = tier_plans.get(plan_name, tier_plans.get("PRO", list(tier_plans.values())[0]))
+        base_price = plan_data["individual"]
+        tier = CORPORATE_PLANS.get(plan_name, {}).get("tier", "C+D")
+        product_label = f"SME ({sme_tier} lives)"
+    elif product_line == "senior":
+        age_plans = SENIOR_PLANS.get(senior_age, SENIOR_PLANS["55-69"])
+        base_price = age_plans.get(plan_name, list(age_plans.values())[0])
+        tier = SENIOR_TIERS.get(plan_name, "D")
+        plan_data = {"individual": base_price, "family": base_price}
+        product_label = f"Senior Citizen ({senior_age})"
+    else:
+        plan_data = CORPORATE_PLANS.get(plan_name, CORPORATE_PLANS["PRO"])
+        base_price = plan_data["individual"]
+        tier = plan_data["tier"]
+        product_label = "Corporate"
+
+    # ── Benefit upgrades (same logic as before) ──
     upgrade_total = 0
     comparison = []
     upgrade_count = 0
 
-    # Dental
-    dental_on = request.form.get("dental_toggle") == "on"
-    dental_limit = int(request.form.get("dental_limit", 50000))
-    d = BENEFIT_DEFAULTS["dental"]
-    dental_cost = 0
-    if dental_on and dental_limit > d["base"]:
-        dental_cost = (dental_limit - d["base"]) * d["util"] * d["cost_factor"]
-        upgrade_total += dental_cost
-        upgrade_count += 1
-    comparison.append({"name": "Dental", "base": f"\u20A6{d['base']:,.0f}", "custom": f"\u20A6{dental_limit:,.0f}" if dental_on else f"\u20A6{d['base']:,.0f}", "impact": f"+\u20A6{dental_cost:,.0f}" if dental_cost > 0 else "\u2014"})
-
-    # Optical
-    optical_on = request.form.get("optical_toggle") == "on"
-    optical_limit = int(request.form.get("optical_limit", 30000))
-    d = BENEFIT_DEFAULTS["optical"]
-    optical_cost = 0
-    if optical_on and optical_limit > d["base"]:
-        optical_cost = (optical_limit - d["base"]) * d["util"] * d["cost_factor"]
-        upgrade_total += optical_cost
-        upgrade_count += 1
-    comparison.append({"name": "Optical", "base": f"\u20A6{d['base']:,.0f}", "custom": f"\u20A6{optical_limit:,.0f}" if optical_on else f"\u20A6{d['base']:,.0f}", "impact": f"+\u20A6{optical_cost:,.0f}" if optical_cost > 0 else "\u2014"})
-
-    # Surgery
-    surgery_on = request.form.get("surgery_toggle") == "on"
-    surgery_limit = int(request.form.get("surgery_limit", 250000))
-    d = BENEFIT_DEFAULTS["surgery"]
-    surgery_cost = 0
-    if surgery_on and surgery_limit > d["base"]:
-        surgery_cost = (surgery_limit - d["base"]) * d["util"] * d["cost_factor"]
-        upgrade_total += surgery_cost
-        upgrade_count += 1
-    comparison.append({"name": "Surgery", "base": f"\u20A6{d['base']:,.0f}", "custom": f"\u20A6{surgery_limit:,.0f}" if surgery_on else f"\u20A6{d['base']:,.0f}", "impact": f"+\u20A6{surgery_cost:,.0f}" if surgery_cost > 0 else "\u2014"})
+    for ben_key, ben_name, icon in [("dental", "Dental", "🦷"), ("optical", "Optical", "👓"), ("surgery", "Surgery", "🏥"), ("major_disease", "Major Disease", "🧬")]:
+        toggled = request.form.get(f"{ben_key}_toggle") == "on"
+        limit = int(request.form.get(f"{ben_key}_limit", BENEFIT_DEFAULTS[ben_key]["base"]))
+        d = BENEFIT_DEFAULTS[ben_key]
+        cost = 0
+        if toggled and limit > d["base"]:
+            cost = (limit - d["base"]) * d["util"] * d["cost_factor"]
+            upgrade_total += cost
+            upgrade_count += 1
+        comparison.append({"name": ben_name, "base": f"\u20A6{d['base']:,.0f}", "custom": f"\u20A6{limit:,.0f}" if toggled else f"\u20A6{d['base']:,.0f}", "impact": f"+\u20A6{cost:,.0f}" if cost > 0 else "\u2014"})
 
     # ICU
     icu_on = request.form.get("icu_toggle") == "on"
     icu_days = int(request.form.get("icu_days", 3))
     d = BENEFIT_DEFAULTS["icu_days"]
-    icu_cost = 0
-    if icu_on and icu_days > d["base"]:
-        icu_cost = (icu_days - d["base"]) * d["util"] * d["per_day_cost"]
-        upgrade_total += icu_cost
-        upgrade_count += 1
+    icu_cost = (icu_days - d["base"]) * d["util"] * d["per_day_cost"] if icu_on and icu_days > d["base"] else 0
+    if icu_cost > 0: upgrade_total += icu_cost; upgrade_count += 1
     comparison.append({"name": "ICU Days", "base": f"{d['base']} days", "custom": f"{icu_days} days" if icu_on else f"{d['base']} days", "impact": f"+\u20A6{icu_cost:,.0f}" if icu_cost > 0 else "\u2014"})
 
-    # NICU
-    nicu_on = request.form.get("nicu_toggle") == "on"
-    nicu_cost = NICU_COST if nicu_on else 0
-    upgrade_total += nicu_cost
-    if nicu_on:
-        upgrade_count += 1
-    comparison.append({"name": "NICU", "base": "Not included", "custom": "Included" if nicu_on else "Not included", "impact": f"+\u20A6{nicu_cost:,.0f}" if nicu_cost > 0 else "\u2014"})
+    # Flat add-ons
+    for name, key, cost_val in [("NICU", "nicu_toggle", NICU_COST), ("Gym / Wellness", "gym_toggle", GYM_COST), ("Immunization", "immunization_toggle", IMMUNIZATION_COST)]:
+        toggled = request.form.get(key) == "on"
+        cost = cost_val if toggled else 0
+        upgrade_total += cost
+        if toggled: upgrade_count += 1
+        comparison.append({"name": name, "base": "Not included", "custom": "Included" if toggled else "Not included", "impact": f"+\u20A6{cost:,.0f}" if cost > 0 else "\u2014"})
 
-    # Major Disease
-    major_on = request.form.get("major_disease_toggle") == "on"
-    major_limit = int(request.form.get("major_disease_limit", 500000))
-    d = BENEFIT_DEFAULTS["major_disease"]
-    major_cost = 0
-    if major_on and major_limit > d["base"]:
-        major_cost = (major_limit - d["base"]) * d["util"] * d["cost_factor"]
-        upgrade_total += major_cost
-        upgrade_count += 1
-    comparison.append({"name": "Major Disease", "base": f"\u20A6{d['base']:,.0f}", "custom": f"\u20A6{major_limit:,.0f}" if major_on else f"\u20A6{d['base']:,.0f}", "impact": f"+\u20A6{major_cost:,.0f}" if major_cost > 0 else "\u2014"})
-
-    # Gym
-    gym_on = request.form.get("gym_toggle") == "on"
-    gym_cost = GYM_COST if gym_on else 0
-    upgrade_total += gym_cost
-    comparison.append({"name": "Gym / Wellness", "base": "Not included", "custom": "Included" if gym_on else "Not included", "impact": f"+\u20A6{gym_cost:,.0f}" if gym_cost > 0 else "\u2014"})
-
-    # Immunization
-    immun_on = request.form.get("immunization_toggle") == "on"
-    immun_cost = IMMUNIZATION_COST if immun_on else 0
-    upgrade_total += immun_cost
-    comparison.append({"name": "Immunization", "base": "Not included", "custom": "Included" if immun_on else "Not included", "impact": f"+\u20A6{immun_cost:,.0f}" if immun_cost > 0 else "\u2014"})
-
-    # ── Industry loading ──
+    # ── Loadings ──
     ind_multiplier = INDUSTRY_LOADING.get(industry, 1.0)
-    subtotal_before_loading = base_price + upgrade_total
-    industry_loading = subtotal_before_loading * (ind_multiplier - 1)
+    subtotal = base_price + upgrade_total
+    industry_loading = subtotal * (ind_multiplier - 1)
 
-    # ── Small group loading (< 50 lives = +10%, < 30 lives = +15%) ──
-    if total_lives < 30:
+    # Small group
+    if product_line == "senior":
+        small_group_pct = 0
+    elif total_lives < 30:
         small_group_pct = 0.15
     elif total_lives < 50:
         small_group_pct = 0.10
     else:
         small_group_pct = 0.0
-    small_group_loading = subtotal_before_loading * small_group_pct
+    small_group_loading = subtotal * small_group_pct
 
-    # ── Multi-upgrade loading (3+ upgrades = +3%, 5+ = +5%) ──
-    if upgrade_count >= 5:
-        multi_pct = 0.05
-    elif upgrade_count >= 3:
-        multi_pct = 0.03
+    # Multi-upgrade
+    if upgrade_count >= 5: multi_pct = 0.05
+    elif upgrade_count >= 3: multi_pct = 0.03
+    else: multi_pct = 0.0
+    upgrade_total += subtotal * multi_pct
+
+    # Volume discount
+    if total_lives >= 500: discount_pct = 0.07
+    elif total_lives >= 200: discount_pct = 0.05
+    elif total_lives >= 100: discount_pct = 0.03
+    else: discount_pct = 0.0
+
+    # ── PRICE OUTPUTS ──
+    gross = base_price + upgrade_total + industry_loading + small_group_loading
+    discount = gross * discount_pct
+    technical_price = gross - discount
+
+    # ECC (Expected Claims Cost) = technical price × target LR
+    ecc = technical_price * (target_lr / 100)
+
+    # Minimum Floor = ECC / target LR (ensures we never price below claims cost)
+    floor_price = ecc / (target_lr / 100) if target_lr > 0 else technical_price
+
+    # Recommended = max(technical, floor) + inflation adjustment
+    recommended = max(technical_price, floor_price) * (1 + inflation / 100 * 0.5)  # half-year inflation factor
+
+    # Commercial = recommended (adjustable by underwriter)
+    commercial = recommended
+
+    # Final = commercial (can be overridden)
+    final_price = commercial
+
+    # Family & annual
+    if product_line == "senior":
+        family_price = final_price  # No family for senior
     else:
-        multi_pct = 0.0
-    multi_loading = subtotal_before_loading * multi_pct
-    upgrade_total += multi_loading  # fold into upgrades display
+        family_price = final_price * family_mult
 
-    # ── Volume discount (100+ lives = 3%, 200+ = 5%, 500+ = 7%) ──
-    if total_lives >= 500:
-        discount_pct = 0.07
-    elif total_lives >= 200:
-        discount_pct = 0.05
-    elif total_lives >= 100:
-        discount_pct = 0.03
+    if total_dependants > 0:
+        annual_total = (final_price * total_principals) + (family_price * total_dependants)
     else:
-        discount_pct = 0.0
-
-    gross_price = base_price + upgrade_total + industry_loading + small_group_loading
-    discount = gross_price * discount_pct
-    final_price = gross_price - discount
-    family_price = final_price * (plan["family"] / plan["individual"])
-    annual_total = (final_price * total_principals) + (family_price * total_dependants) if total_dependants > 0 else final_price * total_lives
+        annual_total = final_price * total_lives
 
     # ── Risk assessment ──
+    nicu_on = request.form.get("nicu_toggle") == "on"
+    surgery_on = request.form.get("surgery_toggle") == "on"
+    surgery_limit = int(request.form.get("surgery_limit", 250000))
     high_risk = (surgery_on and icu_on and plan_name in ("PROMAX", "MAGNUM", "MAGNUM PLUS")) or nicu_on
     moderate_risk = upgrade_count >= 3 or (surgery_on and surgery_limit >= 500000)
     if high_risk:
@@ -1945,64 +1968,44 @@ def pricing_tool_calculate():
     else:
         risk_level, risk_label = "low", "Low Risk — Standard terms"
 
-    # ── Underwriting decision ──
+    # Underwriting decision
     if high_risk:
         decision = "Escalate"
-        decision_class = "escalate"
-        uw_notes = f"This quote for <strong>{company_name}</strong> includes high-cost benefits "
-        reasons = []
-        if nicu_on:
-            reasons.append("NICU coverage")
-        if surgery_on and icu_on and plan_name in ("PROMAX", "MAGNUM", "MAGNUM PLUS"):
-            reasons.append(f"Surgery (\u20A6{surgery_limit:,.0f}) + ICU ({icu_days} days) on {plan_name}")
-        uw_notes += "(" + ", ".join(reasons) + "). "
-        uw_notes += "Recommend pricing review, benefit cap, or co-payment arrangement before binding."
+        uw_notes = f"<strong>{company_name}</strong> includes high-cost benefits. Recommend pricing review or co-payment arrangement."
     elif moderate_risk:
         decision = "Review Required"
-        decision_class = "review"
-        uw_notes = f"<strong>{company_name}</strong> has {upgrade_count} benefit upgrades. "
-        if surgery_on and surgery_limit >= 500000:
-            uw_notes += f"Surgery limit increased to \u20A6{surgery_limit:,.0f} (high cost driver). "
-        uw_notes += "Review claims history at renewal. Consider adding waiting periods for upgraded benefits."
+        uw_notes = f"<strong>{company_name}</strong> has {upgrade_count} benefit upgrades. Review claims history at renewal."
     else:
         decision = "Approved"
-        decision_class = "approve"
-        uw_notes = f"Standard plan configuration for <strong>{company_name}</strong>. No elevated risk factors detected. Quote can be issued at standard terms."
+        uw_notes = f"Standard configuration for <strong>{company_name}</strong>. Quote can be issued at standard terms."
 
-    # ── Format helpers ──
-    def fmt(v):
-        return f"\u20A6{v:,.0f}"
+    # Floor breach check
+    if final_price < floor_price:
+        uw_notes += f" <strong style='color:var(--lh-red);'>⚠ FLOOR BREACH: Final price is below minimum floor (₦{floor_price:,.0f}).</strong>"
 
-    ind_label = {
-        "oil_gas": "Oil & Gas +20%", "manufacturing": "Manufacturing +15%",
-        "government": "Government +10%", "banking": "Banking +5%",
-        "telecom": "Telecom +5%", "fmcg": "FMCG +5%",
-    }.get(industry, "Standard 0%")
+    # ── Format ──
+    def fmt(v): return f"\u20A6{v:,.0f}"
+
+    ind_label = {"oil_gas": "Oil & Gas +20%", "manufacturing": "Manufacturing +15%", "government": "Government +10%",
+                 "banking": "Banking +5%", "telecom": "Telecom +5%", "fmcg": "FMCG +5%"}.get(industry, "Standard 0%")
 
     result = {
-        "company_name": company_name,
-        "plan_name": plan_name,
-        "total_lives": total_lives,
-        "provider_tier": plan["tier"],
-        "comparison": comparison,
-        "base_price_fmt": fmt(base_price),
-        "upgrades_fmt": fmt(upgrade_total),
-        "industry_loading_pct": ind_label,
-        "industry_loading_fmt": fmt(industry_loading),
+        "company_name": company_name, "plan_name": plan_name, "product_line": product_label,
+        "total_lives": total_lives, "provider_tier": tier, "comparison": comparison,
+        "base_price_fmt": fmt(base_price), "upgrades_fmt": fmt(upgrade_total),
+        "industry_loading_pct": ind_label, "industry_loading_fmt": fmt(industry_loading),
         "small_group_fmt": fmt(small_group_loading),
-        "discount": discount,
-        "discount_fmt": fmt(discount),
-        "final_price_fmt": fmt(final_price),
-        "family_price_fmt": fmt(family_price),
-        "annual_total_fmt": fmt(annual_total),
-        "risk_level": risk_level,
-        "risk_label": risk_label,
-        "decision": decision,
-        "decision_class": decision_class,
-        "uw_notes": uw_notes,
+        "discount": discount, "discount_fmt": fmt(discount),
+        "technical_price_fmt": fmt(technical_price), "floor_price_fmt": fmt(floor_price),
+        "recommended_fmt": fmt(recommended), "final_price_fmt": fmt(final_price),
+        "family_price_fmt": fmt(family_price), "annual_total_fmt": fmt(annual_total),
+        "risk_level": risk_level, "risk_label": risk_label, "uw_notes": uw_notes,
+        # Editable params (pass back to form)
+        "target_lr": target_lr, "admin_pct": admin_pct, "nhia_pct": nhia_pct,
+        "family_mult": family_mult, "inflation": inflation,
     }
 
-    return render_template("pricing_tool.html", logo=logo, result=result, reports=list_reports("Pricing_"))
+    return render_template("pricing_tool.html", logo=logo, result=result)
 
 
 # ═══════════════════════════════════════════════
