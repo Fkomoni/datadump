@@ -349,6 +349,8 @@ def generate_report_from_files(files, admin_pct, nhia_pct, broker_fee, additiona
             col_map[col] = "Age"
         elif "diagnosis" in cl and "desc" in cl:
             col_map[col] = "Diagnosis_Description"
+        elif cl in ("otherdiagnosis", "other diagnosis", "diagnosis code", "icd code", "icd"):
+            col_map[col] = "Otherdiagnosis"
 
     claims.rename(columns=col_map, inplace=True)
 
@@ -525,43 +527,169 @@ def generate_report_from_files(files, admin_pct, nhia_pct, broker_fee, additiona
             dept_rows += f'<tr><td>{i}</td><td>{name}</td><td class="num">{fmt_full(row["Paid"])}</td><td class="num">{pct(row["Pct"])}</td><td class="num">{row["Claims"]:,}</td></tr>'
 
     # ── Disease Category (Diagnosis Bands) ──
+    # Dual approach: ICD code mapping (primary) + text keyword matching (fallback)
     disease_cat_rows = ""
-    if "Diagnosis_Description" in claims.columns:
-        disease_categories = {
-            "Malaria & Febrile Illness": ["malaria", "plasmodium", "falciparum", "vivax", "febrile", "pyrexia"],
-            "Primary Care & URTI": ["upper respiratory", "urti", "common cold", "coryza", "nasopharyngitis", "pharyngitis", "tonsillitis", "laryngitis", "rhinitis", "sinusitis", "catarrh", "sore throat", "adenoid", "routine", "check", "screening", "general examination", "encounter for", "counselling", "counseling", "observation"],
-            "Lower Respiratory & Chest": ["pneumonia", "bronchitis", "asthma", "lower respiratory", "lrti", "pleurisy", "emphysema", "copd", "pulmonary", "lung", "chest infection", "tuberculosis", "tb "],
-            "Malaria & Sepsis": ["sepsis", "septic", "septicaemia", "bacteraemia", "severe malaria"],
-            "Gastrointestinal & Liver": ["gastro", "gastritis", "ulcer", "diarrh", "dyspepsia", "colitis", "intestin", "abdominal", "stomach", "bowel", "hepatitis", "liver", "gerd", "reflux", "constipation", "appendic", "hernia", "pancreat", "gallstone", "peptic", "dysentery", "vomiting", "nausea", "irritable bowel", "ibs", "cirrhosis", "jaundice", "cholecyst"],
-            "Cardiovascular & Hypertension": ["hypertension", "hypertensive", "cardiac", "heart", "cardiovascular", "angina", "stroke", "cerebrovascular", "ischaemic", "ischemic", "coronary", "arrhythmia", "blood pressure", "atrial", "ventricular", "cardiomyopathy", "heart failure", "dvt", "embolism", "aneurysm"],
-            "Diabetes & Metabolic": ["diabet", "glucose", "metabolic", "thyroid", "cholesterol", "lipid", "obesity", "gout", "hyperglycaemia", "hypoglycaemia", "insulin", "hba1c", "ketoacidosis", "dyslipid"],
-            "Orthopaedic & Musculoskeletal": ["arthritis", "osteo", "muscul", "joint", "back pain", "spine", "spinal", "fracture", "rheumat", "ortho", "lumbar", "cervical", "spondyl", "musculo", "sciatica", "tendon", "ligament", "meniscus", "rotator", "carpal", "dislocation", "myalgia", "fibromyalgia", "frozen shoulder", "knee", "hip replacement"],
-            "Eye & Ophthalmology": ["eye", "ophthalm", "visual", "cataract", "glaucoma", "conjunctiv", "retina", "myopia", "optical", "vision", "presbyopia", "astigmat", "keratitis", "blepharitis", "stye", "pterygium", "macular"],
-            "Dental & Oral": ["dental", "tooth", "teeth", "oral", "gingiv", "caries", "periodon", "dentition", "extraction", "filling", "root canal", "denture", "orthodon"],
-            "Obstetric & Maternity": ["pregnan", "matern", "obstetric", "antenatal", "postnatal", "delivery", "caesarean", "c-section", "labour", "labor", "gestation", "neonatal", "perinatal", "ectopic", "miscarriage", "preeclampsia", "eclampsia", "placenta", "postpartum", "puerper"],
-            "Surgery & Procedures": ["surgery", "surgical", "operation", "procedure", "excision", "repair", "implant", "biopsy", "laparoscop", "endoscop", "amputation", "debridement", "drainage", "incision"],
-            "Dermatology & Skin": ["skin", "dermat", "eczema", "rash", "wound", "abscess", "cellulitis", "fungal", "urticaria", "psoriasis", "acne", "boil", "carbuncle", "tinea", "herpes", "wart", "vitiligo", "pruritus"],
-            "Genitourinary & Renal": ["urinary", "kidney", "renal", "bladder", "urin", "prostat", "uti", "nephri", "genital", "pelvic", "cystitis", "dialysis", "calculi", "stone", "hydronephrosis", "incontinence", "erectile"],
-            "Infections & Parasitic": ["typhoid", "infection", "sepsis", "hiv", "measles", "chicken pox", "viral", "bacterial", "parasit", "worm", "helminth", "schistosom", "filaria", "hookworm"],
-            "Anaemia & Blood Disorders": ["anaemia", "anemia", "sickle cell", "thalassaemia", "haemoglobin", "hemoglobin", "blood disorder", "bleeding", "coagulation", "platelet", "leukocyt", "pancytopenia", "haemophilia"],
-            "Oncology & Cancer": ["cancer", "tumour", "tumor", "malignan", "carcinoma", "oncolog", "leukaemia", "leukemia", "lymphoma", "neoplasm", "chemotherapy", "radiotherapy", "metast"],
-            "Mental Health & Neurology": ["mental", "depression", "anxiety", "psychi", "epilep", "seizure", "migraine", "headache", "neuro", "insomnia", "bipolar", "schizophren", "dementia", "parkinson", "neuropathy", "bell palsy", "vertigo", "dizziness"],
-            "ENT (Ear, Nose & Throat)": ["ear ", "nose ", "throat", "otitis", "hearing", "vertigo", "nasal polyp", "deviated septum", "mastoid", "labyrinthitis", "meniere", "tinnitus", "deafness"],
-            "Endocrine & Hormonal": ["endocrine", "hormone", "adrenal", "pituitary", "cushing", "addison", "polycystic", "pcos", "hormonal"],
-            "Allergies & Immunology": ["allergy", "allergic", "anaphylaxis", "urticaria", "angioedema", "hay fever", "autoimmune", "lupus", "immune"],
-        }
 
-        def classify_diagnosis(desc):
-            if not desc or str(desc).strip() == "":
-                return "Other / Unclassified"
-            desc_lower = str(desc).lower()
-            for category, keywords in disease_categories.items():
-                for kw in keywords:
-                    if kw in desc_lower:
-                        return category
+    # ICD-10 prefix → disease category mapping (covers A00-Z99)
+    ICD_CATEGORY_MAP = {
+        # A00-A09: Intestinal infectious diseases
+        "A0": "Gastrointestinal & Liver",
+        # A15-A19: Tuberculosis
+        "A15": "Lower Respiratory & Chest", "A16": "Lower Respiratory & Chest", "A17": "Lower Respiratory & Chest", "A18": "Lower Respiratory & Chest", "A19": "Lower Respiratory & Chest",
+        # A20-A49: Other bacterial diseases (includes typhoid A01, sepsis A40-A41)
+        "A01": "Infections & Parasitic", "A02": "Gastrointestinal & Liver",
+        "A30": "Infections & Parasitic", "A31": "Infections & Parasitic",
+        "A38": "Infections & Parasitic", "A39": "Infections & Parasitic",
+        "A40": "Infections & Sepsis", "A41": "Infections & Sepsis",
+        # B00-B09: Viral infections (herpes etc)
+        "B00": "Dermatology & Skin", "B01": "Infections & Parasitic", "B02": "Dermatology & Skin",
+        # B15-B19: Viral hepatitis
+        "B15": "Gastrointestinal & Liver", "B16": "Gastrointestinal & Liver", "B17": "Gastrointestinal & Liver", "B18": "Gastrointestinal & Liver", "B19": "Gastrointestinal & Liver",
+        # B20-B24: HIV
+        "B20": "Infections & Parasitic", "B21": "Infections & Parasitic", "B22": "Infections & Parasitic", "B23": "Infections & Parasitic", "B24": "Infections & Parasitic",
+        # B25-B34: Other viral diseases
+        "B25": "Infections & Parasitic", "B26": "Infections & Parasitic", "B27": "Infections & Parasitic",
+        "B34": "Infections & Parasitic", "B35": "Dermatology & Skin", "B36": "Dermatology & Skin", "B37": "Infections & Parasitic",
+        # B50-B54: Malaria
+        "B50": "Malaria", "B51": "Malaria", "B52": "Malaria", "B53": "Malaria", "B54": "Malaria",
+        # B65-B83: Helminthiases / parasites
+        "B6": "Infections & Parasitic", "B7": "Infections & Parasitic", "B8": "Infections & Parasitic",
+        # C00-C97: Neoplasms (cancer)
+        "C": "Oncology & Cancer",
+        # D00-D48: Benign neoplasms / blood disorders
+        "D5": "Anaemia & Blood Disorders", "D6": "Anaemia & Blood Disorders", "D7": "Anaemia & Blood Disorders",
+        # E00-E07: Thyroid
+        "E0": "Diabetes & Metabolic",
+        # E08-E13: Diabetes
+        "E08": "Diabetes & Metabolic", "E09": "Diabetes & Metabolic", "E10": "Diabetes & Metabolic", "E11": "Diabetes & Metabolic", "E12": "Diabetes & Metabolic", "E13": "Diabetes & Metabolic",
+        # E65-E68: Obesity
+        "E65": "Diabetes & Metabolic", "E66": "Diabetes & Metabolic",
+        # E70-E88: Metabolic disorders (lipids, gout etc)
+        "E7": "Diabetes & Metabolic", "E8": "Diabetes & Metabolic",
+        # F00-F99: Mental and behavioural disorders
+        "F": "Mental Health & Neurology",
+        # G00-G99: Nervous system
+        "G": "Mental Health & Neurology",
+        # H00-H59: Eye and adnexa
+        "H0": "Eye & Ophthalmology", "H1": "Eye & Ophthalmology", "H2": "Eye & Ophthalmology", "H3": "Eye & Ophthalmology", "H4": "Eye & Ophthalmology", "H5": "Eye & Ophthalmology",
+        # H60-H95: Ear and mastoid
+        "H6": "ENT (Ear, Nose & Throat)", "H7": "ENT (Ear, Nose & Throat)", "H8": "ENT (Ear, Nose & Throat)", "H9": "ENT (Ear, Nose & Throat)",
+        # I00-I99: Circulatory system
+        "I": "Cardiovascular & Hypertension",
+        # J00-J06: Acute upper respiratory infections
+        "J00": "Primary Care & URTI", "J01": "Primary Care & URTI", "J02": "Primary Care & URTI", "J03": "Primary Care & URTI", "J04": "Primary Care & URTI", "J05": "Primary Care & URTI", "J06": "Primary Care & URTI",
+        # J09-J18: Influenza and pneumonia
+        "J09": "Lower Respiratory & Chest", "J10": "Lower Respiratory & Chest", "J11": "Lower Respiratory & Chest", "J12": "Lower Respiratory & Chest", "J13": "Lower Respiratory & Chest", "J14": "Lower Respiratory & Chest", "J15": "Lower Respiratory & Chest", "J16": "Lower Respiratory & Chest", "J17": "Lower Respiratory & Chest", "J18": "Lower Respiratory & Chest",
+        # J20-J22: Lower respiratory
+        "J20": "Lower Respiratory & Chest", "J21": "Lower Respiratory & Chest", "J22": "Lower Respiratory & Chest",
+        # J30-J39: Upper respiratory (chronic)
+        "J3": "ENT (Ear, Nose & Throat)",
+        # J40-J47: Chronic lower respiratory (asthma, COPD)
+        "J4": "Lower Respiratory & Chest",
+        # K00-K14: Oral cavity / dental
+        "K0": "Dental & Oral", "K1": "Dental & Oral",
+        # K20-K93: Digestive system
+        "K2": "Gastrointestinal & Liver", "K3": "Gastrointestinal & Liver", "K4": "Gastrointestinal & Liver", "K5": "Gastrointestinal & Liver", "K6": "Gastrointestinal & Liver", "K7": "Gastrointestinal & Liver", "K8": "Gastrointestinal & Liver", "K9": "Gastrointestinal & Liver",
+        # L00-L99: Skin
+        "L": "Dermatology & Skin",
+        # M00-M99: Musculoskeletal
+        "M": "Orthopaedic & Musculoskeletal",
+        # N00-N29: Kidney / urinary
+        "N0": "Genitourinary & Renal", "N1": "Genitourinary & Renal", "N2": "Genitourinary & Renal", "N3": "Genitourinary & Renal",
+        # N40-N99: Reproductive / gynaecology
+        "N4": "Genitourinary & Renal", "N5": "Genitourinary & Renal", "N6": "Genitourinary & Renal", "N7": "Genitourinary & Renal", "N8": "Genitourinary & Renal", "N9": "Genitourinary & Renal",
+        # O00-O99: Pregnancy / maternity
+        "O": "Obstetric & Maternity",
+        # P00-P96: Perinatal
+        "P": "Obstetric & Maternity",
+        # Q00-Q99: Congenital
+        "Q": "Obstetric & Maternity",
+        # R00-R99: Symptoms (pain, fever, cough etc)
+        "R5": "Primary Care & URTI",  # R50=fever, R51=headache, R52=pain
+        "R0": "Primary Care & URTI",  # R00-R09 circulatory/respiratory symptoms
+        "R1": "Gastrointestinal & Liver",  # R10-R19 digestive symptoms
+        "R": "Primary Care & URTI",  # Other symptoms default to primary care
+        # S00-T98: Injury / trauma
+        "S": "Orthopaedic & Musculoskeletal",
+        "T": "Orthopaedic & Musculoskeletal",
+        # V00-Y98: External causes
+        "Y93": "Primary Care & URTI",  # Activity codes (gym etc)
+        "Y": "Primary Care & URTI",
+        # Z00-Z99: Health encounters
+        "Z00": "Primary Care & URTI",  # General examination
+        "Z01": "Primary Care & URTI",  # Other special examinations
+        "Z10": "Primary Care & URTI",  # Routine health check
+        "Z23": "Immunization & Preventive",  # Encounter for immunization
+        "Z3": "Obstetric & Maternity",  # Pregnancy related encounters
+        "Z": "Primary Care & URTI",  # Other encounters
+    }
+
+    def classify_by_icd(code_str):
+        """Classify using ICD code prefix matching (longest prefix first)."""
+        if not code_str or str(code_str).strip() in ("", "nan"):
+            return None
+        code = str(code_str).strip().split(",")[0].strip().upper()
+        # Try longest prefix first (3 chars, 2 chars, 1 char)
+        for length in [3, 2, 1]:
+            prefix = code[:length]
+            if prefix in ICD_CATEGORY_MAP:
+                return ICD_CATEGORY_MAP[prefix]
+        return None
+
+    disease_categories_text = {
+        "Malaria": ["malaria", "plasmodium", "falciparum", "vivax"],
+        "Infections & Sepsis": ["sepsis", "septic", "septicaemia", "bacteraemia"],
+        "Primary Care & URTI": ["upper respiratory", "urti", "common cold", "coryza", "nasopharyngitis", "pharyngitis", "tonsillitis", "laryngitis", "rhinitis", "sinusitis", "catarrh", "sore throat", "routine", "check", "screening", "general examination", "encounter for", "medical care", "counselling", "observation", "pain, unspecified", "fever", "cough"],
+        "Lower Respiratory & Chest": ["pneumonia", "bronchitis", "asthma", "lower respiratory", "lrti", "pleurisy", "emphysema", "copd", "pulmonary", "lung", "chest infection", "tuberculosis"],
+        "Gastrointestinal & Liver": ["gastro", "gastritis", "ulcer", "diarrh", "dyspepsia", "colitis", "intestin", "abdominal", "stomach", "bowel", "hepatitis", "liver", "gerd", "reflux", "constipation", "appendic", "hernia", "pancreat", "gallstone", "peptic", "dysentery", "vomiting", "nausea", "jaundice"],
+        "Cardiovascular & Hypertension": ["hypertension", "hypertensive", "cardiac", "heart", "cardiovascular", "angina", "stroke", "cerebrovascular", "coronary", "arrhythmia", "blood pressure", "heart failure"],
+        "Diabetes & Metabolic": ["diabet", "glucose", "metabolic", "thyroid", "cholesterol", "lipid", "obesity", "gout", "insulin", "dyslipid"],
+        "Orthopaedic & Musculoskeletal": ["arthritis", "osteo", "muscul", "joint", "back pain", "spine", "spinal", "fracture", "rheumat", "lumbar", "cervical", "spondyl", "sciatica", "myalgia", "sprain", "strain", "knee", "shoulder"],
+        "Eye & Ophthalmology": ["eye", "ophthalm", "visual", "cataract", "glaucoma", "conjunctiv", "retina", "myopia", "vision", "presbyopia", "astigmat", "dry eye", "macular", "keratitis"],
+        "Dental & Oral": ["dental", "tooth", "teeth", "oral", "gingiv", "caries", "periodon", "extraction"],
+        "Obstetric & Maternity": ["pregnan", "matern", "obstetric", "antenatal", "postnatal", "delivery", "caesarean", "labour", "labor", "gestation", "neonatal", "hyperemesis"],
+        "Dermatology & Skin": ["skin", "dermat", "eczema", "rash", "wound", "abscess", "cellulitis", "fungal", "urticaria", "psoriasis", "acne", "lichen", "pruritus"],
+        "Genitourinary & Renal": ["urinary", "kidney", "renal", "bladder", "prostat", "uti", "nephri", "pelvic", "cystitis", "menstruat", "breast", "fibroid", "endometri"],
+        "Infections & Parasitic": ["typhoid", "infection", "hiv", "measles", "chicken pox", "viral", "bacterial", "parasit", "worm", "helminth"],
+        "Anaemia & Blood Disorders": ["anaemia", "anemia", "sickle cell", "haemoglobin", "hemoglobin", "blood disorder", "platelet"],
+        "Oncology & Cancer": ["cancer", "tumour", "tumor", "malignan", "carcinoma", "leukaemia", "leukemia", "lymphoma", "neoplasm"],
+        "Mental Health & Neurology": ["mental", "depression", "anxiety", "epilep", "seizure", "migraine", "headache", "neuro", "insomnia"],
+        "ENT (Ear, Nose & Throat)": ["otitis", "hearing", "tinnitus", "nasal polyp", "adenoid", "deviated septum"],
+        "Immunization & Preventive": ["immuniz", "immunis", "vaccin", "encounter for immunization"],
+        "Allergies & Immunology": ["allergy", "allergic", "anaphylaxis", "angioedema", "autoimmune", "lupus"],
+    }
+
+    def classify_by_text(desc):
+        if not desc or str(desc).strip() in ("", "nan"):
+            return None
+        dl = str(desc).lower()
+        for cat, kws in disease_categories_text.items():
+            for kw in kws:
+                if kw in dl:
+                    return cat
+        return None
+
+    # Try to classify using both ICD codes and text descriptions
+    # Check which diagnosis columns exist
+    has_diag_desc = "Diagnosis_Description" in claims.columns
+    has_icd = any(c in claims.columns for c in ["Otherdiagnosis", "Diagnosis"])
+    icd_col = "Otherdiagnosis" if "Otherdiagnosis" in claims.columns else ("Diagnosis" if "Diagnosis" in claims.columns else None)
+
+    if has_diag_desc or has_icd:
+        def classify_row(row):
+            # 1. Try ICD code first (most reliable)
+            if icd_col and icd_col in row.index:
+                result = classify_by_icd(row.get(icd_col, ""))
+                if result:
+                    return result
+            # 2. Try text description
+            if has_diag_desc:
+                result = classify_by_text(row.get("Diagnosis_Description", ""))
+                if result:
+                    return result
             return "Other / Unclassified"
 
-        claims["Disease_Category"] = claims["Diagnosis_Description"].apply(classify_diagnosis)
+        claims["Disease_Category"] = claims.apply(classify_row, axis=1)
         disease_agg = claims.groupby("Disease_Category").agg(
             Paid=("Amount_Paid", "sum"),
             Claims=("Claim_Number", "nunique") if "Claim_Number" in claims.columns else ("Amount_Paid", "count"),
